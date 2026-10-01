@@ -29,8 +29,8 @@ dependency and is bundled into the app.
 ## Install from a fresh clone
 
 ```sh
-git clone https://github.com/Mihirokte/prep-desktop.git
-cd prep-desktop
+git clone https://github.com/Mihirokte/prep.git
+cd prep
 ./scripts/setup.sh
 ```
 
