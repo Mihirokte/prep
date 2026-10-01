@@ -1,0 +1,17 @@
+# dependencies and caches
+node_modules/
+*.tsbuildinfo
+
+# build output
+dist/
+out/
+
+# the Pyodide runtime is copied here from node_modules at build time
+src/renderer/public/pyodide/
+
+# local verification runs (screenshots, report.json with machine paths)
+verify-report/
+
+# OS and editor noise
+.DS_Store
+*.log

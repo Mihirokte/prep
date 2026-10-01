@@ -1,0 +1,305 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Declare sources explicitly so the build never depends on Tailwind's
+   automatic detection root. */
+@source './**/*.{ts,tsx}';
+@source './index.html';
+
+@custom-variant dark (&:is(.dark *));
+
+/* ============================================================================
+   Prep — a Mac study desk.
+   Three layered surfaces (sidebar, content, panel), one warm accent, hairline
+   rules, small radii. Dark only: this is read at a desk in the evening.
+   Every ratio below was computed, not eyeballed: body text ≥ 4.5:1 on every
+   surface it sits on, control borders ≥ 3:1.
+   ========================================================================== */
+
+:root,
+.dark {
+  --radius: 0.5rem;
+
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  /* surfaces, darkest to lightest */
+  --sidebar: oklch(0.175 0.005 55); /* #12100e */
+  --background: oklch(0.215 0.006 55); /* #1c1917 */
+  --card: oklch(0.255 0.006 55); /* #252220 raised panel */
+  --popover: oklch(0.27 0.007 55); /* #292623 */
+  --muted: oklch(0.29 0.007 55); /* #2e2a28 hover fill */
+  --secondary: var(--muted);
+  --accent: var(--muted);
+
+  /* ink */
+  --foreground: oklch(0.96 0.004 80); /* 15.6:1 */
+  --muted-foreground: oklch(0.73 0.012 65); /* 7.3:1 bg, 6.6:1 panel */
+  --faint: oklch(0.645 0.012 65); /* 5.3:1 bg, 4.8:1 panel */
+  --card-foreground: var(--foreground);
+  --popover-foreground: var(--foreground);
+  --secondary-foreground: var(--foreground);
+  --muted-foreground-on-muted: var(--muted-foreground);
+  --accent-foreground: var(--foreground);
+
+  /* the one warm accent: progress, focus, the primary action */
+  --brand: oklch(0.82 0.13 80); /* #f0ba59, 9.9:1 as text */
+  --brand-foreground: oklch(0.22 0.03 80); /* 9.8:1 on brand */
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-foreground);
+
+  /* destructive is its own hue now — delete and error never share the accent */
+  --destructive: oklch(0.72 0.17 25); /* #fd736d, 6.6:1 */
+  --destructive-foreground: oklch(0.2 0.03 25);
+
+  /* rules */
+  --hairline: oklch(1 0 0 / 0.08); /* dividers, decorative */
+  --border: var(--hairline);
+  --input: oklch(0.545 0.008 55); /* control borders, 3.5:1 bg / 3.2:1 panel */
+  --ring: var(--brand);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sidebar: var(--sidebar);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-hairline: var(--hairline);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --shadow-panel: 0 1px 0 oklch(1 0 0 / 0.04) inset, 0 1px 2px oklch(0 0 0 / 0.3);
+  --shadow-float: 0 18px 50px -12px oklch(0 0 0 / 0.65), 0 2px 8px oklch(0 0 0 / 0.35);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/60;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground font-sans overflow-hidden;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: 'ss02', 'cv01';
+  }
+
+  /* browser surfaces carry the design too */
+  ::selection {
+    background: oklch(0.82 0.13 80 / 0.35);
+    color: var(--foreground);
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+    border-radius: var(--radius-sm);
+  }
+  * {
+    caret-color: var(--brand);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(1 0 0 / 0.14);
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(1 0 0 / 0.24);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  a {
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 1px;
+  }
+  button,
+  [role='button'],
+  summary {
+    cursor: default;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply text-balance;
+    letter-spacing: -0.015em;
+  }
+  h1 {
+    @apply text-[1.75rem] font-medium leading-[1.2];
+  }
+  h2 {
+    @apply text-[1.0625rem] font-medium leading-snug;
+  }
+  h3 {
+    @apply text-[0.9375rem] font-medium leading-snug;
+  }
+  p {
+    @apply text-pretty;
+  }
+  .num,
+  table,
+  kbd {
+    font-variant-numeric: tabular-nums;
+  }
+  kbd {
+    @apply font-sans;
+  }
+}
+
+@layer components {
+  /* A grouped list: hairline between rows, rounded hover fill. */
+  .list > * + * {
+    border-top: 1px solid var(--hairline);
+  }
+  .row {
+    @apply flex items-center gap-3 min-h-12 px-3 py-2.5 no-underline text-foreground rounded-md;
+    transition: background-color 160ms var(--ease-out-expo);
+  }
+  .row:hover {
+    background: var(--muted);
+  }
+  .list .row {
+    @apply rounded-none;
+  }
+  .list .row:first-child {
+    border-top-left-radius: var(--radius-md);
+    border-top-right-radius: var(--radius-md);
+  }
+  .list .row:last-child {
+    border-bottom-left-radius: var(--radius-md);
+    border-bottom-right-radius: var(--radius-md);
+  }
+
+  /* A raised panel: the one container shape in the app. Never nested. */
+  .panel {
+    @apply bg-card rounded-lg;
+    box-shadow: var(--shadow-panel);
+  }
+
+  /* Markdown blocks sit on the panel colour; inside a panel they invert. */
+  .panel .md-surface {
+    background: var(--background);
+    box-shadow: none;
+  }
+
+  /* Small label that sits beside a value, never above a heading. */
+  .label {
+    @apply text-[0.75rem] font-medium text-faint;
+  }
+
+  /* Reading column */
+  .prose-col {
+    max-width: 68ch;
+  }
+
+  /* Sidebar item */
+  .side-item {
+    @apply flex items-center gap-2.5 h-8 px-2.5 rounded-md text-[0.8125rem] no-underline text-muted-foreground;
+    transition: background-color 140ms var(--ease-out-expo), color 140ms var(--ease-out-expo);
+  }
+  .side-item:hover {
+    @apply text-foreground;
+    background: oklch(1 0 0 / 0.05);
+  }
+  .side-item[aria-current='page'] {
+    @apply text-foreground;
+    background: oklch(1 0 0 / 0.09);
+  }
+  .side-item svg {
+    @apply size-4 shrink-0 text-faint;
+  }
+  .side-item[aria-current='page'] svg {
+    @apply text-brand;
+  }
+
+  /* Toolbar icon button */
+  .tool {
+    @apply inline-flex items-center justify-center size-8 rounded-md text-muted-foreground;
+    transition: background-color 140ms var(--ease-out-expo), color 140ms var(--ease-out-expo);
+  }
+  .tool:hover {
+    @apply text-foreground bg-muted;
+  }
+  .tool:disabled {
+    @apply opacity-40 pointer-events-none;
+  }
+  .tool svg {
+    @apply size-4;
+  }
+
+  /* Inline keyboard hint */
+  .kbd {
+    @apply inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-sm text-[0.6875rem] text-faint;
+    background: oklch(1 0 0 / 0.06);
+    box-shadow: 0 1px 0 oklch(0 0 0 / 0.4);
+  }
+}
+
+/* ---- CodeMirror: the editor is a panel; the theme itself is in Editor.tsx ---- */
+.cm-editor {
+  height: 100%;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.cm-editor.cm-focused {
+  outline: none;
+}
+.cm-scroller {
+  line-height: 1.65;
+}
+
+/* macOS: the hidden-inset title bar strip drags the window, like any Mac app. */
+.app-drag {
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+.no-drag {
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
