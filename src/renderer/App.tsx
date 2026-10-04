@@ -109,13 +109,7 @@ export default function App() {
 
   return (
     <div className="flex h-full min-h-0">
-      <Sidebar
-        hash={hash}
-        open={sidebarOpen}
-        onSearch={() => setPaletteOpen(true)}
-        onAssistant={() => setAssistantOpen((v) => !v)}
-        assistantOpen={assistantOpen}
-      />
+      <Sidebar hash={hash} open={sidebarOpen} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Toolbar
@@ -127,8 +121,13 @@ export default function App() {
           theme={theme}
           onToggleTheme={toggleTheme}
         />
-        <div ref={contentRef} data-scroll className={cn('min-h-0 flex-1', wide ? 'overflow-hidden' : 'overflow-y-auto')}>
-          {wide ? <div className="h-full">{view}</div> : <div className="max-w-[1120px] px-8 pb-24 pt-2 sm:px-12">{view}</div>}
+        {/* relative: absolutely positioned descendants (screen-reader labels) are
+            contained and clipped here; otherwise they extend the window's own
+            scroll range and scrollIntoView shifts the whole shell. */}
+        <div ref={contentRef} data-scroll className={cn('relative min-h-0 flex-1', wide ? 'overflow-hidden' : 'overflow-y-auto')}>
+          {/* Balance: the column is centered in the pane, so the weight sits on
+              the pane's axis rather than piling up against the sidebar. */}
+          {wide ? <div className="h-full">{view}</div> : <div className="mx-auto w-full max-w-[1024px] px-8 pb-24 pt-2 sm:px-12">{view}</div>}
         </div>
       </div>
 

@@ -154,7 +154,14 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
     const send = (ev: MenuEvent) => (BrowserWindow.getFocusedWindow() ?? win)?.webContents.send('menu', ev)
     const history = () => (BrowserWindow.getFocusedWindow() ?? win)?.webContents.navigationHistory
     Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate({ send, history, dataDir })))
-    app.setAboutPanelOptions({ applicationName: 'Prep', applicationVersion: app.getVersion() })
+    // The type credit lives here rather than in the sidebar: CC BY 3.0 asks for
+    // a reasonable attribution, and the About panel is where a Mac app keeps it.
+    app.setAboutPanelOptions({
+      applicationName: 'Prep',
+      applicationVersion: app.getVersion(),
+      credits:
+        'Type: Pixelta; Pixel Operator by Jayvee Enaguas (CC0); Determination by anonymous-1438277 on FontStruct, licensed CC BY 3.0 (creativecommons.org/licenses/by/3.0).',
+    })
 
     const windowFile = path.join(userData, 'window.json')
     const createWindow = async () => {

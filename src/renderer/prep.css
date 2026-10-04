@@ -50,9 +50,12 @@
   --accent: #c8302f;
   --hair: rgba(42, 42, 48, 0.16);
   --hair-strong: rgba(42, 42, 48, 0.34);
+  /* control boundaries (inputs, text areas, chips, link underlines): 3.4:1 */
+  --edge: rgba(42, 42, 48, 0.56);
   --shadow: rgba(42, 42, 48, 0.1);
   --scrim: rgba(243, 238, 228, 0.45);
   --dot: rgba(42, 42, 48, 0.16);
+  /* current / selected fill, only ever under ink text (accent on it is 4.2:1) */
   --wash: rgba(42, 42, 48, 0.06);
   --ease: cubic-bezier(0.2, 0.9, 0.2, 1);
   --notch: polygon(
@@ -71,6 +74,7 @@
   --accent: #e8574e;
   --hair: rgba(236, 231, 220, 0.14);
   --hair-strong: rgba(236, 231, 220, 0.32);
+  --edge: rgba(236, 231, 220, 0.44);
   --shadow: rgba(0, 0, 0, 0.5);
   --scrim: rgba(18, 18, 22, 0.55);
   --dot: rgba(236, 231, 220, 0.14);
@@ -106,7 +110,7 @@
   --destructive-foreground: var(--paper);
   --border: var(--hair);
   --hairline: var(--hair);
-  --input: var(--hair-strong);
+  --input: var(--edge);
   --ring: var(--accent);
 }
 
@@ -138,6 +142,7 @@
   --color-border: var(--border);
   --color-hairline: var(--hairline);
   --color-hair-strong: var(--hair-strong);
+  --color-edge: var(--edge);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --font-sans: var(--font-sans);
@@ -240,13 +245,14 @@
     cursor: text;
   }
 
-  /* pixel scrollbar: ink thumb on a dotted track */
+  /* pixel scrollbar on a dotted track. The thumb is chrome, not content
+     (figure/ground), so it takes the control edge rather than full ink. */
   ::-webkit-scrollbar {
     width: 12px;
     height: 12px;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--ink);
+    background: var(--edge);
     border: 3px solid var(--paper);
   }
   ::-webkit-scrollbar-thumb:hover {
@@ -265,7 +271,7 @@
   a {
     color: inherit;
     text-decoration: underline;
-    text-decoration-color: var(--hair-strong);
+    text-decoration-color: var(--edge);
     text-decoration-thickness: 1px;
     text-underline-offset: 5px;
     transition: color 0.16s var(--ease), text-decoration-color 0.16s var(--ease);
@@ -285,17 +291,22 @@
     text-wrap: balance;
     letter-spacing: 0;
   }
+  /* Three steps only (scale principle): L 40 page title, M 24 section
+     heading, S 16 body / 12 labels (same 9px cap height). h3 and h4 are
+     sub-headings inside a section: body face, bold, set apart by space. */
   h1 {
     font-size: 40px;
   }
   h2 {
-    font-size: 28px;
-  }
-  h3 {
     font-size: 24px;
+    line-height: 1.15;
   }
+  h3,
   h4 {
-    font-size: 24px;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 28px;
+    font-weight: 700;
   }
   p {
     text-wrap: pretty;
@@ -395,11 +406,13 @@
     padding: 12px 16px;
     color: var(--ink);
     text-decoration: none;
-    transition: background-color 0.16s var(--ease), color 0.16s var(--ease);
+    transition: color 0.16s var(--ease), box-shadow 0.16s var(--ease);
   }
+  /* Hover: accent text and a 2px accent edge on plain paper (the edge binds the
+     row as one region). Accent never sits on --wash: day contrast drops to 4.2:1. */
   .row:hover {
     color: var(--accent);
-    background: var(--wash);
+    box-shadow: inset 2px 0 0 var(--accent);
   }
   .row:hover .bullet {
     background: var(--accent);
@@ -428,12 +441,14 @@
   }
   .side-item:hover {
     color: var(--accent);
-    background: var(--wash);
   }
   .side-item[aria-current='page'] {
     color: var(--ink);
     background: var(--wash);
     box-shadow: inset 2px 0 0 var(--ink);
+  }
+  .side-item[aria-current='page']:hover {
+    color: var(--ink);
   }
   .tool {
     display: inline-flex;
@@ -451,13 +466,13 @@
     white-space: nowrap;
     color: var(--ink-2);
     text-decoration: none;
-    transition: color 0.16s var(--ease), background-color 0.16s var(--ease);
+    transition: color 0.16s var(--ease);
   }
   .tool:hover {
     color: var(--accent);
-    background: var(--wash);
   }
-  .tool:disabled {
+  .tool:disabled,
+  .tool[aria-disabled='true'] {
     opacity: 0.4;
     pointer-events: none;
   }
@@ -477,16 +492,16 @@
     font-size: 12px;
     letter-spacing: 0.08em;
     color: var(--ink-2);
-    border: 1px solid var(--hair-strong);
+    border: 1px solid var(--edge);
   }
 
-  /* chips: notched hairline tags for topics and patterns */
+  /* chips: notched tags for topics and patterns; the edge is a control boundary */
   .chip {
     display: inline-flex;
     align-items: center;
     gap: 8px;
     height: 28px;
-    padding: 0 10px;
+    padding: 0 12px;
     font-family: var(--font-label);
     font-size: 12px;
     line-height: 20px;
@@ -494,7 +509,7 @@
     letter-spacing: 0.12em;
     color: var(--ink-2);
     text-decoration: none;
-    border: 1px solid var(--hair-strong);
+    border: 1px solid var(--edge);
     clip-path: var(--notch);
     background: transparent;
     transition: color 0.16s var(--ease), border-color 0.16s var(--ease), background-color 0.16s var(--ease);
@@ -509,6 +524,45 @@
     background: var(--ink);
     color: var(--paper);
     border-color: var(--ink);
+  }
+
+  /* Segmented control: mutually exclusive options share one framed region
+     (common region), split by hairlines; the chosen one is ink-filled. */
+  .seg {
+    display: inline-flex;
+    border: 1px solid var(--edge);
+    clip-path: var(--notch);
+  }
+  .seg > button {
+    height: 32px;
+    padding: 0 12px;
+    font-family: var(--font-label);
+    font-size: 12px;
+    line-height: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    white-space: nowrap;
+    color: var(--ink-2);
+    transition: color 0.16s var(--ease), background-color 0.16s var(--ease);
+  }
+  .seg > button + button {
+    border-left: 1px solid var(--edge);
+  }
+  .seg > button:hover {
+    color: var(--accent);
+  }
+  .seg > button[aria-pressed='true'] {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  /* Hovering the chosen option: accent fill under paper text (5.3:1 night,
+     4.6:1 day), never accent text on an ink fill. */
+  .seg > button[aria-pressed='true']:hover,
+  .chip[aria-pressed='true']:hover,
+  .chip[data-on='true']:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--paper);
   }
 
   /* Modal grows out of the point that opened it */
@@ -662,12 +716,14 @@
   scroll-margin-top: 24px;
 }
 .md h3 {
-  margin-top: 36px;
+  margin-top: 32px;
   scroll-margin-top: 24px;
 }
-.md h2 + *,
-.md h3 + * {
+.md h2 + * {
   margin-top: 16px;
+}
+.md h3 + * {
+  margin-top: 8px;
 }
 .md ul,
 .md ol {
@@ -677,7 +733,7 @@
 .md li {
   position: relative;
   padding-left: 24px;
-  margin: 6px 0;
+  margin: 8px 0;
 }
 .md ul > li::before {
   content: '';
@@ -707,7 +763,7 @@
 }
 .md li > ul,
 .md li > ol {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 .md a {
   text-decoration-color: var(--hair-strong);
@@ -722,7 +778,7 @@
 .md :not(pre) > code {
   background: var(--wash);
   border: 1px solid var(--hair);
-  padding: 0 6px;
+  padding: 0 4px;
   white-space: nowrap;
 }
 .md pre {
@@ -792,6 +848,15 @@
 .md .diagram ol,
 .md .diagram ul {
   margin: 0;
+}
+/* The steps block numbers itself in its frames; the prose counter and indent
+   would number it twice. */
+.md ol.steps > li {
+  padding-left: 0;
+  margin: 0;
+}
+.md ol.steps > li::before {
+  content: none;
 }
 
 /* a step scrubber in the pixel style */

@@ -5,6 +5,7 @@ import { useAppDispatch, useAppSelector } from '../store'
 import { useModel } from '../model/context'
 import { Bar } from '../components/ui'
 import { Button } from '../ui/button'
+import { pixelText } from '../components/pixelText'
 import { dueCards } from './Review'
 
 const DAY = 86400000
@@ -77,77 +78,107 @@ export default function Home() {
     return dsa?.drills.find((d) => (progress.problems[d.id]?.status ?? 'none') !== 'solved') ?? null
   }, [m.areas, progress.problems])
 
+  const study = m.homeAreas.filter((a) => a.kind === 'problems' || a.kind === 'study')
+  const reference = m.homeAreas.filter((a) => a.kind !== 'problems' && a.kind !== 'study')
+  const unit = (kind: string) => (kind === 'problems' ? 'solved' : 'read')
+
+  // Hierarchy: title (L), then what to do next (M, the focal point), then the
+  // progress ledger and reference lenses (S). Labels sit 8px above their list.
   return (
-    <div className="max-w-3xl pt-6">
-      <h1 className="mb-10">Overview</h1>
+    <div className="mx-auto max-w-3xl pt-10">
+      <h1>Overview</h1>
 
-      <p className="label mb-3">Continue</p>
-      <div className="list mb-12">
-        {nextLesson && (
-          <a className="row" href={`#/study/${nextLesson.course.key}/${nextLesson.lesson.id}`}>
-            <span className="bullet" />
-            <span className="min-w-0 flex-1 truncate">{nextLesson.lesson.title}</span>
-            <span className="label">{nextLesson.course.label}</span>
-          </a>
-        )}
-        {nextProblem && (
-          <a className="row" href={`#/drill/${nextProblem.id}`}>
-            <span className="bullet" />
-            <span className="min-w-0 flex-1 truncate">{nextProblem.title}</span>
-            <span className="label">DSA</span>
-          </a>
-        )}
-        <a className="row" href="#/review">
-          <span className={due > 0 ? 'live-dot' : 'bullet'} />
-          <span className="min-w-0 flex-1">Review</span>
-          <span className="label num">
-            {due} due, {fresh} new
-          </span>
-        </a>
-      </div>
-
-      <nav className="list" aria-label="Areas">
-        {m.homeAreas.map((a) => {
-          const s = stat(a.key, a.kind)
-          const seq = sequenceNumber.get(a.key)
-          return (
-            <a
-              key={a.key}
-              href={a.href}
-              className="row group grid !min-h-[76px] grid-cols-[2.5rem_minmax(0,1fr)_auto] gap-x-4 gap-y-2 py-4 no-underline"
-            >
-              <span className="label num" aria-hidden="true">
-                {seq ? String(seq).padStart(2, '0') : ''}
-              </span>
-              <h2 className="text-[24px]">{a.label}</h2>
-              <span className="num text-ink-2">{s.count}</span>
-              {s.pct >= 0 && <Bar value={s.pct} label={`${a.label} progress`} className="col-span-2 col-start-2 !h-[6px]" />}
+      <section aria-label="Continue" className="mt-10">
+        <p className="label mb-2">Continue</p>
+        <div className="list">
+          {nextLesson && (
+            <a className="row !min-h-[72px] py-4" href={`#/study/${nextLesson.course.key}/${nextLesson.lesson.id}`}>
+              <span className="bullet" />
+              <span className="min-w-0 flex-1 truncate font-display text-[24px] leading-[1.15]">{pixelText(nextLesson.lesson.title)}</span>
+              <span className="label">{nextLesson.course.label}</span>
             </a>
-          )
-        })}
-      </nav>
+          )}
+          {nextProblem && (
+            <a className="row !min-h-[72px] py-4" href={`#/drill/${nextProblem.id}`}>
+              <span className="bullet" />
+              <span className="min-w-0 flex-1 truncate font-display text-[24px] leading-[1.15]">{pixelText(nextProblem.title)}</span>
+              <span className="label">DSA</span>
+            </a>
+          )}
+          <a className="row !min-h-[72px] py-4" href="#/review">
+            <span className={due > 0 ? 'live-dot' : 'bullet'} />
+            <span className="min-w-0 flex-1 font-display text-[24px] leading-[1.15]">Review</span>
+            <span className="label num">
+              {due} due, {fresh} new
+            </span>
+          </a>
+        </div>
+      </section>
 
-      <p className="label mb-3 mt-14">Activity, last 14 weeks</p>
-      <div
-        className="grid grid-flow-col gap-[3px]"
-        style={{ gridTemplateRows: 'repeat(7, 12px)', gridAutoColumns: '12px' }}
-        role="img"
-        aria-label="Activity grid"
-      >
-        {activity.days.map((d) => (
-          <span
-            key={d.key}
-            title={d.n >= 0 ? `${d.key}: ${d.n}` : undefined}
-            className="border border-ink"
-            style={{
-              opacity: d.n < 0 ? 0 : d.n === 0 ? 0.18 : 1,
-              background: d.n > 2 ? 'var(--ink)' : d.n > 0 ? 'color-mix(in srgb, var(--ink) 45%, transparent)' : 'transparent',
-            }}
-          />
-        ))}
-      </div>
+      <section aria-label="Progress" className="mt-14">
+        <p className="label mb-2">Progress</p>
+        <nav className="list" aria-label="Areas">
+          {study.map((a) => {
+            const s = stat(a.key, a.kind)
+            const seq = sequenceNumber.get(a.key)
+            return (
+              <a key={a.key} href={a.href} className="row grid grid-cols-[24px_minmax(0,1fr)_minmax(0,200px)_136px] gap-x-4 no-underline">
+                <span className="label num" aria-hidden="true">
+                  {seq ? String(seq).padStart(2, '0') : ''}
+                </span>
+                <span className="min-w-0 truncate">{a.label}</span>
+                <Bar value={s.pct} label={`${a.label} progress`} className="!h-[6px]" />
+                <span className="label num whitespace-nowrap text-right">
+                  {s.count} {unit(a.kind)}
+                </span>
+              </a>
+            )
+          })}
+        </nav>
+      </section>
 
-      <div className="mt-14 flex flex-wrap gap-3">
+      {reference.length > 0 && (
+        <section aria-label="Reference" className="mt-14">
+          <p className="label mb-2">Reference</p>
+          <nav className="list" aria-label="Reference">
+            {reference.map((a) => {
+              const s = stat(a.key, a.kind)
+              return (
+                <a key={a.key} href={a.href} className="row grid grid-cols-[24px_minmax(0,1fr)_auto] gap-x-4 no-underline">
+                  <span className="bullet" />
+                  <span className="min-w-0 truncate">{a.label}</span>
+                  <span className="label num text-right">
+                    {s.count} {a.kind === 'patterns' ? 'patterns' : Number(s.count) === 1 ? 'company' : 'companies'}
+                  </span>
+                </a>
+              )
+            })}
+          </nav>
+        </section>
+      )}
+
+      <section aria-label="Activity" className="mt-14">
+        <p className="label mb-2">Activity, last 14 weeks</p>
+        <div
+          className="grid grid-flow-col gap-1"
+          style={{ gridTemplateRows: 'repeat(7, 12px)', gridAutoColumns: '12px' }}
+          role="img"
+          aria-label="Activity grid"
+        >
+          {activity.days.map((d) => (
+            <span
+              key={d.key}
+              title={d.n >= 0 ? `${d.key}: ${d.n}` : undefined}
+              className={d.n < 0 ? 'invisible' : d.n === 0 ? 'border border-hair-strong' : 'border border-ink'}
+              style={{
+                background: d.n > 2 ? 'var(--ink)' : d.n > 0 ? 'color-mix(in srgb, var(--ink) 45%, transparent)' : 'transparent',
+              }}
+            />
+          ))}
+        </div>
+      </section>
+
+      <div className="mt-14 flex flex-wrap gap-4 border-t border-hair pt-6">
         <Button variant="secondary" size="sm" onClick={() => exportProgress(progress)}>
           Export
         </Button>

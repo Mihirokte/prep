@@ -9,36 +9,32 @@ import { pixelText } from '../components/pixelText'
 import VizPlayer from '../viz/VizPlayer'
 import { sceneForPattern } from '../viz'
 
-/** Index: every pattern, grouped by family, one scannable line each. */
+/** Index: every pattern, grouped by family, one scannable line each. Every
+ *  pattern has a walk-through, so nothing per-row says so (it would carry no
+ *  information); the name leads in bold, the essence follows in ink-2. */
 export function PatternIndex() {
   const { patternFamilies } = useModel()
   return (
-    <div className="max-w-3xl pt-2">
-      <BackLink href="#/">Overview</BackLink>
+    <div className="mx-auto max-w-3xl pt-10">
       <h1>Patterns</h1>
 
       {patternFamilies.map((family) => (
         <section key={family.name} className="mt-12">
-          <div className="mb-3 flex items-baseline justify-between gap-4">
+          <div className="mb-4 flex items-baseline justify-between gap-4 px-4">
             <h2>{pixelText(family.name)}</h2>
-            <span className="label num">{family.patterns.length}</span>
+            <span className="label num">{family.patterns.length} patterns</span>
           </div>
 
           <div className="list">
             {family.patterns.map((pat) => (
-              <a key={pat.key} href={`#/pattern/${pat.key}`} className="row grid grid-cols-[minmax(0,1fr)_auto_2.5rem] items-start gap-4 py-4 no-underline">
+              <a key={pat.key} href={`#/pattern/${pat.key}`} className="row grid grid-cols-[minmax(0,1fr)_auto] items-start gap-6 py-4 no-underline">
                 <span className="min-w-0">
-                  <span className="block">{pixelText(pat.name)}</span>
+                  <span className="block font-bold">{pixelText(pat.name)}</span>
                   <span className="mt-1 block max-w-[62ch] text-ink-2">{pixelText(pat.essence)}</span>
                 </span>
-                {sceneForPattern(pat.key) ? (
-                  <span className="label mt-1" title="Has an animated walk-through">
-                    Demo
-                  </span>
-                ) : (
-                  <span />
-                )}
-                <span className="label num mt-1 text-right">{pat.problemIds.length}</span>
+                <span className="label num text-right">
+                  {pat.problemIds.length} {pat.problemIds.length === 1 ? 'problem' : 'problems'}
+                </span>
               </a>
             ))}
           </div>
@@ -114,18 +110,18 @@ export function PatternPage({ patternKey }: { patternKey: string }) {
   const scene = sceneForPattern(pat.key)
 
   return (
-    <div className="max-w-3xl pt-2">
+    <div className="mx-auto max-w-3xl pt-2">
       <BackLink href="#/patterns">Patterns</BackLink>
 
       <div className="flex flex-wrap items-center gap-4">
         <h1>{pixelText(pat.name)}</h1>
         {pat.canonical && <span className="chip">core 16</span>}
       </div>
-      <p className="mt-5 max-w-[62ch] text-[16px] leading-7">{pixelText(pat.essence)}</p>
+      <p className="mt-4 max-w-[62ch]">{pixelText(pat.essence)}</p>
 
       {scene && <VizPlayer key={scene.id} scene={scene} />}
 
-      <section className="mt-10">
+      <section className="mt-12">
         <h2 className="mb-4">Reach for it when</h2>
         <ul className="list">
           {pat.cues.map((cue) => (
@@ -197,9 +193,9 @@ export function PatternPage({ patternKey }: { patternKey: string }) {
       </Accordion>
 
       <section className="mt-14">
-        <div className="mb-3 flex items-baseline justify-between gap-4">
+        <div className="mb-4 flex items-baseline justify-between gap-4">
           <h2>Problems</h2>
-          <span className="label num">{pat.problemIds.length}</span>
+          <span className="label num">{pat.problemIds.length} mapped</span>
         </div>
         <Accordion type="multiple" className="border-y border-hair">
           {pat.problemIds.map((id) => (

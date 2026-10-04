@@ -28,17 +28,21 @@ function PatternChips({ keys }: { keys: string[] }) {
 export function CompanyIndex() {
   const { companies } = useModel()
   return (
-    <div className="max-w-3xl pt-2">
-      <BackLink href="#/">Overview</BackLink>
+    <div className="mx-auto max-w-3xl pt-10">
       <h1>Companies</h1>
-      <div className="list mt-8">
-        {companies.map((c) => (
-          <a key={c.key} href={`#/company/${c.key}`} className="row no-underline">
-            <span className="bullet" />
-            <span className="min-w-0 flex-1 truncate">{pixelText(c.name)}</span>
-            <span className="label num">{countQuestions(c)}</span>
-          </a>
-        ))}
+      <div className="list mt-10">
+        {companies.map((c) => {
+          const n = countQuestions(c)
+          return (
+            <a key={c.key} href={`#/company/${c.key}`} className="row no-underline">
+              <span className="bullet" />
+              <span className="min-w-0 flex-1 truncate">{pixelText(c.name)}</span>
+              <span className="label num">
+                {n} {n === 1 ? 'question' : 'questions'}
+              </span>
+            </a>
+          )
+        })}
       </div>
     </div>
   )
@@ -58,7 +62,7 @@ function QuestionEntry({ item, n }: { item: AskedQuestion; n: number }) {
             <AccordionItem value="a" className="border-b-0">
               <AccordionTrigger className="!w-auto !flex-none !justify-start !gap-3 !px-0 !py-2">Answer</AccordionTrigger>
               <AccordionContent className="!px-0 pt-1">
-                <p className="max-w-[70ch] text-ink-2">{pixelText(item.answer)}</p>
+                <p className="max-w-[70ch]">{pixelText(item.answer)}</p>
                 {item.related && item.related.length > 0 && (
                   <div className="mt-6">
                     <p className="label mb-2">Variants they could ask</p>
@@ -110,7 +114,7 @@ export function CompanyPage({ companyKey }: { companyKey: string }) {
   const variantCount = c.questions.reduce((n, g) => n + g.questions.reduce((m, q) => m + (q.related?.length ?? 0), 0), 0)
 
   return (
-    <div className="max-w-3xl pt-2">
+    <div className="mx-auto max-w-3xl pt-2">
       <BackLink href="#/companies">Companies</BackLink>
       <h1>{pixelText(c.name)}</h1>
       <p className="mt-4 max-w-[66ch] text-ink-2">{pixelText(c.descriptor)}</p>
@@ -141,7 +145,9 @@ export function CompanyPage({ companyKey }: { companyKey: string }) {
             <section key={g.id} className="mt-10 first:mt-2">
               <div className="mb-2 flex items-baseline justify-between gap-4">
                 <h2>{pixelText(g.round)}</h2>
-                <span className="label num">{g.questions.length}</span>
+                <span className="label num">
+                  {g.questions.length} {g.questions.length === 1 ? 'question' : 'questions'}
+                </span>
               </div>
               <ol className="list m-0 list-none p-0">
                 {g.questions.map((item, i) => (

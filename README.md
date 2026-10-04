@@ -149,6 +149,19 @@ npm run verify:app     # builds, then drives the real app in a throwaway data di
                        # ⌘K palette, assistant panel; screenshots → verify-report/
 ```
 
+`verify:app` also audits the rendered UI against the visual-design principles
+the design follows (Nielsen Norman Group, "5 Principles of Visual Design in
+UX"), on every route at night and every screen type by day:
+
+- **Scale:** text uses only the 12/16/24/40px steps, with at most one 40px title.
+- **Contrast:** every drawn text meets WCAG AA against its resolved background
+  (4.5:1, or 3:1 at 24px and up), and no text is faded with opacity.
+- **Shape:** no rounded corners, blurred shadows, blur filters or gradients.
+- **Balance:** page content is centered in its pane.
+
+A self-test plants one violation of each kind first, so a clean result is not
+vacuous. Hover states are outside the audit.
+
 Two opt-in extensions of `verify:app`:
 
 - `PREP_VERIFY_AGENT=1` runs ten real natural-language CRUD commands through

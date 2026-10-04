@@ -12,6 +12,8 @@ import { type AppHandles, startApp } from './app'
 // Self-contained by default: no network and no external tools are needed.
 //
 //  1. Every route renders (no "Not found", no renderer errors, no CSP blocks).
+//     Every route also passes the visual-design audit (AUDIT below) at night,
+//     and every screen type passes it by day.
 //  2. Screenshots of each screen type for visual review.
 //  3. The Pyodide validator, progress persistence across reload, the ⌘K palette,
 //     the Assistant panel.
@@ -74,6 +76,187 @@ interface PageState {
   notFound: boolean
   links: number
   buttons: number
+}
+
+/** The house type scale (design system, "Scale"): L 40, M 24, S 16 body and
+ *  12 labels (one visual step: both have a 9px cap height). */
+const TYPE_SCALE = [12, 16, 24, 40]
+
+/** Visual-design audit of the rendered page, run inside the renderer. Encodes
+ *  the NN/g principles the design system adopts as hard rules:
+ *   scale     every text size is on the scale; at most one 40px (L) title
+ *   contrast  every drawn text pair meets WCAG AA against its resolved
+ *             background (4.5:1, 3:1 at 24px+), and no text is faded with opacity
+ *   shape     no rounded corners, blurred shadows, blur filters or gradients
+ *   balance   the page's content is centered in its pane
+ *  Hover states are not covered (they need pointer input). */
+const AUDIT = `(() => {
+  const cv = document.createElement('canvas'); cv.width = cv.height = 1
+  const cx = cv.getContext('2d', { willReadFrequently: true })
+  const memo = new Map()
+  const rgba = (c) => {
+    if (!c || c === 'none' || c === 'transparent') return [0, 0, 0, 0]
+    if (memo.has(c)) return memo.get(c)
+    cx.clearRect(0, 0, 1, 1); cx.fillStyle = '#000'; cx.fillStyle = c; cx.fillRect(0, 0, 1, 1)
+    const d = cx.getImageData(0, 0, 1, 1).data
+    const v = [d[0], d[1], d[2], d[3] / 255]; memo.set(c, v); return v
+  }
+  const mix = (t, b) => [0, 1, 2].map((i) => t[i] * t[3] + b[i] * (1 - t[3])).concat(1)
+  const lin = (v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4 }
+  const lum = (c) => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2])
+  const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05) }
+  const style = new Map()
+  const cs = (el) => { let s = style.get(el); if (!s) { s = getComputedStyle(el); style.set(el, s) } return s }
+  const page = rgba(cs(document.body).backgroundColor)
+  const bgMemo = new Map(), opMemo = new Map()
+  const bgOf = (el) => {
+    if (!el || el.nodeType !== 1) return page
+    if (bgMemo.has(el)) return bgMemo.get(el)
+    const own = rgba(cs(el).backgroundColor)
+    const v = own[3] >= 0.999 ? own : own[3] > 0 ? mix(own, bgOf(el.parentElement)) : bgOf(el.parentElement)
+    bgMemo.set(el, v); return v
+  }
+  const opOf = (el) => {
+    if (!el || el.nodeType !== 1) return 1
+    if (opMemo.has(el)) return opMemo.get(el)
+    const v = parseFloat(cs(el).opacity) * opOf(el.parentElement)
+    opMemo.set(el, v); return v
+  }
+  // SVG text sits on the shape drawn before it in the same group, if any.
+  const svgBg = (el) => {
+    const base = bgOf(el.closest('svg')?.parentElement)
+    let box; try { box = el.getBBox() } catch { return base }
+    const cxp = box.x + box.width / 2, cyp = box.y + box.height / 2
+    for (let n = el.previousElementSibling; n; n = n.previousElementSibling) {
+      if (n.tagName !== 'rect') continue
+      let r; try { r = n.getBBox() } catch { continue }
+      if (cxp >= r.x && cxp <= r.x + r.width && cyp >= r.y && cyp <= r.y + r.height) {
+        const f = rgba(cs(n).fill)
+        if (f[3] > 0) return f[3] >= 0.999 ? f : mix(f, base)
+      }
+    }
+    return base
+  }
+  const where = (el) => el.tagName.toLowerCase() + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\\s+/).slice(0, 3).join('.') : '')
+  const sizes = new Set(), off = [], low = [], faded = [], shape = []
+  let large = 0
+  const pane = document.querySelector('[data-scroll]')
+  const pr = pane ? pane.getBoundingClientRect() : null
+  let minL = Infinity, maxR = -Infinity
+  for (const el of document.querySelectorAll('body *')) {
+    const s = cs(el)
+    if (s.display === 'none') continue
+    // shape: radius, soft shadows, blur, gradients
+    if (!el.closest('.cm-editor')) {
+      if ([s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius].some((r) => parseFloat(r) > 0)) shape.push('radius ' + where(el))
+      for (const sh of s.boxShadow === 'none' ? [] : s.boxShadow.split(/,(?![^(]*\\))/)) {
+        const px = (sh.replace(/rgba?\\([^)]*\\)|color\\([^)]*\\)/g, '').match(/-?[\\d.]+px/g) || []).map(parseFloat)
+        if ((px[2] || 0) > 0) shape.push('soft shadow ' + where(el))
+      }
+      if (/blur\\(/.test(s.filter) || (s.backdropFilter && s.backdropFilter !== 'none')) shape.push('blur ' + where(el))
+      const ds = /drop-shadow\\(([^)]*\\)[^)]*|[^)]*)\\)/.exec(s.filter)
+      if (ds) { const px = (ds[1].replace(/rgba?\\([^)]*\\)/g, '').match(/-?[\\d.]+px/g) || []).map(parseFloat); if ((px[2] || 0) > 0) shape.push('soft drop-shadow ' + where(el)) }
+      if (/gradient\\(/.test(s.backgroundImage)) shape.push('gradient ' + where(el))
+    }
+    if (/^(STYLE|SCRIPT|TITLE|OPTION|TEXTAREA|NOSCRIPT)$/.test(el.tagName)) continue
+    if (![...el.childNodes].some((n) => n.nodeType === 3 && /\\S/.test(n.nodeValue))) continue
+    if (s.visibility === 'hidden') continue
+    const r = el.getBoundingClientRect()
+    if (r.width < 2 || r.height < 2) continue
+    const op = opOf(el)
+    if (op <= 0.001) continue
+    const size = Math.round(parseFloat(s.fontSize))
+    const text = (el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 40)
+    sizes.add(size)
+    if (!${JSON.stringify(TYPE_SCALE)}.includes(size)) off.push(size + 'px ' + where(el) + ' «' + text + '»')
+    if (size === 40 && Math.round(parseFloat(cs(el.parentElement).fontSize)) !== 40) large++
+    if (pane && pane.contains(el)) {
+      // Only what is visible counts: clip to every scroller between the text and the pane.
+      let L = r.left, R = r.right
+      for (let n = el.parentElement; n && n !== pane; n = n.parentElement) {
+        if (/auto|scroll|hidden|clip/.test(cs(n).overflowX)) { const b = n.getBoundingClientRect(); L = Math.max(L, b.left); R = Math.min(R, b.right) }
+      }
+      if (R > L) { minL = Math.min(minL, L); maxR = Math.max(maxR, R) }
+    }
+    if (el.closest(':disabled, [aria-disabled="true"], [data-disabled]')) continue
+    if (op < 0.999) faded.push(Math.round(op * 100) + '% ' + where(el) + ' «' + text + '»')
+    const svg = el instanceof SVGElement
+    const fg = rgba(svg ? s.fill : s.color)
+    if (fg[3] === 0) continue
+    const bg = svg ? svgBg(el) : bgOf(el)
+    const c = ratio(mix([fg[0], fg[1], fg[2], fg[3] * op], bg), bg)
+    const need = size >= 24 ? 3 : 4.5
+    if (c < need) low.push(c.toFixed(2) + ':1 (needs ' + need + ') ' + size + 'px ' + where(el) + ' «' + text + '»')
+  }
+  let balance = null
+  if (pr && Number.isFinite(minL)) {
+    const left = Math.round(minL - pr.left), right = Math.round(pr.left + pane.clientWidth - maxR)
+    balance = { left, right, ok: Math.abs(left - right) <= Math.max(64, pane.clientWidth * 0.12) }
+  }
+  return { sizes: [...sizes].sort((a, b) => a - b), large, off: off.slice(0, 5), low: low.slice(0, 5), faded: faded.slice(0, 5), shape: [...new Set(shape)].slice(0, 5), balance }
+})()`
+
+interface Audit {
+  sizes: number[]
+  large: number
+  off: string[]
+  low: string[]
+  faded: string[]
+  shape: string[]
+  balance: { left: number; right: number; ok: boolean } | null
+}
+
+type Principle = 'scale' | 'contrast' | 'shape' | 'balance'
+
+/** Collects audit failures per principle across routes, then reports one check each. */
+class DesignAudit {
+  private fails: Record<Principle, string[]> = { scale: [], contrast: [], shape: [], balance: [] }
+  private routes = 0
+  private theme: string
+  constructor(theme: string) {
+    this.theme = theme
+  }
+  async run(win: BrowserWindow, route: string) {
+    const a = await js<Audit>(win, AUDIT)
+    this.routes++
+    if (a.off.length || a.large > 1) this.fails.scale.push(`${route}: ${a.large > 1 ? `${a.large} L titles; ` : ''}${a.off.join('; ')}`)
+    if (a.low.length || a.faded.length) this.fails.contrast.push(`${route}: ${[...a.low, ...a.faded.map((f) => `faded ${f}`)].join('; ')}`)
+    if (a.shape.length) this.fails.shape.push(`${route}: ${a.shape.join('; ')}`)
+    if (a.balance && !a.balance.ok) this.fails.balance.push(`${route}: left ${a.balance.left}px vs right ${a.balance.right}px`)
+  }
+  report() {
+    const n = this.routes
+    const line = (k: Principle, what: string) => {
+      const f = this.fails[k]
+      check(`design (${this.theme}) — ${what}`, f.length === 0, f.length ? `${f.length}/${n} routes; ${f.slice(0, 3).join(' | ')}` : `${n} routes`)
+    }
+    line('scale', `type on the 12/16/24/40 scale, at most one 40px title`)
+    line('contrast', 'every text at WCAG AA against its background, no faded text')
+    line('shape', 'no radius, soft shadow, blur or gradient')
+    line('balance', 'page content centered in its pane')
+    extra[`design_${this.theme}`] = this.fails
+  }
+}
+
+/** Plant one violation of each kind on a live page and require the audit to
+ *  report every one, so a clean audit result means something. */
+async function auditSelfTest(win: BrowserWindow) {
+  await visit(win, '#/')
+  await js(
+    win,
+    `(() => { const host = document.querySelector('[data-scroll] > div'); const d = document.createElement('div'); d.id = 'audit-probe';
+      d.innerHTML = '<p style="color:#3a3a40">probe low</p><p style="opacity:.4">probe faded</p><p style="font-size:28px">probe size</p><p style="border-radius:8px;box-shadow:0 4px 12px #000">probe shape</p>';
+      host.prepend(d) })()`,
+  )
+  const a = await js<Audit>(win, AUDIT)
+  await js(win, `document.getElementById('audit-probe')?.remove()`)
+  const caught = {
+    contrast: a.low.some((x) => x.includes('probe low')),
+    faded: a.faded.some((x) => x.includes('probe faded')),
+    scale: a.off.some((x) => x.includes('probe size')),
+    shape: a.shape.some((x) => x.startsWith('radius')) && a.shape.some((x) => x.startsWith('soft shadow')),
+  }
+  check('design audit catches planted violations (contrast, faded text, off-scale size, radius, soft shadow)', Object.values(caught).every(Boolean), JSON.stringify(caught))
 }
 
 function routesOf(c: Content): string[] {
@@ -153,9 +336,14 @@ function firstDiff(a: string, b: string): string {
 
 async function sweep(win: BrowserWindow, routes: string[]) {
   const app: Record<string, PageState> = {}
-  for (const r of routes) app[r] = await visit(win, r)
+  const audit = new DesignAudit('night')
+  for (const r of routes) {
+    app[r] = await visit(win, r)
+    await audit.run(win, r)
+  }
   const notFound = routes.filter((r) => app[r].notFound)
   check(`every route renders (${routes.length} routes)`, notFound.length === 0, notFound.slice(0, 5).join(', '))
+  audit.report()
 
   if (!WEBSITE) {
     console.log('NOTE  PREP_VERIFY_WEBSITE not set — skipping the route-by-route comparison with the web portal')
@@ -247,13 +435,25 @@ async function screens(win: BrowserWindow, c: Content) {
     await js(win, `document.querySelector('[data-scroll] [aria-label="Self-check"]')?.scrollIntoView({ block: 'center' })`)
     await sleep(900)
     await shot(win, '21-lesson-recall')
+    // The shell (toolbar, sidebar) must stay put: only the content pane scrolls.
+    const shifted = await js<string[]>(
+      win,
+      `[document.scrollingElement, ...document.querySelectorAll('body, #root, #root *')].filter((el) => el && !el.closest('[data-scroll]') && (el.scrollTop || el.scrollLeft)).map((el) => (el.id ? '#' + el.id : el.tagName.toLowerCase()) + ' ' + el.scrollTop)`,
+    )
+    check('scrolling content into view never moves the app shell', shifted.length === 0, shifted.join(', '))
   }
-  // Day theme
+  // Day theme: the two reference shots, then the same audit over every screen type
   await js(win, `localStorage.setItem('prep.theme', 'day'); document.documentElement.classList.remove('dark')`)
   await visit(win, '#/dsa')
   await shot(win, '22-dsa-day')
   await visit(win, '#/drill/dsa-001')
   await shot(win, '23-drill-day')
+  const day = new DesignAudit('day')
+  for (const [, route] of plan) {
+    await visit(win, route)
+    await day.run(win, route)
+  }
+  day.report()
   await js(win, `localStorage.setItem('prep.theme', 'night'); document.documentElement.classList.add('dark')`)
   // An expanded answer on the company page
   await visit(win, '#/company/goodscore')
@@ -559,6 +759,7 @@ async function main() {
   const seed = JSON.parse(readFileSync(path.join(__dirname, '..', '..', 'seed', 'content.json'), 'utf8')) as Content
   const routes = routesOf(h.store.get())
   try {
+    await auditSelfTest(win)
     await sweep(win, routes)
     await screens(win, h.store.get())
     await extraShots(win)

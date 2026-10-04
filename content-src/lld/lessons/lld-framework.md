@@ -6,18 +6,12 @@ minutes: 5
 ---
 A time-boxed structure that prevents both classic failures — diving into code before the interviewer follows your structure, and over-polishing the setup until time runs out.
 
-1. **Requirements (~5 min)** — ask across four themes: primary capabilities, rules and completion conditions, error handling, and scope boundaries (what's explicitly out — UI, persistence, networking, auth). Write an explicit requirements + out-of-scope list.
-2. **Entities & relationships (~3 min)** — pull the nouns out of the requirements into entities; sketch ownership with boxes and arrows. No formal UML — engineers design directly in code now, and interviewers rarely expect UML.
-3. **Class design (~10–15 min)** — per entity, derive **state** and **behavior** straight from the requirements. Keep rules with the entity that owns the data ("Tell, Don't Ask").
-4. **Implementation (~10 min)** — pseudocode the one or two most interesting methods: happy path first, then edge cases. Trace one concrete scenario end to end.
-5. **Extensibility (~5 min)** — the interviewer proposes a twist; show which seam absorbs it without a rewrite.
-
 ```steps
-Requirements | Ask capabilities, rules, errors, and scope boundaries, then write an explicit in-scope and out-of-scope list (~5 min)
-Entities | Pull the nouns into entities and sketch ownership with boxes and arrows, no formal UML (~3 min)
-Class design | Per entity derive state and behavior from the requirements, keeping rules with the entity that owns the data (~10-15 min)
-Implementation | Pseudocode the one or two most interesting methods, happy path first then edge cases, and trace one scenario (~10 min)
-Extensibility | Take the interviewer's twist and show which seam absorbs it without a rewrite (~5 min)
+Requirements (~5 min) | Ask across four themes: primary capabilities, rules and completion conditions, error handling, and scope boundaries (what is explicitly out: UI, persistence, networking, auth). Write an explicit requirements and out-of-scope list.
+Entities and relationships (~3 min) | Pull the nouns out of the requirements into entities and sketch ownership with boxes and arrows. No formal UML: engineers design directly in code now, and interviewers rarely expect it.
+Class design (~10-15 min) | Per entity, derive state and behavior straight from the requirements. Keep rules with the entity that owns the data ("Tell, Don't Ask").
+Implementation (~10 min) | Pseudocode the one or two most interesting methods: happy path first, then edge cases. Trace one concrete scenario end to end.
+Extensibility (~5 min) | The interviewer proposes a twist; show which seam absorbs it without a rewrite.
 ```
 
 Compressed: **scope it → ground it in entities → commit to a class structure → go deep on the interesting method without breaking down.** Write class outlines as `state` + `behavior` lists, not UML diagrams.

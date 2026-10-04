@@ -129,8 +129,8 @@ function ApproachTab({ problem, patterns }: { problem: Problem; patterns: Patter
     <div className="flex flex-col gap-10 py-6">
       {p ? (
         <section>
-          <p className="label mb-2">Pattern</p>
-          <h3 className="mb-3">
+          <p className="label mb-1">Pattern</p>
+          <h3 className="mb-2">
             <a href={`#/pattern/${p.key}`} className="no-underline hover:text-brand">
               {pixelText(p.name)}
             </a>
@@ -143,7 +143,6 @@ function ApproachTab({ problem, patterns }: { problem: Problem; patterns: Patter
       )}
       {scene && (
         <section>
-          <p className="label mb-1">Walk-through</p>
           <VizPlayer key={scene.id} scene={scene} compact />
         </section>
       )}
@@ -277,42 +276,51 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
         {label}
       </a>
     ) : (
-      <span className="tool opacity-30" aria-hidden="true">
+      <span className="tool" aria-disabled="true">
         {label}
       </span>
     )
 
+  // Hierarchy in the workspace: the editor and the statement are the focal
+  // surfaces, so there is no L title; the problem title is M and leads the
+  // description pane, with its level, link and your status grouped under it.
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* top bar */}
-      <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-hair px-6 py-2">
-        <button type="button" className="label inline-flex items-center gap-2 hover:text-brand" onClick={() => setPicker(true)}>
+      {/* navigation bar: moving between problems, and the clock for this one */}
+      <div className="flex h-12 shrink-0 items-center gap-6 border-b border-hair px-3">
+        <button type="button" className="tool" onClick={() => setPicker(true)}>
           Problems
         </button>
         <span className="flex">
           {nav(prev, 'Previous')}
           {nav(next, 'Next')}
         </span>
-        <span className="label num">{idx + 1}</span>
-        <h1 className="min-w-[14rem] flex-1 truncate !text-[24px]">{pixelText(drill.title)}</h1>
-        <Difficulty value={drill.difficulty} />
+        <span className="flex-1" />
         <button
           type="button"
           onClick={timer.toggle}
-          className={cn('label num inline-flex items-center gap-1 hover:text-brand', timer.running && 'text-ink')}
+          className={cn('tool num gap-2', timer.running && '!text-ink')}
           aria-label={timer.running ? 'Pause timer' : 'Resume timer'}
         >
           {fmt(timer.sec)}
-          <span className="opacity-70">{timer.running ? 'pause' : 'resume'}</span>
+          <span className="text-ink-2">{timer.running ? 'pause' : 'resume'}</span>
         </button>
-        <ProblemStatusBar id={problem.id} />
-        <ExternalLink href={problem.link}>LeetCode</ExternalLink>
       </div>
 
       {/* panes */}
       <div ref={host} className="flex min-h-0 flex-1 max-lg:flex-col">
-        <div className="min-h-0 overflow-y-auto px-6 pb-16 pt-4 max-lg:max-h-[55%]" style={{ width: `${split}%` }}>
-          <Tabs defaultValue="description">
+        <div className="relative min-h-0 overflow-y-auto px-6 pb-16 pt-6 max-lg:max-h-[55%]" style={{ width: `${split}%` }}>
+          <header className="border-b border-hair pb-6">
+            <h1 className="!text-[24px] !leading-[1.15]">{pixelText(drill.title)}</h1>
+            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3">
+              <span className="label num">No. {idx + 1}</span>
+              <Difficulty value={drill.difficulty} />
+              <ExternalLink href={problem.link}>LeetCode</ExternalLink>
+              <span className="flex-1" />
+              <ProblemStatusBar id={problem.id} />
+            </div>
+          </header>
+          <Tabs defaultValue="description" className="mt-2">
             <TabsList>
               <TabsTrigger value="description">Description</TabsTrigger>
               <TabsTrigger value="approach">Approach</TabsTrigger>
@@ -461,30 +469,37 @@ export function DrillPage({ id }: { id: string }) {
   const problem = m.packs[id]
   if (problem) return <ProblemView key={id} drill={drill} problem={problem} />
 
-  const back = areaKey === 'dsa' ? { href: '#/dsa', label: 'DSA' } : areaKey ? { href: `#/study/${areaKey}`, label: 'Course' } : { href: '#/', label: 'Overview' }
+  const back =
+    areaKey === 'dsa'
+      ? { href: '#/dsa', label: 'DSA' }
+      : areaKey
+        ? { href: `#/study/${areaKey}`, label: m.findCourse(areaKey)?.label ?? 'Course' }
+        : { href: '#/', label: 'Overview' }
   const similar = m.relatedProblems(id, 6)
   return (
-    <div className="h-full overflow-y-auto px-8 pb-24 pt-2 sm:px-12">
-      <BackLink href={back.href}>{back.label}</BackLink>
-      <div className="mb-8 flex flex-wrap items-baseline gap-x-5 gap-y-2">
-        <h1>{pixelText(drill.title)}</h1>
-        <Difficulty value={drill.difficulty} />
+    <div className="relative h-full overflow-y-auto px-8 pb-24 pt-2 sm:px-12">
+      <div className="mx-auto max-w-[640px]">
+        <BackLink href={back.href}>{back.label}</BackLink>
+        <div className="mb-6 flex flex-wrap items-baseline gap-x-6 gap-y-2">
+          <h1>{pixelText(drill.title)}</h1>
+          <Difficulty value={drill.difficulty} />
+        </div>
+        <div className="mb-8 flex flex-wrap gap-2">
+          <PatternChips problemId={id} />
+        </div>
+        <DrillView drill={drill} />
+        {similar.length > 0 && (
+          <section className="mt-14">
+            <h2>Similar problems</h2>
+            <div className="list mt-4">
+              {similar.map((sid) => {
+                const d = m.drillById(sid)
+                return d ? <SimilarRow key={sid} d={d} /> : null
+              })}
+            </div>
+          </section>
+        )}
       </div>
-      <div className="mb-8">
-        <PatternChips problemId={id} />
-      </div>
-      <DrillView drill={drill} />
-      {similar.length > 0 && (
-        <section className="mt-14 max-w-3xl">
-          <h2>Similar problems</h2>
-          <div className="list mt-4">
-            {similar.map((sid) => {
-              const d = m.drillById(sid)
-              return d ? <SimilarRow key={sid} d={d} /> : null
-            })}
-          </div>
-        </section>
-      )}
     </div>
   )
 }

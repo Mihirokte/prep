@@ -62,7 +62,9 @@ export function LessonPage({ courseKey, lessonId }: { courseKey: string; lessonI
   const read = entry?.status === 'read'
 
   return (
-    <div ref={root} className="grid gap-x-16 pt-2 xl:grid-cols-[minmax(0,640px)_200px]">
+    // Balance: the 640px reading column and its 200px outline are centered as
+    // one unit; without the outline the column is centered on its own.
+    <div ref={root} className={cn('mx-auto grid max-w-[640px] gap-x-16 pt-2', sections.length > 1 && 'xl:w-fit xl:max-w-none xl:grid-cols-[640px_200px]')}>
       <div aria-hidden="true" className="pointer-events-none sticky top-0 z-20 col-span-full -mt-2 mb-4 h-[2px]">
         <div className="h-full bg-ink transition-[width] duration-150" style={{ width: `${pct}%` }} />
       </div>

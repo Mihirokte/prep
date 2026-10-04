@@ -202,7 +202,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
               return (
                 <p
                   key={it.id}
-                  className="notch ml-8 self-end whitespace-pre-wrap border border-hair-strong bg-surface px-4 py-2.5"
+                  className="notch ml-8 self-end whitespace-pre-wrap border border-hair-strong bg-surface px-4 py-2"
                 >
                   {it.text}
                 </p>
@@ -280,7 +280,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
         <label htmlFor="assistant-input" className="sr-only">
           Command
         </label>
-        <div className="panel flex items-end gap-2 p-1.5 pl-3">
+        <div className="panel flex items-end gap-2 p-2 pl-3">
           <textarea
             ref={inputRef}
             id="assistant-input"
@@ -295,7 +295,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
             type="submit"
             disabled={busy || !text.trim()}
             aria-label="Send"
-            className="notch inline-flex h-9 shrink-0 items-center justify-center bg-ink px-4 font-label text-[12px] uppercase tracking-[0.12em] text-paper transition-colors hover:bg-brand disabled:opacity-40"
+            className="notch inline-flex h-9 shrink-0 items-center justify-center bg-ink px-4 font-label text-[12px] uppercase tracking-[0.12em] text-paper transition-colors hover:bg-brand disabled:bg-transparent disabled:text-ink-2 disabled:shadow-[inset_0_0_0_1px_var(--edge)]"
           >
             Send
           </button>

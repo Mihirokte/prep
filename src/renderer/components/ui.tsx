@@ -33,22 +33,16 @@ export function StatusDot({ status, className }: { status: string; className?: s
   )
 }
 
-// ---- problem status chips ----
+// ---- problem status: one control, three mutually exclusive states ----
 const PSTATUS: ProblemStatus[] = ['attempted', 'solved', 'revisit']
 
 export function ProblemStatusBar({ id }: { id: string }) {
   const cur = useAppSelector((s) => s.progress.problems[id]?.status ?? 'none')
   const dispatch = useAppDispatch()
   return (
-    <div role="group" aria-label="Your status on this problem" className="flex flex-wrap gap-2">
+    <div role="group" aria-label="Your status on this problem" className="seg w-fit">
       {PSTATUS.map((s) => (
-        <button
-          key={s}
-          type="button"
-          className="chip !h-9"
-          aria-pressed={cur === s}
-          onClick={() => dispatch(setProblemStatus({ id, status: cur === s ? 'none' : s }))}
-        >
+        <button key={s} type="button" aria-pressed={cur === s} onClick={() => dispatch(setProblemStatus({ id, status: cur === s ? 'none' : s }))}>
           {s}
         </button>
       ))}
@@ -90,7 +84,7 @@ export function Difficulty({ value, className }: { value: string; className?: st
   const n = LEVEL[value.toLowerCase()] ?? 2
   return (
     <span className={cn('label inline-flex items-center gap-2 whitespace-nowrap', className)}>
-      <span className="inline-flex gap-[3px]" aria-hidden="true">
+      <span className="inline-flex gap-1" aria-hidden="true">
         {[1, 2, 3].map((k) => (
           <span key={k} className={cn('size-[6px] border border-ink-2', k <= n && 'bg-ink-2')} />
         ))}
@@ -100,17 +94,25 @@ export function Difficulty({ value, className }: { value: string; className?: st
   )
 }
 
+/** The grid every course-page row and heading shares: a 24px lead column (the
+ *  chapter number, or a row's bullet), then the title. Titles under a heading
+ *  therefore start on the heading's own left edge. */
+export const LEAD_GRID = 'grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-x-4 px-4'
+
 // ---- rows ----
 export function ProblemRow({ drill }: { drill: Drill }) {
   const runnable = useModel().isRunnable(drill.id)
   const status = useAppSelector((s) => s.progress.problems[drill.id]?.status ?? 'none')
   return (
-    <a className="row" href={`#/drill/${drill.id}`}>
-      <StatusDot status={status} />
-      <span className="min-w-0 flex-1 truncate">{pixelText(drill.title)}</span>
-      {runnable && <span className="sr-only">editor</span>}
-      <Difficulty value={drill.difficulty} className="w-32 justify-end" />
-      <span className="label hidden w-40 shrink-0 truncate text-right sm:block">{drill.topic}</span>
+    <a className={cn('row', LEAD_GRID)} href={`#/drill/${drill.id}`}>
+      <span className="bullet" />
+      <span className="min-w-0 truncate">{pixelText(drill.title)}</span>
+      <span className="flex items-center gap-6">
+        {runnable && <span className="sr-only">editor</span>}
+        <StatusDot status={status} className="w-auto" />
+        <Difficulty value={drill.difficulty} className="w-28" />
+        <span className="label hidden w-40 truncate text-right sm:block">{drill.topic}</span>
+      </span>
     </a>
   )
 }
@@ -118,10 +120,13 @@ export function ProblemRow({ drill }: { drill: Drill }) {
 export function LessonRow({ courseKey, lessonId, title, minutes }: { courseKey: string; lessonId: string; title: string; minutes: number }) {
   const read = useAppSelector((s) => s.progress.lessons[lessonId]?.status === 'read')
   return (
-    <a className="row" href={`#/study/${courseKey}/${lessonId}`}>
-      <StatusDot status={read ? 'read' : 'unread'} />
-      <span className="min-w-0 flex-1 truncate">{pixelText(title)}</span>
-      <span className="label num">{minutes} min</span>
+    <a className={cn('row', LEAD_GRID)} href={`#/study/${courseKey}/${lessonId}`}>
+      <span className="bullet" />
+      <span className="min-w-0 truncate">{pixelText(title)}</span>
+      <span className="flex items-center gap-6">
+        <StatusDot status={read ? 'read' : 'unread'} className="w-auto" />
+        <span className="label num w-14 text-right">{minutes} min</span>
+      </span>
     </a>
   )
 }

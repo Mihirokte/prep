@@ -3,8 +3,7 @@ import { useModel } from '../model/context'
 import type { Model } from '../model/buildModel'
 import { useAppDispatch, useAppSelector } from '../store'
 import { rateRecall, type RecallCard } from '../store/progressSlice'
-import { cardId, parseRecall } from '../components/blocks/Recall'
-import { BackLink } from '../components/nav'
+import { CardFace, cardId, parseRecall } from '../components/blocks/Recall'
 import { Button } from '../ui/button'
 import { pixelText } from '../components/pixelText'
 
@@ -69,59 +68,53 @@ export function ReviewPage() {
   }
 
   return (
-    <div className="max-w-3xl pt-2">
-      <BackLink href="#/">Overview</BackLink>
+    <div className="mx-auto max-w-3xl pt-10">
       <h1>Review</h1>
 
-      <dl className="mt-8 grid grid-cols-2 gap-x-8 gap-y-4 border-y border-hair py-5 sm:grid-cols-4">
+      {/* Key figures are M (24): important, but never as big as the title. */}
+      <dl className="mt-10 grid grid-cols-2 gap-x-8 gap-y-6 border-y border-hair py-6 sm:grid-cols-4">
         {[
           ['Cards', all],
           ['Started', seen],
           ['Due', dueNow],
           ['Learned', learned],
         ].map(([k, v]) => (
-          <div key={k}>
+          <div key={k} className="flex flex-col gap-1">
             <dt className="label">{k}</dt>
-            <dd className="font-display text-[40px] leading-none">{v}</dd>
+            <dd className="num font-display text-[24px] leading-none">{v}</dd>
           </div>
         ))}
       </dl>
 
-      <div className="mt-10">
+      <div className="mt-12">
         {card ? (
           <section aria-label="Review card">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-2 flex items-center justify-between gap-4">
               <span className="label text-ink">
                 Card {i + 1} of {queue.length}
               </span>
-              <a className="label" href={`#/study/${card.courseKey}/${card.lessonId}`}>
+              <a className="label truncate" href={`#/study/${card.courseKey}/${card.lessonId}`}>
                 {card.lessonTitle}
               </a>
             </div>
-            <div className="cast">
-              <div className="panel px-8 py-8">
-                <p className="font-display text-[28px] leading-[1.15]">{pixelText(card.q)}</p>
-                {open ? (
-                  <div className="rise mt-6 border-t border-hair pt-6">
-                    <p>{pixelText(card.a)}</p>
-                    <div className="mt-6 flex gap-3">
-                      <Button variant="secondary" onClick={() => rate(false)}>
-                        Again
-                      </Button>
-                      <Button onClick={() => rate(true)}>Got it</Button>
-                    </div>
-                  </div>
-                ) : (
-                  <Button className="mt-6" variant="outline" onClick={() => setOpen(true)}>
-                    Reveal answer
+            <CardFace
+              q={pixelText(card.q)}
+              a={pixelText(card.a)}
+              open={open}
+              onReveal={() => setOpen(true)}
+              actions={
+                <>
+                  <Button variant="secondary" onClick={() => rate(false)}>
+                    Again
                   </Button>
-                )}
-              </div>
-            </div>
+                  <Button onClick={() => rate(true)}>Got it</Button>
+                </>
+              }
+            />
           </section>
         ) : (
           <section className="border-y border-hair py-10">
-            <p className="font-display text-[28px] leading-none">{queue.length === 0 ? 'Nothing due' : 'Session complete'}</p>
+            <p className="font-display text-[24px] leading-none">{queue.length === 0 ? 'Nothing due' : 'Session complete'}</p>
             <p className="mt-4 text-ink-2">
               {queue.length === 0
                 ? 'Every card is scheduled for later. Cards appear here after you reveal them at the end of a lesson.'

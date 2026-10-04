@@ -42,7 +42,7 @@ const theme = EditorView.theme({
 const highlight = HighlightStyle.define([
   { tag: [t.keyword, t.controlKeyword, t.operatorKeyword, t.definitionKeyword, t.moduleKeyword], color: 'var(--ink)', fontWeight: '700' },
   { tag: [t.string, t.special(t.string), t.docString], color: 'var(--ink-2)' },
-  { tag: [t.comment, t.lineComment, t.blockComment], color: 'var(--ink-2)', opacity: '0.65' },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: 'var(--ink-2)' },
   { tag: [t.number, t.integer, t.float, t.bool, t.null, t.atom], color: 'var(--ink-2)', textDecoration: 'underline dotted' },
   { tag: [t.definition(t.variableName), t.function(t.definition(t.variableName)), t.definition(t.className)], color: 'var(--ink)', fontWeight: '700' },
   { tag: [t.function(t.variableName), t.className, t.typeName], color: 'var(--ink)' },

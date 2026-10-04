@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { useAppDispatch, useAppSelector } from '../../store'
 import { rateRecall } from '../../store/progressSlice'
+import { Button } from '../../ui/button'
 import { useInView } from './hooks'
 
 // ```recall — self-check cards. The same cards feed the Review page, where
@@ -45,6 +46,45 @@ export function cardId(scope: string, question: string): string {
 /** The lesson the markdown belongs to; recall cards are scheduled under it. */
 export const RecallScope = createContext<string>('free')
 
+/** The face of a self-check card, identical in a lesson and on the Review page:
+ *  the question at M, a revealed answer below a hairline, then the actions. */
+export function CardFace({
+  q,
+  a,
+  open,
+  onReveal,
+  actions,
+  footnote,
+}: {
+  q: string
+  a: string
+  open: boolean
+  onReveal: () => void
+  actions: ReactNode
+  footnote?: ReactNode
+}) {
+  return (
+    <div className="cast-sm">
+      <div className="panel px-8 py-6">
+        <p className="font-display text-[24px] leading-[1.15]">{q}</p>
+        {open ? (
+          <div className="rise mt-6 border-t border-hair pt-6">
+            <p>{a}</p>
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              {actions}
+              {footnote}
+            </div>
+          </div>
+        ) : (
+          <Button className="mt-6" variant="outline" onClick={onReveal}>
+            Reveal answer
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export function RateButtons({ id, onRated }: { id: string; onRated?: () => void }) {
   const dispatch = useAppDispatch()
   const rate = (good: boolean) => {
@@ -52,14 +92,12 @@ export function RateButtons({ id, onRated }: { id: string; onRated?: () => void 
     onRated?.()
   }
   return (
-    <div className="flex gap-3">
-      <button type="button" className="chip" onClick={() => rate(false)}>
+    <>
+      <Button variant="secondary" onClick={() => rate(false)}>
         Again
-      </button>
-      <button type="button" className="chip" onClick={() => rate(true)}>
-        Got it
-      </button>
-    </div>
+      </Button>
+      <Button onClick={() => rate(true)}>Got it</Button>
+    </>
   )
 }
 
@@ -78,34 +116,26 @@ export function RecallDeck({ pairs }: { pairs: RecallPair[] }) {
 
   return (
     <section ref={ref} aria-label="Self-check" className={`my-10 ${seen ? 'rise' : 'opacity-0'}`}>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <span className="label text-ink">Check yourself</span>
         <span className="label num">
-          {i + 1}/{pairs.length}
+          Card {i + 1} of {pairs.length}
         </span>
       </div>
-      <div className="cast-sm">
-        <div className="panel px-7 py-6">
-          <p className="font-display text-[24px] leading-[1.15]">{card.q}</p>
-          {open ? (
-            <div className="rise mt-5 border-t border-hair pt-5">
-              <p>{card.a}</p>
-              <div className="mt-5 flex flex-wrap items-center gap-4">
-                <RateButtons id={id} onRated={() => (last ? setI(0) : setI(i + 1))} />
-                {state && (
-                  <span className="label">
-                    Box {state.box}/5, seen {state.seen}
-                  </span>
-                )}
-              </div>
-            </div>
-          ) : (
-            <button type="button" className="chip mt-5" onClick={() => setOpen(true)}>
-              Reveal answer
-            </button>
-          )}
-        </div>
-      </div>
+      <CardFace
+        q={card.q}
+        a={card.a}
+        open={open}
+        onReveal={() => setOpen(true)}
+        actions={<RateButtons id={id} onRated={() => (last ? setI(0) : setI(i + 1))} />}
+        footnote={
+          state && (
+            <span className="label">
+              Box {state.box}/5, seen {state.seen}
+            </span>
+          )
+        }
+      />
       <div className="mt-4 flex items-center gap-2" role="tablist" aria-label="Cards">
         {pairs.map((_, k) => (
           <button

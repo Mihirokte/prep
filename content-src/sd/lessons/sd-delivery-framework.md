@@ -6,19 +6,13 @@ minutes: 5
 ---
 Hello Interview's delivery framework exists to stop you running out of time. For a 45–60 min round:
 
-1. **Requirements (~5 min)** — functional ("users should be able to…"), then non-functional (quantified: "search under 500ms" beats "fast"). Prioritise; a long list hurts you.
-2. **Core entities (~2 min)** — just the nouns: User, Tweet, Follow. Don't fill columns yet.
-3. **API (~5 min)** — define the contract before the architecture. Default REST. Never take the current user id from the request body — derive it from the auth token.
-4. **[Optional] Data flow (~5 min)** — only for pipeline systems (e.g. a crawler).
-5. **High-level design (~10–15 min)** — boxes and arrows that satisfy the API, one endpoint at a time. Stay simple; note where you'll add complexity later.
-6. **Deep dives (~10 min)** — harden against the non-functional requirements: scale, bottlenecks, edge cases.
-
 ```steps
-Requirements | 5 min: functional then quantified non-functional, prioritized
-Core entities | 2 min: just the nouns, no columns yet
-API | 5 min: the contract before architecture, derive user id from auth
-High-level design | 10-15 min: boxes and arrows satisfying the API, one endpoint at a time
-Deep dives | 10 min: harden against scale, bottlenecks, and edge cases
+Requirements (~5 min) | Functional ("users should be able to..."), then non-functional, quantified: "search under 500ms" beats "fast". Prioritise; a long list hurts you.
+Core entities (~2 min) | Just the nouns: User, Tweet, Follow. Don't fill columns yet.
+API (~5 min) | Define the contract before the architecture. Default REST. Never take the current user id from the request body; derive it from the auth token.
+Data flow, optional (~5 min) | Only for pipeline systems, such as a crawler.
+High-level design (~10-15 min) | Boxes and arrows that satisfy the API, one endpoint at a time. Stay simple; note where you will add complexity later.
+Deep dives (~10 min) | Harden against the non-functional requirements: scale, bottlenecks, edge cases.
 ```
 
 The shape of the conversation:

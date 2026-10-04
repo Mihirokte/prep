@@ -90,7 +90,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return <div data-slot="dialog-footer" className={cn('flex justify-end gap-3 px-7 pb-7', className)} {...props} />
 }
 function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title data-slot="dialog-title" className={cn('font-display text-[28px] leading-none', className)} {...props} />
+  return <DialogPrimitive.Title data-slot="dialog-title" className={cn('font-display text-[24px] leading-none', className)} {...props} />
 }
 function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Description>) {
   return <DialogPrimitive.Description data-slot="dialog-description" className={cn('text-ink-2', className)} {...props} />

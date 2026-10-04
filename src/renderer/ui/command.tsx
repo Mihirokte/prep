@@ -63,7 +63,7 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
     <CommandPrimitive.Item
       data-slot="command-item"
       className={cn(
-        "relative flex min-h-11 cursor-default items-center gap-3 px-7 py-2 text-[16px] outline-none select-none data-[selected=true]:bg-[var(--wash)] data-[selected=true]:text-brand data-[selected=true]:before:absolute data-[selected=true]:before:left-0 data-[selected=true]:before:top-0 data-[selected=true]:before:h-full data-[selected=true]:before:w-[2px] data-[selected=true]:before:bg-brand data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",
+        "relative flex min-h-11 cursor-default items-center gap-3 px-7 py-2 text-[16px] outline-none select-none data-[selected=true]:bg-[var(--wash)] data-[selected=true]:text-ink data-[selected=true]:before:absolute data-[selected=true]:before:left-0 data-[selected=true]:before:top-0 data-[selected=true]:before:h-full data-[selected=true]:before:w-[2px] data-[selected=true]:before:bg-brand data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50",
         className,
       )}
       {...props}

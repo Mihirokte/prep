@@ -16,7 +16,8 @@ function toneClass(tone?: Tone): string {
     case 'hit':
       return 'border-brand text-brand bg-surface'
     case 'dim':
-      return 'border-hair text-ink-2 opacity-40 bg-surface'
+      // Out of play: dashed hairline frame, ink-2 value (still 5.9:1), no fill.
+      return 'border-dashed border-edge text-ink-2 bg-transparent'
     default:
       return 'border-ink bg-surface text-ink'
   }
@@ -176,12 +177,23 @@ function GraphView({ p }: { p: GraphPanel }) {
           )
         })}
         {p.nodes.map((n) => {
-          const fill = n.tone === 'on' ? 'var(--ink)' : n.tone === 'done' ? 'var(--wash)' : 'var(--surface)'
-          const stroke = n.tone === 'hit' ? 'var(--accent)' : n.tone === 'done' ? 'var(--hair-strong)' : 'var(--ink)'
-          const text = n.tone === 'on' ? 'var(--paper)' : n.tone === 'hit' ? 'var(--accent)' : n.tone === 'done' ? 'var(--ink-2)' : 'var(--ink)'
+          const dim = n.tone === 'dim'
+          const fill = n.tone === 'on' ? 'var(--ink)' : n.tone === 'done' ? 'var(--wash)' : dim ? 'var(--paper)' : 'var(--surface)'
+          const stroke = n.tone === 'hit' ? 'var(--accent)' : n.tone === 'done' || dim ? 'var(--edge)' : 'var(--ink)'
+          const text = n.tone === 'on' ? 'var(--paper)' : n.tone === 'hit' ? 'var(--accent)' : n.tone === 'done' || dim ? 'var(--ink-2)' : 'var(--ink)'
           return (
-            <g key={n.id} opacity={n.tone === 'dim' ? 0.35 : 1} style={{ transition: 'opacity .3s' }}>
-              <rect x={n.x - R} y={n.y - R} width={R * 2} height={R * 2} fill={fill} stroke={stroke} strokeWidth={2} style={{ transition: 'fill .3s, stroke .3s' }} />
+            <g key={n.id}>
+              <rect
+                x={n.x - R}
+                y={n.y - R}
+                width={R * 2}
+                height={R * 2}
+                fill={fill}
+                stroke={stroke}
+                strokeWidth={2}
+                strokeDasharray={dim ? '3 3' : undefined}
+                style={{ transition: 'fill .3s, stroke .3s' }}
+              />
               <text x={n.x} y={n.y + 5} textAnchor="middle" fontSize={16} style={{ fill: text }}>
                 {n.label}
               </text>
@@ -361,8 +373,10 @@ export default function VizPlayer({ scene, compact }: { scene: Scene; compact?: 
 
   return (
     <div ref={ref} className="diagram my-8" onKeyDown={(e) => (e.key === 'ArrowRight' ? go(i + 1) : e.key === 'ArrowLeft' ? go(i - 1) : undefined)}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 border-b border-hair px-5 py-3">
-        <p className="font-display text-[24px] leading-none">{scene.title}</p>
+      {/* The page already names the pattern, so the player's own head is a label
+          (no second title competing with the page's) plus the example it runs. */}
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-hair px-5 py-3">
+        <p className="label text-ink">Walk-through</p>
         <p className="text-ink-2">{scene.setup}</p>
       </div>
 

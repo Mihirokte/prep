@@ -12,10 +12,10 @@ const buttonVariants = cva(
       variant: {
         default: 'notch bg-ink text-paper hover:bg-brand hover:text-paper',
         outline: 'notch border-2 border-ink bg-transparent text-ink hover:border-brand hover:text-brand',
-        secondary: 'notch border border-hair-strong bg-transparent text-ink hover:border-brand hover:text-brand',
+        secondary: 'notch border border-edge bg-transparent text-ink hover:border-brand hover:text-brand',
         destructive: 'notch border-2 border-ink bg-transparent text-ink hover:bg-brand hover:border-brand hover:text-paper',
         ghost: 'text-muted-foreground hover:text-brand',
-        link: 'text-ink underline underline-offset-[5px] decoration-hair-strong hover:text-brand hover:decoration-brand',
+        link: 'text-ink underline underline-offset-[5px] decoration-edge hover:text-brand hover:decoration-brand',
       },
       size: {
         default: 'h-10 px-5',

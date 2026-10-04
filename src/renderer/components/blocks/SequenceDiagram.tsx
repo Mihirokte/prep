@@ -126,7 +126,9 @@ export default function SequenceDiagram({ chart }: { chart: string }) {
               const current = i === shown - 1 && shown < steps.length + 1 && !reduced
               const x1 = lay.lifeX(r.s.from)
               const x2 = lay.lifeX(r.s.to)
-              const opacity = visible ? 1 : 0.12
+              // A message not reached yet is absent rather than a faint ghost:
+              // text is either readable or not drawn (contrast principle).
+              const opacity = visible ? 1 : 0
               if (r.s.kind === 'note') {
                 const w = Math.min(lay.colW * 1.6, Math.max(...r.lines.map((l) => l.length * 8)) + 24)
                 return (

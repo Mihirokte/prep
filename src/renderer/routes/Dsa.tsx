@@ -47,7 +47,7 @@ function DiffMark({ value }: { value: string }) {
   const n = (DIFF_RANK[value.toLowerCase()] ?? 1) + 1
   return (
     <span className="label inline-flex items-center gap-2 whitespace-nowrap">
-      <span className="inline-flex gap-[3px]" aria-hidden="true">
+      <span className="inline-flex gap-1" aria-hidden="true">
         {[1, 2, 3].map((k) => (
           <span key={k} className={cn('size-[6px] border border-ink-2', k <= n && 'bg-ink-2')} />
         ))}
@@ -56,6 +56,9 @@ function DiffMark({ value }: { value: string }) {
     </span>
   )
 }
+
+/** Header and rows share one column template, so every cell sits under its header. */
+const COLS = 'grid items-center gap-4 grid-cols-[88px_32px_minmax(0,1fr)_104px] md:grid-cols-[88px_32px_minmax(0,1fr)_minmax(0,232px)_104px]'
 
 export function DsaList() {
   const m = useModel()
@@ -132,35 +135,35 @@ export function DsaList() {
       aria-label={`Sort by ${label}`}
     >
       {label}
-      {f.sort === key && <span className="opacity-70">{f.dir === 1 ? 'asc' : 'desc'}</span>}
+      {f.sort === key && <span>{f.dir === 1 ? 'asc' : 'desc'}</span>}
     </button>
   )
 
   return (
-    <div className="pt-2">
+    <div className="pt-10">
       <div className="flex flex-wrap items-end justify-between gap-6">
         <h1>DSA</h1>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => go(today)} disabled={!today}>
-            Today
-          </Button>
+        {/* One primary action per region: today's pick is filled, the random pick is a frame. */}
+        <div className="flex gap-4">
           <Button variant="outline" onClick={pick} disabled={unsolved.length === 0}>
             Pick one
+          </Button>
+          <Button onClick={() => go(today)} disabled={!today}>
+            Today
           </Button>
         </div>
       </div>
 
-      {/* stats */}
-      <section className="mt-8 grid gap-x-10 gap-y-6 border-y border-hair py-6 md:grid-cols-[200px_1fr]" aria-label="Progress">
-        <div>
+      {/* stats: the figure is M, the bars are S; neither competes with the title or the list */}
+      <section className="mt-10 grid items-center gap-x-12 gap-y-6 border-y border-hair py-6 md:grid-cols-[176px_1fr]" aria-label="Progress">
+        <div className="flex flex-col gap-1">
           <p className="label">Solved</p>
-          <p className="font-display text-[96px] leading-none">
-            {solved}
-            <span className="ml-2 text-[28px] text-ink-2">/{rows.length}</span>
+          <p className="num font-display text-[24px] leading-none">
+            {solved}/{rows.length}
           </p>
-          <p className="label mt-2">{attempted} in progress</p>
+          <p className="label">{attempted} in progress</p>
         </div>
-        <div className="grid content-center gap-4">
+        <div className="grid gap-3">
           {[
             ['Easy', E],
             ['Medium', M],
@@ -171,7 +174,7 @@ export function DsaList() {
               <div key={label as string} className="grid grid-cols-[80px_1fr_72px] items-center gap-4">
                 <span className="label">{label as string}</span>
                 <Progress value={cc.total ? (cc.solved / cc.total) * 100 : 0} aria-label={`${label} solved`} />
-                <span className="num text-right">
+                <span className="label num text-right">
                   {cc.solved}/{cc.total}
                 </span>
               </div>
@@ -182,18 +185,18 @@ export function DsaList() {
 
       {/* filters */}
       <section className="mt-8" aria-label="Filters">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
-          <div className="relative min-w-60 flex-1">
-            <Input ref={search} placeholder="Search title, topic or pattern   /" value={f.q} onChange={(e) => set({ q: e.target.value })} aria-label="Search problems" />
-          </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Difficulty">
+        <Input ref={search} placeholder="Search title, topic or pattern   /" value={f.q} onChange={(e) => set({ q: e.target.value })} aria-label="Search problems" />
+        <div className="mt-6 flex flex-wrap items-center gap-x-10 gap-y-4">
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Difficulty">
+            <span className="label mr-2">Level</span>
             {['easy', 'medium', 'hard'].map((d) => (
               <button key={d} type="button" className="chip" aria-pressed={f.diff === d} onClick={() => set({ diff: f.diff === d ? 'all' : d })}>
                 {d}
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Status">
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Status">
+            <span className="label mr-2">Status</span>
             {['none', 'attempted', 'solved', 'revisit'].map((s) => (
               <button key={s} type="button" className="chip" aria-pressed={f.status === s} onClick={() => set({ status: f.status === s ? 'all' : s })}>
                 {s === 'none' ? 'todo' : s}
@@ -202,36 +205,37 @@ export function DsaList() {
           </div>
         </div>
 
-        <details className="group mt-5" open={f.topic !== 'all' || f.pattern !== 'all' ? true : undefined}>
+        <details className="group mt-6" open={f.topic !== 'all' || f.pattern !== 'all' ? true : undefined}>
           <summary className="label inline-flex list-none items-center gap-2 hover:text-brand [&::-webkit-details-marker]:hidden">
             Topics and patterns
-            <span className="opacity-70 group-open:hidden">show</span>
-            <span className="hidden opacity-70 group-open:inline">hide</span>
+            <span className="group-open:hidden">show</span>
+            <span className="hidden group-open:inline">hide</span>
             {(f.topic !== 'all' || f.pattern !== 'all') && <span className="live-dot ml-1" />}
           </summary>
           <p className="label mb-2 mt-4">Topic</p>
           <div className="flex flex-wrap gap-2">
             {topics.map(([t, n]) => (
               <button key={t} type="button" className="chip" aria-pressed={f.topic === t} onClick={() => set({ topic: f.topic === t ? 'all' : t })}>
-                {t} <span className="num opacity-70">{n}</span>
+                {t} <span className="num">{n}</span>
               </button>
             ))}
           </div>
-          <p className="label mb-2 mt-5">Pattern</p>
+          <p className="label mb-2 mt-6">Pattern</p>
           <div className="flex flex-wrap gap-2">
             {patternList.map((p) => (
               <button key={p.key} type="button" className="chip" aria-pressed={f.pattern === p.key} onClick={() => set({ pattern: f.pattern === p.key ? 'all' : p.key })}>
-                {pixelText(p.name)} <span className="num opacity-70">{p.problemIds.length}</span>
+                {pixelText(p.name)} <span className="num">{p.problemIds.length}</span>
               </button>
             ))}
           </div>
         </details>
       </section>
 
-      {/* table */}
-      <div className="mb-3 mt-8 flex items-center justify-between">
+      {/* table: the title is the column you scan, so it takes the width; status
+          and level are labels. Topic lives in the filter and on the problem page. */}
+      <div className="mb-2 mt-10 flex items-center justify-between">
         <p className="label">
-          {shown.length} of {rows.length}
+          {shown.length} of {rows.length} problems
         </p>
         {dirty && (
           <button type="button" className="label hover:text-brand" onClick={() => setF({ ...DEFAULT, sort: f.sort, dir: f.dir })}>
@@ -240,27 +244,19 @@ export function DsaList() {
         )}
       </div>
       <div className="list" role="table" aria-label="Problems">
-        <div role="row" className="grid grid-cols-[96px_48px_minmax(0,1fr)_120px] items-center gap-4 px-4 py-2 md:grid-cols-[96px_48px_minmax(0,1fr)_minmax(0,220px)_120px_150px]">
+        <div role="row" className={cn(COLS, 'px-4 py-2')}>
           <span role="columnheader">{head('status', 'Status')}</span>
           <span role="columnheader">{head('order', '#')}</span>
           <span role="columnheader">{head('title', 'Title')}</span>
           <span role="columnheader" className="label hidden md:block">
-            Patterns
+            Pattern
           </span>
           <span role="columnheader">{head('difficulty', 'Level')}</span>
-          <span role="columnheader" className="label hidden md:block">
-            Topic
-          </span>
         </div>
         {shown.map(({ d, n, patterns }) => (
-          <a
-            key={d.id}
-            role="row"
-            href={`#/drill/${d.id}`}
-            className="row grid !min-h-[52px] grid-cols-[96px_48px_minmax(0,1fr)_120px] gap-4 no-underline md:grid-cols-[96px_48px_minmax(0,1fr)_minmax(0,220px)_120px_150px]"
-          >
+          <a key={d.id} role="row" href={`#/drill/${d.id}`} className={cn('row !min-h-[52px] no-underline', COLS)}>
             <span role="cell">
-              <StatusDot status={statusOf(d.id)} />
+              <StatusDot status={statusOf(d.id)} className="w-auto" />
             </span>
             <span role="cell" className="label num">
               {n}
@@ -268,17 +264,12 @@ export function DsaList() {
             <span role="cell" className="min-w-0 truncate">
               {pixelText(d.title)}
             </span>
-            <span role="cell" className="label hidden min-w-0 truncate md:block">
-              {patterns
-                .slice(0, 2)
-                .map((p) => pixelText(p.name))
-                .join(', ')}
+            <span role="cell" className="label hidden min-w-0 truncate md:block" title={patterns.map((p) => p.name).join(', ')}>
+              {patterns[0] ? pixelText(patterns[0].name) : ''}
+              {patterns.length > 1 ? ` +${patterns.length - 1}` : ''}
             </span>
             <span role="cell">
               <DiffMark value={d.difficulty} />
-            </span>
-            <span role="cell" className="label hidden truncate md:block">
-              {d.topic}
             </span>
           </a>
         ))}

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useModel } from '../model/context'
 import { cn } from '../lib/utils'
 import type { Theme } from '../useTheme'
@@ -23,19 +23,7 @@ function activeKey(hash: string, areaKeyOf: (id: string) => string | null | unde
   return ''
 }
 
-export function Sidebar({
-  hash,
-  open,
-  onSearch,
-  onAssistant,
-  assistantOpen,
-}: {
-  hash: string
-  open: boolean
-  onSearch: () => void
-  onAssistant: () => void
-  assistantOpen: boolean
-}) {
+export function Sidebar({ hash, open }: { hash: string; open: boolean }) {
   const m = useModel()
   const active = activeKey(hash, (id) => m.areaKeyOf(id))
   const study = m.homeAreas.filter((a) => a.kind === 'problems' || a.kind === 'study')
@@ -45,6 +33,10 @@ export function Sidebar({
       <span className="truncate">{label}</span>
     </a>
   )
+
+  // Three groups by job (proximity + a hairline, no header that could be
+  // mistaken for an item): today's work, the courses, the reference lenses.
+  const group = 'flex flex-col border-t border-hair py-3 first:border-t-0 first:pt-0'
 
   return (
     <nav
@@ -61,73 +53,31 @@ export function Sidebar({
         {/* Title-bar strip: drags the window and hosts the traffic lights. */}
         <div className="app-drag h-[52px] shrink-0" />
 
-        <div className="px-6 pb-5">
+        <div className="px-6 pb-6">
           <a href="#/" className="no-ring font-display text-[24px] leading-none text-ink no-underline hover:text-brand" aria-label="Prep home">
             PREP
           </a>
         </div>
 
         <div className="flex-1 overflow-y-auto pb-3">
-          <div className="flex flex-col">
+          <div className={group}>
             {item('home', '#/', 'Overview')}
-            {study.map((a) => item(a.key, a.href, a.label))}
+            {item('review', '#/review', 'Review')}
           </div>
-
-          <p className="label mt-7 mb-1 px-6">Reference</p>
-          <div className="flex flex-col">
+          <div className={group}>{study.map((a) => item(a.key, a.href, a.label))}</div>
+          <div className={group}>
             {item('patterns', '#/patterns', 'Patterns')}
             {item('companies', '#/companies', 'Companies')}
-            {item('review', '#/review', 'Review')}
           </div>
         </div>
 
         <div className="shrink-0 border-t border-hair py-3">
-          <button type="button" className="side-item w-full" onClick={onSearch}>
-            <span className="flex-1 text-left">Search</span>
-            <span className="kbd" aria-hidden="true">
-              CMD K
-            </span>
-          </button>
-          <button
-            type="button"
-            className="side-item w-full"
-            onClick={onAssistant}
-            aria-expanded={assistantOpen}
-            aria-controls="assistant"
-          >
-            <span className={cn('flex-1 text-left', assistantOpen && 'text-brand')}>Assistant</span>
-            <span className="kbd" aria-hidden="true">
-              CMD J
-            </span>
-          </button>
           <a href={SITE} className="side-item w-full">
             <span className="flex-1">mihirokte.info</span>
           </a>
-          <p className="label px-6 pt-3 text-[12px] leading-4 normal-case tracking-normal opacity-80">
-            Type: Pixelta, Pixel Operator, Determination (CC BY 3.0)
-          </p>
         </div>
       </div>
     </nav>
-  )
-}
-
-function Clock() {
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    // Render only on change: tick at each minute boundary.
-    let t: number
-    const tick = () => {
-      setNow(new Date())
-      t = window.setTimeout(tick, 60000 - (Date.now() % 60000) + 50)
-    }
-    t = window.setTimeout(tick, 60000 - (Date.now() % 60000) + 50)
-    return () => clearTimeout(t)
-  }, [])
-  return (
-    <span className="label tag num hidden h-7 items-center px-3 sm:inline-flex" aria-label="Local time">
-      {now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
-    </span>
   )
 }
 
@@ -148,47 +98,55 @@ export function Toolbar({
   theme: Theme
   onToggleTheme: () => void
 }) {
+  // Every control here does the same kind of job, so every one looks the same
+  // (similarity); related ones sit together, groups are split by space.
   return (
     <header
       data-chrome
       className={cn(
-        'app-drag flex h-[52px] shrink-0 items-center gap-1 pr-4 transition-[padding] duration-[320ms] ease-[var(--ease)]',
+        'app-drag flex h-[52px] shrink-0 items-center gap-6 pr-4 transition-[padding] duration-[320ms] ease-[var(--ease)]',
         sidebarOpen ? 'pl-3' : 'pl-[88px]',
       )}
     >
-      <button type="button" className="tool no-drag" onClick={onToggleSidebar} aria-label="Toggle sidebar" aria-pressed={sidebarOpen}>
-        Sidebar
-      </button>
-      <button type="button" className="tool no-drag" onClick={() => history.back()} aria-label="Back">
-        Back
-      </button>
-      <button type="button" className="tool no-drag" onClick={() => history.forward()} aria-label="Forward">
-        Forward
-      </button>
+      <div className="no-drag flex items-center">
+        <button type="button" className="tool" onClick={onToggleSidebar} aria-label="Toggle sidebar" aria-pressed={sidebarOpen} title="Toggle sidebar (Cmd Option S)">
+          Sidebar
+        </button>
+      </div>
+      <div className="no-drag flex items-center">
+        <button type="button" className="tool" onClick={() => history.back()} aria-label="Back" title="Back (Cmd [)">
+          Back
+        </button>
+        <button type="button" className="tool" onClick={() => history.forward()} aria-label="Forward" title="Forward (Cmd ])">
+          Forward
+        </button>
+      </div>
       <span className="flex-1" />
-      <div className="no-drag flex items-center gap-2">
-        <Clock />
+      <div className="no-drag flex items-center">
+        <button type="button" className="tool" onClick={onSearch} aria-label="Search" title="Search (Cmd K)">
+          Search
+        </button>
         <button
           type="button"
-          className="tool tag"
+          className={cn('tool', assistantOpen && '!text-brand')}
+          onClick={onAssistant}
+          aria-label="Assistant"
+          aria-expanded={assistantOpen}
+          aria-controls="assistant"
+          title="Assistant (Cmd J)"
+        >
+          Assistant
+        </button>
+      </div>
+      <div className="no-drag flex items-center">
+        <button
+          type="button"
+          className="tool"
           onClick={onToggleTheme}
           aria-label={theme === 'night' ? 'Switch to day' : 'Switch to night'}
           title={theme === 'night' ? 'Switch to day' : 'Switch to night'}
         >
           {theme === 'night' ? 'Day' : 'Night'}
-        </button>
-        <button type="button" className="tool" onClick={onSearch} aria-label="Search">
-          Search
-        </button>
-        <button
-          type="button"
-          className={cn('tool', assistantOpen && 'text-brand')}
-          onClick={onAssistant}
-          aria-label="Assistant"
-          aria-expanded={assistantOpen}
-          aria-controls="assistant"
-        >
-          Assistant
         </button>
       </div>
     </header>
@@ -197,7 +155,7 @@ export function Toolbar({
 
 export function NotFound() {
   return (
-    <div className="max-w-3xl pt-6">
+    <div className="mx-auto max-w-3xl pt-10">
       <h1>Not found</h1>
       <a href="#/" className="label mt-6 inline-block">
         Home
@@ -206,11 +164,12 @@ export function NotFound() {
   )
 }
 
-/** Where this page sits: the crumb at the top of every detail page. */
+/** The parent of a detail page. It takes the same 40px that top-level pages
+ *  leave empty (pt-10), so every page title sits on the same line. */
 export function BackLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <a href={href} className="label group mb-6 inline-flex items-center gap-2 no-underline hover:text-brand">
-      <span>{children}</span>
+    <a href={href} className="label flex h-10 w-fit items-start no-underline hover:text-brand">
+      {children}
     </a>
   )
 }

@@ -40,31 +40,34 @@ export default function StepsBlock({ rows }: { rows: StepRow[] }) {
     return () => clearInterval(t)
   }, [seen, run, reduced, total])
 
+  // Text never fades (contrast principle): a step that is not lit yet keeps its
+  // full-contrast text and shows its state in the number frame instead
+  // (edge = not reached, ink = done, accent = current).
   return (
     <div ref={ref} className="my-8">
-      <ol className="relative">
+      <ol className="steps relative">
         {rows.map((r, i) => {
           const on = i < lit
           const current = i === lit - 1 && lit < total
           return (
-            <li key={i} className="relative grid grid-cols-[48px_1fr] gap-x-4 pb-6 last:pb-0" style={{ opacity: on ? 1 : 0.25, transition: 'opacity .4s var(--ease)' }}>
+            <li key={i} className="relative grid grid-cols-[48px_1fr] gap-x-4 pb-6 last:pb-0">
               {i < total - 1 && (
                 <span
                   aria-hidden="true"
-                  className="absolute left-[23px] top-9 bottom-0 w-px"
-                  style={{ background: i < lit - 1 ? 'var(--ink)' : 'var(--hair-strong)', transition: 'background .4s' }}
+                  className="absolute left-[23px] top-12 bottom-0 w-px"
+                  style={{ background: i < lit - 1 ? 'var(--ink)' : 'var(--edge)', transition: 'background .4s' }}
                 />
               )}
               <span
-                className={`z-10 flex size-12 items-center justify-center border-2 font-label text-[12px] tracking-[0.12em] ${
-                  current ? 'border-brand text-brand' : 'border-ink text-ink'
-                } bg-paper`}
+                className={`z-10 flex size-12 items-center justify-center border-2 bg-paper font-label text-[12px] tracking-[0.12em] transition-[border-color,color] duration-300 ${
+                  current ? 'border-brand text-brand' : on ? 'border-ink text-ink' : 'border-edge text-ink-2'
+                }`}
               >
                 {ids[i]}
               </span>
-              <div className="pt-1">
-                <p className="font-display text-[24px] leading-none">{r.title}</p>
-                {r.text && <p className="mt-2 text-ink-2">{r.text}</p>}
+              <div className="pt-2">
+                <p className="font-bold">{r.title}</p>
+                {r.text && <p className="mt-1 text-ink-2">{r.text}</p>}
               </div>
             </li>
           )
