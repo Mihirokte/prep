@@ -10,12 +10,15 @@ import { DsaList } from './routes/Dsa'
 import { DrillPage } from './routes/Drill'
 import { CompanyIndex, CompanyPage } from './routes/Company'
 import { PatternIndex, PatternPage } from './routes/Patterns'
+import { useTheme } from './useTheme'
+import { ReviewPage } from './routes/Review'
 import { cn } from './lib/utils'
 
 const ROUTES: { re: RegExp; render: (m: RegExpExecArray) => React.ReactNode; wide?: boolean }[] = [
   { re: /^#\/study\/([^/]+)\/([^/]+)$/, render: (m) => <LessonPage courseKey={m[1]} lessonId={m[2]} /> },
   { re: /^#\/study\/([^/]+)$/, render: (m) => <CoursePage courseKey={m[1]} /> },
   { re: /^#\/dsa\/?$/, render: () => <DsaList /> },
+  { re: /^#\/review\/?$/, render: () => <ReviewPage /> },
   { re: /^#\/patterns\/?$/, render: () => <PatternIndex /> },
   { re: /^#\/pattern\/([^/]+)$/, render: (m) => <PatternPage patternKey={m[1]} /> },
   { re: /^#\/companies\/?$/, render: () => <CompanyIndex /> },
@@ -36,6 +39,17 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem(SIDEBAR_KEY) !== 'closed')
   const contentRef = useRef<HTMLDivElement>(null)
+  const [theme, toggleTheme] = useTheme()
+
+  // Modals grow out of the point that opened them.
+  useEffect(() => {
+    const mark = (e: PointerEvent) => {
+      document.documentElement.style.setProperty('--ox', String(e.clientX))
+      document.documentElement.style.setProperty('--oy', String(e.clientY))
+    }
+    window.addEventListener('pointerdown', mark, true)
+    return () => window.removeEventListener('pointerdown', mark, true)
+  }, [])
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_KEY, sidebarOpen ? 'open' : 'closed')
@@ -110,9 +124,11 @@ export default function App() {
           onSearch={() => setPaletteOpen(true)}
           onAssistant={() => setAssistantOpen((v) => !v)}
           assistantOpen={assistantOpen}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
-        <div ref={contentRef} className="min-h-0 flex-1 overflow-y-auto">
-          <div className={cn('px-8 pb-24 pt-2 sm:px-12', !wide && 'max-w-[920px]')}>{view}</div>
+        <div ref={contentRef} data-scroll className={cn('min-h-0 flex-1', wide ? 'overflow-hidden' : 'overflow-y-auto')}>
+          {wide ? <div className="h-full">{view}</div> : <div className="max-w-[1120px] px-8 pb-24 pt-2 sm:px-12">{view}</div>}
         </div>
       </div>
 

@@ -80,6 +80,7 @@ function routesOf(c: Content): string[] {
   return [
     '#/',
     '#/dsa',
+    '#/review',
     '#/patterns',
     '#/companies',
     ...c.courses.map((co) => `#/study/${co.key}`),
@@ -210,9 +211,9 @@ async function sweep(win: BrowserWindow, routes: string[]) {
 }
 
 async function screens(win: BrowserWindow, c: Content) {
-  const lessonWithDiagram = c.courses
-    .flatMap((co) => co.chapters.flatMap((ch) => ch.lessons.map((l) => ({ co, l }))))
-    .find(({ l }) => l.body.includes('```mermaid'))
+  const lessons = c.courses.flatMap((co) => co.chapters.flatMap((ch) => ch.lessons.map((l) => ({ co, l }))))
+  const lessonWithDiagram = lessons.find(({ l }) => l.body.includes('```mermaid'))
+  const lessonWithFlow = lessons.find(({ l }) => l.body.includes('```flow'))
   const discussion = c.areas.find((a) => a.key !== 'dsa')?.drills.find((d) => d.solution)
   const plan: [string, string][] = [
     ['01-home', '#/'],
@@ -225,16 +226,65 @@ async function screens(win: BrowserWindow, c: Content) {
     ['08-lesson', lessonWithDiagram ? `#/study/${lessonWithDiagram.co.key}/${lessonWithDiagram.l.id}` : '#/study/sd'],
     ['09-drill-editor', '#/drill/dsa-001'],
     ['10-drill-discussion', discussion ? `#/drill/${discussion.id}` : '#/dsa'],
+    ['16-review', '#/review'],
+    ['17-ai-course', '#/study/ai'],
+    ['18-lesson-flow', lessonWithFlow ? `#/study/${lessonWithFlow.co.key}/${lessonWithFlow.l.id}` : '#/study/ai'],
+    ['19-pattern-viz', '#/pattern/two-pointers'],
   ]
   for (const [name, route] of plan) {
     await visit(win, route)
-    await js(win, 'window.scrollTo(0, 0)')
+    await js(win, `document.querySelector('[data-scroll]')?.scrollTo(0, 0)`)
+    // let the diagrams reach a settled frame before the shot
+    await sleep(name.startsWith('18') || name.startsWith('19') ? 2500 : 0)
     await shot(win, name)
   }
+  // Lesson scrolled to its first diagram and to its self-check deck
+  if (lessonWithFlow) {
+    await visit(win, `#/study/${lessonWithFlow.co.key}/${lessonWithFlow.l.id}`)
+    await js(win, `document.querySelector('[data-scroll] .diagram')?.scrollIntoView({ block: 'center' })`)
+    await sleep(2600)
+    await shot(win, '20-lesson-diagram')
+    await js(win, `document.querySelector('[data-scroll] [aria-label="Self-check"]')?.scrollIntoView({ block: 'center' })`)
+    await sleep(900)
+    await shot(win, '21-lesson-recall')
+  }
+  // Day theme
+  await js(win, `localStorage.setItem('prep.theme', 'day'); document.documentElement.classList.remove('dark')`)
+  await visit(win, '#/dsa')
+  await shot(win, '22-dsa-day')
+  await visit(win, '#/drill/dsa-001')
+  await shot(win, '23-drill-day')
+  await js(win, `localStorage.setItem('prep.theme', 'night'); document.documentElement.classList.add('dark')`)
   // An expanded answer on the company page
   await visit(win, '#/company/goodscore')
   await click(win, 'button', 'Answer')
   await shot(win, '11-company-answer')
+}
+
+/** PREP_VERIFY_SHOTS="#/route@selector@nth@action+action;..." takes extra screenshots:
+ *  the route, optional actions (tab:<name>, click:<button text>), then the nth
+ *  element matching selector scrolled into view. */
+async function extraShots(win: BrowserWindow) {
+  const spec = process.env.PREP_VERIFY_SHOTS
+  if (!spec) return
+  let n = 0
+  for (const entry of spec.split(';').filter(Boolean)) {
+    const [route, selector, nth = '0', actions = ''] = entry.split('@')
+    await visit(win, route)
+    for (const a of actions.split('+').filter(Boolean)) {
+      if (a.startsWith('tab:')) await pressTab(win, a.slice(4))
+      else if (a.startsWith('click:')) await click(win, 'button', a.slice(6))
+      await sleep(300)
+    }
+    const sleepMs = selector ? 3200 : 1200
+    if (selector)
+      await js(
+        win,
+        `(() => { const el = document.querySelectorAll(${JSON.stringify(selector)})[${Number(nth)}]; const sc = document.querySelector('[data-scroll]'); if (el && sc) sc.scrollTo({ top: sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 120 }) })()`,
+      )
+    await sleep(sleepMs)
+    await shot(win, `x-${String(++n).padStart(2, '0')}`)
+  }
 }
 
 async function features(h: AppHandles, win: BrowserWindow) {
@@ -248,7 +298,7 @@ async function features(h: AppHandles, win: BrowserWindow) {
   )
   await click(win, 'button', 'Check syntax')
   const verdict = await waitFor(
-    () => js<string>(win, `(() => { const el = [...document.querySelectorAll('div')].find((d) => /Looks valid|Error|could not load/.test(d.textContent || '') && d.children.length === 0); return el ? el.textContent : '' })()`),
+    () => js<string>(win, `(() => { const el = [...document.querySelectorAll('p, div')].find((d) => /Looks valid|Error|could not load/.test(d.textContent || '') && d.children.length === 0); return el ? el.textContent : '' })()`),
     (v) => v.length > 0,
     30000,
     'the validator verdict',
@@ -256,7 +306,7 @@ async function features(h: AppHandles, win: BrowserWindow) {
   check('Python validator runs offline from bundled Pyodide', verdict.startsWith('Looks valid'), verdict)
 
   // Progress: status persists to disk and survives a reload.
-  const clicked = await click(win, '[role=radiogroup] button', 'solved')
+  const clicked = await click(win, '[role=group][aria-label*="status"] button', 'solved')
   await sleep(700)
   const raw = JSON.parse(readFileSync(path.join(userData, 'progress.json'), 'utf8')) as Record<string, string>
   const persisted = JSON.parse(JSON.parse(raw['persist:prep-v2']).problems)['dsa-001']?.status
@@ -264,7 +314,7 @@ async function features(h: AppHandles, win: BrowserWindow) {
   win.webContents.reload()
   await waitFor(() => js<boolean>(win, `!!document.querySelector('header')`), Boolean, 15000, 'reload')
   await visit(win, '#/drill/dsa-001')
-  const still = await js<boolean>(win, `[...document.querySelectorAll('[role=radiogroup] button')].some((b) => b.textContent === 'solved' && b.getAttribute('data-state') === 'on')`)
+  const still = await js<boolean>(win, `[...document.querySelectorAll('[role=group][aria-label*="status"] button')].some((b) => b.textContent === 'solved' && b.getAttribute('aria-pressed') === 'true')`)
   check('status survives a reload', still)
   const home = await visit(win, '#/')
   check('home index counts the solved problem', home.text.includes('1/148'))
@@ -511,6 +561,7 @@ async function main() {
   try {
     await sweep(win, routes)
     await screens(win, h.store.get())
+    await extraShots(win)
     await features(h, win)
     if (AGENT) {
       await assistantUi(h, win)

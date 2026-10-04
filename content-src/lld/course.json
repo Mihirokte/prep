@@ -1,0 +1,82 @@
+{
+  "course": "lld",
+  "chapters": [
+    {
+      "id": "lld-round",
+      "title": "The machine-coding round",
+      "summary": "What the round measures, and a time-boxed way to run it without diving into code too early.",
+      "lessons": [
+        "lld-what-it-is",
+        "lld-rubric",
+        "lld-framework",
+        "lld-worked-tictactoe"
+      ],
+      "problemIds": [
+        "lld-013",
+        "lld-001"
+      ]
+    },
+    {
+      "id": "lld-principles",
+      "title": "Design principles",
+      "summary": "SOLID, composition, and KISS/DRY/YAGNI — as thinking tools you apply out loud, not an acronym to recite.",
+      "lessons": [
+        "lld-kiss-dry-yagni",
+        "lld-solid",
+        "lld-composition",
+        "lld-coupling-cohesion",
+        "lld-over-engineering"
+      ],
+      "problemIds": [
+        "lld-007",
+        "lld-016"
+      ]
+    },
+    {
+      "id": "lld-patterns",
+      "title": "Patterns that show up",
+      "summary": "The GoF catalog has 23 patterns; interviews test about 8. Each one here, with when it earns its place and the problem it maps to.",
+      "lessons": [
+        "lld-patterns-overview",
+        "lld-strategy",
+        "lld-state",
+        "lld-observer",
+        "lld-decorator",
+        "lld-factory-facade",
+        "lld-command-adapter-builder-singleton"
+      ],
+      "problemIds": [
+        "lld-008",
+        "lld-018",
+        "lld-009",
+        "lld-010",
+        "lld-003",
+        "lld-011",
+        "lld-015",
+        "lld-012"
+      ]
+    },
+    {
+      "id": "lld-concurrency-api",
+      "title": "Concurrency & API design",
+      "summary": "The follow-up that lands at SDE2 (\"now two threads race for the last seat\"), plus idempotency and the API-design questions that end almost every round.",
+      "lessons": [
+        "lld-concurrency-types",
+        "lld-thread-safety",
+        "lld-deadlocks-memory",
+        "lld-rate-limiter",
+        "lld-lru-cache",
+        "lld-booking-locker",
+        "lld-idempotency-api"
+      ],
+      "problemIds": [
+        "lld-004",
+        "lld-005",
+        "lld-006",
+        "lld-014",
+        "lld-017",
+        "lld-002"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "course": "ops",
+  "chapters": [
+    {
+      "id": "ops-delivery",
+      "title": "Containers & delivery",
+      "summary": "How code gets from a commit to a running artifact — pipelines, containers, orchestration, and reproducible infrastructure.",
+      "lessons": [
+        "ops-cicd",
+        "ops-docker",
+        "ops-kubernetes-helm",
+        "ops-iac-terraform"
+      ],
+      "problemIds": []
+    },
+    {
+      "id": "ops-release",
+      "title": "Deployment & release",
+      "summary": "Getting a new version into production safely — release strategies, flags, health signals, scaling, and schema changes.",
+      "lessons": [
+        "ops-deploy-strategies",
+        "ops-feature-flags",
+        "ops-health-probes",
+        "ops-autoscaling",
+        "ops-serverless-coldstart",
+        "ops-migrations-cron"
+      ],
+      "problemIds": []
+    },
+    {
+      "id": "ops-observability",
+      "title": "Observability & reliability",
+      "summary": "Knowing what your system is doing and whether it is meeting its promises — signals, tracing, alerting, and the SLO framework.",
+      "lessons": [
+        "ops-three-pillars",
+        "ops-tracing",
+        "ops-alerting",
+        "ops-slo-sli",
+        "ops-latency-tail"
+      ],
+      "problemIds": []
+    },
+    {
+      "id": "ops-resilience",
+      "title": "Resilience & incidents",
+      "summary": "Surviving failure — recovery, geographic redundancy, deliberately injected chaos, cost control, and how to run and learn from an incident.",
+      "lessons": [
+        "ops-dr-backups",
+        "ops-multi-region",
+        "ops-cost",
+        "ops-incidents"
+      ],
+      "problemIds": []
+    }
+  ]
+}

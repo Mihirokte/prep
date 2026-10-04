@@ -1,0 +1,76 @@
+{
+  "course": "sd",
+  "chapters": [
+    {
+      "id": "sd-interview",
+      "title": "The interview itself",
+      "summary": "What the round actually measures at mid-level, and a time-boxed way to run it.",
+      "lessons": [
+        "sd-what-is-measured",
+        "sd-delivery-framework",
+        "sd-estimation"
+      ],
+      "problemIds": [
+        "sd-021"
+      ]
+    },
+    {
+      "id": "sd-fundamentals",
+      "title": "Fundamentals",
+      "summary": "The building blocks every design rests on — enough to explain any box you draw.",
+      "lessons": [
+        "sd-caching",
+        "sd-sql-vs-nosql",
+        "sd-replication-partitioning",
+        "sd-cap",
+        "sd-queues",
+        "sd-rate-limiting"
+      ],
+      "problemIds": [
+        "sd-017",
+        "sd-018",
+        "sd-022",
+        "sd-023"
+      ]
+    },
+    {
+      "id": "sd-request-path",
+      "title": "Networking & the request path",
+      "summary": "Everything a request passes through between the user and your service.",
+      "lessons": [
+        "sd-load-balancing",
+        "sd-gateway-discovery",
+        "sd-cdn-dns",
+        "sd-protocols"
+      ],
+      "problemIds": []
+    },
+    {
+      "id": "sd-data-at-scale",
+      "title": "The data layer at scale",
+      "summary": "What breaks in the database first, and the moves that keep reads and writes fast.",
+      "lessons": [
+        "sd-indexing",
+        "sd-connection-replicas",
+        "sd-locking",
+        "sd-latency-multiregion"
+      ],
+      "problemIds": []
+    },
+    {
+      "id": "sd-building-blocks",
+      "title": "Reusable building blocks",
+      "summary": "Components that recur across designs — recognise them so you assemble instead of invent.",
+      "lessons": [
+        "sd-id-generation",
+        "sd-fanout",
+        "sd-realtime",
+        "sd-vector-db"
+      ],
+      "problemIds": [
+        "sd-024",
+        "sd-013"
+      ]
+    }
+  ]
+}

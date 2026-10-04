@@ -1,5 +1,5 @@
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowRightLeft, ArrowUp, Link2, LoaderCircle, Pencil, Plus, Sparkles, Trash, Undo2, Unlink2, X } from 'lucide-react'
+import { pixelText } from './pixelText'
 import type { AgentResult, AgentStatus, TranscriptEntry } from '../../shared/api'
 import type { Change } from '../../shared/ops'
 import { cn } from '../lib/utils'
@@ -21,13 +21,13 @@ type Item =
 
 let nextId = 1
 
-const KIND: Record<Change['kind'], { label: string; Icon: typeof Plus }> = {
-  create: { label: 'Create', Icon: Plus },
-  update: { label: 'Update', Icon: Pencil },
-  delete: { label: 'Delete', Icon: Trash },
-  move: { label: 'Move', Icon: ArrowRightLeft },
-  link: { label: 'Link', Icon: Link2 },
-  unlink: { label: 'Unlink', Icon: Unlink2 },
+const KIND: Record<Change['kind'], { label: string }> = {
+  create: { label: 'Create' },
+  update: { label: 'Update' },
+  delete: { label: 'Delete' },
+  move: { label: 'Move' },
+  link: { label: 'Link' },
+  unlink: { label: 'Unlink' },
 }
 
 function toTranscript(items: Item[]): TranscriptEntry[] {
@@ -53,35 +53,32 @@ function fromResult(r: AgentResult): Item {
 
 function ChangeRow({ c }: { c: Change }) {
   const destructive = c.kind === 'delete' || c.kind === 'unlink'
-  const { label, Icon } = KIND[c.kind]
+  const { label } = KIND[c.kind]
   return (
     <li className="flex gap-3 px-4 py-3">
-      <Icon aria-hidden="true" className={cn('mt-0.5 size-4 shrink-0', destructive ? 'text-destructive' : 'text-brand')} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-baseline gap-2 text-[0.75rem]">
-          <span className={cn('font-medium', destructive ? 'text-destructive' : 'text-foreground')}>{label}</span>
-          <span className="text-faint">{c.entity}</span>
+        <div className="flex items-baseline gap-3">
+          <span className={cn('label', destructive ? '!text-brand' : '!text-ink')}>{label}</span>
+          <span className="label">{c.entity}</span>
         </div>
-        <p className="mt-0.5 break-words text-[0.875rem] leading-snug">{c.label}</p>
+        <p className="mt-1 break-words leading-6">{pixelText(c.label)}</p>
         {c.fields && c.fields.length > 0 && (
-          <dl className="mt-2 text-[0.8125rem] leading-relaxed">
+          <dl className="mt-2">
             {c.fields.map((f, i) => (
-              <div key={i} className="mt-1.5">
-                <dt className="font-mono text-[0.75rem] text-faint">{f.field}</dt>
+              <div key={i} className="mt-2">
+                <dt className="label">{f.field}</dt>
                 <dd className="m-0 break-words">
-                  {f.before !== undefined && (
-                    <span className="text-faint line-through decoration-faint/70">{f.before}</span>
-                  )}
-                  {f.before !== undefined && f.after !== undefined && <span aria-label="becomes" className="text-faint"> → </span>}
-                  {f.after}
+                  {f.before !== undefined && <span className="text-ink-2 line-through">{pixelText(f.before)}</span>}
+                  {f.before !== undefined && f.after !== undefined && <span aria-label="becomes" className="text-ink-2"> {'->'} </span>}
+                  {pixelText(f.after ?? '')}
                 </dd>
               </div>
             ))}
           </dl>
         )}
         {c.notes?.map((n) => (
-          <p key={n} className="mt-1 text-[0.8125rem] text-muted-foreground">
-            {n}
+          <p key={n} className="mt-1 text-ink-2">
+            {pixelText(n)}
           </p>
         ))}
       </div>
@@ -177,27 +174,24 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
       onKeyDown={(e) => {
         if (e.key === 'Escape') onClose()
       }}
-      className={cn('h-full w-[400px] max-w-full shrink-0 flex-col border-l border-hairline bg-sidebar', open ? 'flex' : 'hidden')}
+      className={cn('h-full w-[420px] max-w-full shrink-0 flex-col border-l border-hair bg-paper', open ? 'flex' : 'hidden')}
     >
       <div className="app-drag flex h-[52px] shrink-0 items-center gap-2 pl-4 pr-2">
-        <Sparkles aria-hidden="true" className="size-4 text-brand" />
-        <h2 className="text-[0.8125rem] font-medium">Assistant</h2>
+        <h2 className="text-[24px]">Assistant</h2>
         <span className="flex-1" />
         {status && status.undoable > 0 && (
           <Button variant="ghost" size="sm" className="no-drag" onClick={undo} disabled={busy}>
-            <Undo2 aria-hidden="true" className="size-3.5" />
             Undo last change
           </Button>
         )}
         <button type="button" className="tool no-drag" onClick={onClose} aria-label="Close">
-          <X aria-hidden="true" />
-          <span className="sr-only">Close</span>
+          Close
         </button>
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-4" aria-live="polite">
         {status && !status.agyPath && (
-          <p className="mb-4 rounded-md bg-destructive/10 px-4 py-3 text-[0.875rem] leading-relaxed">
+          <p className="notch mb-4 border border-brand px-4 py-3">
             The agy CLI was not found, so commands cannot run. Install it to ~/.local/bin, or set agent.agyPath in
             settings.json in the data folder.
           </p>
@@ -208,20 +202,20 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
               return (
                 <p
                   key={it.id}
-                  className="ml-8 self-end whitespace-pre-wrap rounded-lg rounded-br-sm bg-card px-4 py-2.5 text-[0.9rem] leading-relaxed shadow-[var(--shadow-panel)]"
+                  className="notch ml-8 self-end whitespace-pre-wrap border border-hair-strong bg-surface px-4 py-2.5"
                 >
                   {it.text}
                 </p>
               )
             if (it.kind === 'answer')
-              return <Markdown key={it.id} body={it.text} className="px-1 text-[0.9rem] leading-relaxed [&>*+*]:mt-3" />
+              return <Markdown key={it.id} body={it.text} className="px-1 [&>*+*]:!mt-3" />
             if (it.kind === 'error' || it.kind === 'note')
               return (
                 <p
                   key={it.id}
                   className={cn(
-                    'whitespace-pre-wrap text-[0.875rem] leading-relaxed',
-                    it.kind === 'error' ? 'rounded-md bg-destructive/10 px-4 py-3' : 'px-1 text-muted-foreground',
+                    'whitespace-pre-wrap',
+                    it.kind === 'error' ? 'notch border border-brand px-4 py-3' : 'px-1 text-ink-2',
                   )}
                 >
                   {it.kind === 'error' && <span className="sr-only">Error: </span>}
@@ -230,14 +224,14 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
               )
             return (
               <div key={it.id}>
-                {it.reply && <Markdown body={it.reply} className="px-1 text-[0.9rem] leading-relaxed [&>*+*]:mt-3" />}
+                {it.reply && <Markdown body={it.reply} className="px-1 [&>*+*]:!mt-3" />}
                 <div className="panel mt-3 overflow-hidden">
                   <ul className="list m-0 list-none p-0">
                     {it.changes.map((c, i) => (
                       <ChangeRow key={i} c={c} />
                     ))}
                   </ul>
-                  <div className="flex flex-wrap items-center gap-2 border-t border-hairline px-3 py-2.5">
+                  <div className="flex flex-wrap items-center gap-3 border-t border-hair px-3 py-3">
                     {it.state === 'pending' && (
                       <>
                         <Button ref={applyRef} size="sm" onClick={() => apply(it)}>
@@ -249,24 +243,24 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
                       </>
                     )}
                     {it.state === 'applying' && (
-                      <span className="flex items-center gap-2 text-[0.8125rem] text-muted-foreground">
-                        <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin" />
-                        Applying…
+                      <span className="label flex items-center gap-3">
+                        <span className="live-dot" />
+                        Applying
                       </span>
                     )}
-                    {it.state === 'applied' && <span className="text-[0.8125rem] text-brand">Applied</span>}
-                    {it.state === 'discarded' && <span className="text-[0.8125rem] text-muted-foreground">Discarded</span>}
-                    {it.state === 'failed' && <span className="whitespace-pre-wrap text-[0.8125rem] text-destructive">{it.outcome}</span>}
+                    {it.state === 'applied' && <span className="label !text-ink">Applied</span>}
+                    {it.state === 'discarded' && <span className="label">Discarded</span>}
+                    {it.state === 'failed' && <span className="whitespace-pre-wrap text-brand">{it.outcome}</span>}
                   </div>
                 </div>
               </div>
             )
           })}
           {busy && (
-            <div className="flex items-center gap-3 px-1 text-[0.8125rem] text-muted-foreground">
-              <LoaderCircle aria-hidden="true" className="size-3.5 animate-spin text-brand" />
+            <div className="label flex items-center gap-3 px-1">
+              <span className="live-dot" />
               <span>
-                Working… <span className="num">{elapsed}s</span>
+                Working <span className="num">{elapsed}s</span>
               </span>
               <Button variant="ghost" size="sm" onClick={() => window.prep.agent.cancel()}>
                 Cancel
@@ -286,25 +280,24 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
         <label htmlFor="assistant-input" className="sr-only">
           Command
         </label>
-        <div className="panel flex items-end gap-2 p-1.5 pl-3 focus-within:ring-[3px] focus-within:ring-ring/40">
+        <div className="panel flex items-end gap-2 p-1.5 pl-3">
           <textarea
             ref={inputRef}
             id="assistant-input"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Ask or change anything…"
+            placeholder="Ask or change anything..."
             rows={1}
-            className="field-sizing-content max-h-40 min-h-9 flex-1 resize-none bg-transparent py-1.5 text-[0.9rem] leading-relaxed outline-none placeholder:text-faint"
+            className="field-sizing-content max-h-40 min-h-9 flex-1 resize-none bg-transparent py-1 leading-7 outline-none placeholder:text-ink-2"
           />
           <button
             type="submit"
             disabled={busy || !text.trim()}
             aria-label="Send"
-            className="inline-flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground transition-[background-color,opacity] hover:bg-primary/90 disabled:opacity-40"
+            className="notch inline-flex h-9 shrink-0 items-center justify-center bg-ink px-4 font-label text-[12px] uppercase tracking-[0.12em] text-paper transition-colors hover:bg-brand disabled:opacity-40"
           >
-            <ArrowUp aria-hidden="true" className="size-4" />
-            <span className="sr-only">Send</span>
+            Send
           </button>
         </div>
       </form>

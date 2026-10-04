@@ -1,13 +1,17 @@
 # Prep
 
-A local Mac app for interview study and practice. Seven study areas — DSA
-plus six courses (low-level design, system design, architecture, AI
-engineering, production and ops, security) with 117 lessons — 241 drills, of
-which 148 are Python problems with an editor and an offline syntax check, 29
-pattern cards mapped to every problem, and company research with questions,
-answer sketches and variants. Progress is kept on disk. An assistant (⌘J)
-creates, reads, updates and deletes any record through natural-language
-commands, with a diff to approve and one-click undo.
+A local Mac app for interview study and practice, drawn in a pixel-typeset,
+drafted-paper style (night by default, day with the switch in the toolbar).
+Seven study areas — DSA plus six courses (low-level design, system design,
+architecture, AI engineering, production and ops, security) — whose lessons
+carry animated diagrams and self-check cards; 241 drills, of which 148 are
+Python problems in a split-pane workspace (statement, hints, approach, editor,
+offline syntax check); 29 pattern cards, each with a step-through
+walk-through of the real algorithm, mapped to every problem; a spaced-review
+deck built from the lessons' self-check cards; and company research with
+questions, answer sketches and variants. Progress is kept on disk. An
+assistant (⌘J) creates, reads, updates and deletes any record through
+natural-language commands, with a diff to approve and one-click undo.
 
 Everything the app needs ships in this repository. It runs offline; only the
 assistant talks to anything else (a local CLI, see below).
@@ -69,6 +73,8 @@ Gatekeeper does not quarantine it; it opens like any other app.
 | ⌘[ / ⌘] | back / forward |
 | ⌘⇧H | Overview |
 | ⌘⌥S | show or hide the sidebar |
+| ⌘Enter | check syntax (problem page) |
+| / | focus search (DSA list) |
 
 ## Where your data lives
 
@@ -77,8 +83,12 @@ Gatekeeper does not quarantine it; it opens like any other app.
 - `data/content.json` — every course, lesson, drill, pack, pattern and
   company. The source of truth; created from `seed/content.json` on first
   launch.
-- `data/history/` — a snapshot before every applied assistant change (last
-  100), for Undo.
+- `data/history/` — a snapshot before every applied assistant change or
+  content update (last 100), for Undo.
+- `data/seed-state.json` — which bundled content revision this folder has.
+  When a newer app ships newer lessons, records you have not touched are
+  updated, records you edited or deleted are left alone, and anything you
+  created is kept (see `src/shared/seedMerge.ts`).
 - `progress.json` — problem status, notes and code.
 - `agent/log.jsonl` — every assistant command, plan, error and applied change.
 - `settings.json` (optional) — `{"agent": {"effort": "low" | "medium" | "high",
@@ -102,10 +112,38 @@ schemas, unique ids, every reference resolves; rejected plans go back to agy
 with the errors (twice at most). Nothing changes until you press Apply, and
 every applied plan can be undone.
 
+## Content
+
+Lessons are authored as markdown in `content-src/<course>/lessons/<id>.md`
+(front matter, body, optional `===DEEPER===` section) and assembled into
+`seed/content.json`:
+
+```sh
+node scripts/run-ts.mjs scripts/build-content.ts --course=ai [--check]
+```
+
+The script validates every diagram block, recomputes reading time and
+replaces that course's chapters in the seed. After changing lessons, bump
+`seed/revision.json` so existing installs pick them up. Lessons can embed, as
+fenced blocks: `flow` (boxes and arrows with a travelling packet), `mermaid`
+sequence diagrams, `stack` and `bars` charts, `steps`, `recall` (self-check
+cards that feed the Review page) and `viz <scene-id>` (algorithm
+walk-throughs). The syntax is specified in `content-src/ai/SPEC.md`.
+
+## Design
+
+The visual language is the "Mihir" house style: Pixelta for display,
+Pixel Operator for body, Determination for labels (fonts in
+`src/renderer/assets/fonts/`; Pixel Operator is CC0, Determination is CC BY 3.0
+and is credited in the sidebar). Paper and ink, 2px frames with stepped
+notch corners, hard offset shadows, a 16px dot grid, red only for
+interaction. Tokens live at the top of `src/renderer/prep.css`.
+
 ## Verify
 
 ```sh
-npm run verify:seed    # seed/content.json: schemas, unique ids, every reference resolves
+npm run verify:seed    # seed/content.json: schemas, unique ids, every reference resolves,
+                       # and that a content update keeps the user's edits
 npm run verify:app     # builds, then drives the real app in a throwaway data dir:
                        # every route renders, Pyodide validator, progress persistence,
                        # ⌘K palette, assistant panel; screenshots → verify-report/
@@ -131,10 +169,14 @@ scripts/
 ├── install-app.mjs      → /Applications/Prep.app
 ├── build-main.mjs       main, preload and verify bundles (esbuild)
 ├── copy-pyodide.mjs     Pyodide runtime from node_modules into the renderer's public dir
-├── verify-seed.ts       seed integrity
+├── build-content.ts     content-src/<course> → seed/content.json (validates diagram blocks)
+├── verify-seed.ts       seed integrity and update semantics
 ├── make-icon.cjs        resources/icon.icns from icon.svg, rasterized by Electron
 └── import/              optional: re-import the seed from a web-portal checkout (PORTFOLIO=…)
 seed/content.json        the data every fresh install starts from
+seed/revision.json       bumped when the bundled content changes
+seed/legacy.json         record hashes of revision 1, so older installs can be updated safely
+content-src/             lessons as markdown, by course
 resources/               app icon
 src/
 ├── shared/              pure core, used by main and renderer
@@ -142,6 +184,7 @@ src/
 │   ├── schema.ts          strict runtime schemas for every record
 │   ├── validate.ts        whole-store integrity: schemas, unique ids, every reference resolves
 │   ├── ops.ts             the assistant's operation language + all-or-nothing apply, cascades, previews
+│   ├── seedMerge.ts       carry a newer bundled seed into an existing store without losing edits
 │   ├── digest.ts          the assistant's context: compact index + records a command mentions
 │   └── prompt.ts          instructions and the structured-output schema
 ├── main/                Electron main process (the only code with disk or process access)
@@ -155,7 +198,9 @@ src/
 └── renderer/            the UI (React 19, Tailwind v4, shadcn/Radix, CodeMirror)
     ├── model/             live model built from the store
     ├── routes/            one file per screen
-    ├── components/        shell (sidebar, toolbar, assistant), palette, editor, diagrams
+    ├── components/        shell (sidebar, toolbar, assistant), palette, editor, markdown
+    │   └── blocks/        flow / sequence / chart / steps / recall renderers
+    ├── viz/               algorithm walk-through engine and the 29 scenes
     └── public/            validate-worker.mjs; pyodide/ is copied in at build time
 ```
 

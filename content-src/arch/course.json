@@ -1,0 +1,84 @@
+{
+  "course": "arch",
+  "chapters": [
+    {
+      "id": "arch-styles",
+      "title": "Architecture styles",
+      "summary": "The handful of shapes a system takes, when each wins, and the 2025-26 pendulum swing back toward the monolith.",
+      "lessons": [
+        "arch-layered",
+        "arch-hexagonal",
+        "arch-event-driven",
+        "arch-micro-vs-monolith",
+        "arch-cqrs",
+        "arch-event-sourcing",
+        "arch-saga"
+      ],
+      "problemIds": [
+        "arch-001",
+        "arch-002",
+        "arch-003",
+        "arch-004",
+        "arch-005",
+        "arch-006",
+        "arch-007"
+      ]
+    },
+    {
+      "id": "arch-ddd",
+      "title": "DDD & boundaries",
+      "summary": "How to decide where a service or module boundary actually goes — the DDD vocabulary plus Conway’s Law.",
+      "lessons": [
+        "arch-bounded-context",
+        "arch-aggregates",
+        "arch-boundary-heuristics",
+        "arch-conways-law"
+      ],
+      "problemIds": [
+        "arch-008",
+        "arch-009",
+        "arch-010",
+        "arch-011",
+        "arch-012",
+        "arch-013"
+      ]
+    },
+    {
+      "id": "arch-cross-cutting",
+      "title": "Cross-cutting concerns",
+      "summary": "Resilience, observability, API evolution, and release patterns — the concerns that cut across every service regardless of style.",
+      "lessons": [
+        "arch-circuit-breaker",
+        "arch-retry-backoff",
+        "arch-bulkhead",
+        "arch-timeout-budgets",
+        "arch-observability",
+        "arch-api-versioning",
+        "arch-feature-flags",
+        "arch-deployment-patterns"
+      ],
+      "problemIds": [
+        "arch-014",
+        "arch-015",
+        "arch-016",
+        "arch-017",
+        "arch-018",
+        "arch-019",
+        "arch-020",
+        "arch-021",
+        "arch-022",
+        "arch-023"
+      ]
+    },
+    {
+      "id": "arch-messaging",
+      "title": "Messaging & event flow",
+      "summary": "How services talk asynchronously — and what goes wrong when they do.",
+      "lessons": [
+        "arch-queues-pubsub",
+        "arch-backpressure-dlq"
+      ],
+      "problemIds": []
+    }
+  ]
+}

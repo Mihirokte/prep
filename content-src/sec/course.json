@@ -1,0 +1,39 @@
+{
+  "course": "sec",
+  "chapters": [
+    {
+      "id": "sec-identity",
+      "title": "Identity & access",
+      "summary": "Who is calling, what they are allowed to do, and how tokens and secrets are handled without leaking them.",
+      "lessons": [
+        "sec-iam",
+        "sec-oauth",
+        "sec-jwt",
+        "sec-secrets"
+      ],
+      "problemIds": []
+    },
+    {
+      "id": "sec-data",
+      "title": "Data in transit & at rest",
+      "summary": "Protecting data on the wire and on disk, and the network-layer defenses in front of the application.",
+      "lessons": [
+        "sec-tls",
+        "sec-encryption",
+        "sec-waf-ddos"
+      ],
+      "problemIds": []
+    },
+    {
+      "id": "sec-webvuln",
+      "title": "Web & app vulnerabilities",
+      "summary": "The application-layer attacks from the OWASP Top 10 — for each, what it is, a concrete example, and the standard mitigation.",
+      "lessons": [
+        "sec-cors-csrf",
+        "sec-injection",
+        "sec-ssrf"
+      ],
+      "problemIds": []
+    }
+  ]
+}

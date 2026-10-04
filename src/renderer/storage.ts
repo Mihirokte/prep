@@ -13,6 +13,6 @@ export function readProgressFile(file: File): Promise<ProgressState> {
   return file.text().then((text) => {
     const parsed = JSON.parse(text) as Partial<ProgressState>
     if (typeof parsed !== 'object' || parsed === null) throw new Error('not a progress file')
-    return { lessons: parsed.lessons ?? {}, problems: parsed.problems ?? {} }
+    return { lessons: parsed.lessons ?? {}, problems: parsed.problems ?? {}, recall: parsed.recall ?? {} }
   })
 }

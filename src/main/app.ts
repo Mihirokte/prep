@@ -27,7 +27,7 @@ const ORIGIN = `${SCHEME}://app`
 const RENDERER_DIR = path.join(__dirname, '..', 'renderer')
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.cjs')
 const SEED = path.join(__dirname, '..', '..', 'seed', 'content.json')
-const BACKGROUND = '#1c1917' // --background (content surface), so no flash on open
+const BACKGROUND = '#121216' // night paper, so no flash on open
 
 const CSP = [
   "default-src 'self'",

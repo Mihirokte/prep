@@ -1,78 +1,154 @@
-import type { ReactNode } from 'react'
+import { Children, isValidElement, type ReactElement, type ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '../lib/utils'
-import SequenceDiagram from './SequenceDiagram'
+import { pixelText } from './pixelText'
+import SequenceDiagram from './blocks/SequenceDiagram'
+import FlowDiagram, { parseFlow } from './blocks/FlowDiagram'
+import { BarChart, StackChart, parseChart } from './blocks/Charts'
+import StepsBlock, { parseSteps } from './blocks/Steps'
+import { RecallDeck, RecallScope, parseRecall } from './blocks/Recall'
+import VizEmbed from '../viz/VizEmbed'
 
-/** In-app routes (#/…) navigate in place; everything else opens in the browser. */
+const RICH = /language-(mermaid|flow|stack|bars|steps|recall|viz)\b/
+const CALLOUTS = new Set(['pitfall', 'interview', 'rule of thumb', 'numbers', 'key idea'])
+
+/** Turn `> **Pitfall.** text` blockquotes into callouts. */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function remarkCallouts() {
+  return (tree: any) => {
+    const walk = (node: any) => {
+      if (node.type === 'blockquote') {
+        const p = node.children?.[0]
+        const first = p?.type === 'paragraph' ? p.children?.[0] : null
+        if (first?.type === 'strong') {
+          const label = (first.children ?? []).map((c: any) => c.value ?? '').join('').replace(/[.:]\s*$/, '').trim()
+          if (CALLOUTS.has(label.toLowerCase())) {
+            p.children.shift()
+            if (p.children[0]?.type === 'text') p.children[0].value = p.children[0].value.replace(/^\s+/, '')
+            node.data = { hName: 'aside', hProperties: { 'data-callout': label } }
+          }
+        }
+      }
+      node.children?.forEach(walk)
+    }
+    walk(tree)
+  }
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+export const slug = (s: string): string =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+function textOf(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(textOf).join('')
+  if (isValidElement(node)) return textOf((node.props as { children?: ReactNode }).children)
+  return ''
+}
+
+/** In-app routes (#/...) navigate in place; everything else opens in the browser. */
 function Link({ href, children }: { href?: string; children: ReactNode }) {
-  if (href?.startsWith('#')) return <a href={href} className="text-brand underline decoration-brand/40 hover:decoration-brand">{children}</a>
+  if (href?.startsWith('#')) return <a href={href}>{children}</a>
   return (
-    <a href={href} target="_blank" rel="noopener" className="text-brand underline decoration-brand/40 hover:decoration-brand">
+    <a href={href} target="_blank" rel="noopener">
       {children}
     </a>
   )
 }
 
-const INLINE_CODE = 'rounded-sm bg-[oklch(1_0_0/0.07)] px-1.5 py-0.5 font-mono text-[0.875em] text-foreground'
-
-/** One line of markdown with no block wrapper — for list items and labels that
+/** One line of markdown with no block wrapper: for list items and labels that
  *  carry **bold** or `code` but must stay inline. */
 export function InlineMarkdown({ body }: { body: string }) {
   return (
     <ReactMarkdown
       components={{
         p: ({ children }) => <>{children}</>,
-        strong: ({ children }) => <strong className="font-medium text-foreground">{children}</strong>,
-        code: ({ children }) => <code className={INLINE_CODE}>{children}</code>,
+        strong: ({ children }) => <strong>{children}</strong>,
+        code: ({ children }) => <code>{children}</code>,
         a: ({ href, children }) => <Link href={href}>{children}</Link>,
       }}
     >
-      {body}
+      {pixelText(body)}
     </ReactMarkdown>
   )
 }
 
-// Lesson prose. Tailwind classes are applied per element so the markdown
-// inherits the same tokens as the rest of the app.
-export default function Markdown({ body, className }: { body: string; className?: string }) {
+function RichBlock({ lang, text }: { lang: string; text: string }) {
+  switch (lang) {
+    case 'mermaid':
+      return <SequenceDiagram chart={text} />
+    case 'flow': {
+      const spec = parseFlow(text)
+      return spec ? <FlowDiagram spec={spec} fallback={text} /> : <pre>{text}</pre>
+    }
+    case 'stack':
+    case 'bars': {
+      const chart = parseChart(text)
+      if (!chart) return <pre>{text}</pre>
+      return lang === 'stack' ? <StackChart chart={chart} /> : <BarChart chart={chart} />
+    }
+    case 'steps': {
+      const rows = parseSteps(text)
+      return rows ? <StepsBlock rows={rows} /> : <pre>{text}</pre>
+    }
+    case 'recall': {
+      const pairs = parseRecall(text)
+      return pairs.length ? <RecallDeck pairs={pairs} /> : <pre>{text}</pre>
+    }
+    case 'viz':
+      return <VizEmbed id={text} />
+    default:
+      return <pre>{text}</pre>
+  }
+}
+
+/** Lesson prose, styled by the `.md` rules in prep.css (pixel body, Pixelta
+ *  headings, square bullets, hairline tables). Rich fenced blocks render as
+ *  live diagrams. `scope` ties recall cards to their lesson. */
+export default function Markdown({ body, className, scope = 'free' }: { body: string; className?: string; scope?: string }) {
   return (
-    <div className={cn('text-[1rem] leading-[1.7] [&>*+*]:mt-4', className)}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          h2: ({ children }) => <h2 className="mt-10 mb-3 text-[1.25rem]">{children}</h2>,
-          h3: ({ children }) => <h3 className="mt-8 mb-2 text-[1.0625rem]">{children}</h3>,
-          p: ({ children }) => <p className="my-4">{children}</p>,
-          ul: ({ children }) => <ul className="my-4 pl-6 list-disc marker:text-faint">{children}</ul>,
-          ol: ({ children }) => <ol className="my-4 pl-6 list-decimal marker:text-faint">{children}</ol>,
-          li: ({ children }) => <li className="my-1.5">{children}</li>,
-          strong: ({ children }) => <strong className="font-medium">{children}</strong>,
-          a: ({ href, children }) => <Link href={href}>{children}</Link>,
-          blockquote: ({ children }) => (
-            <blockquote className="md-surface my-6 rounded-md bg-card px-5 py-3 text-muted-foreground shadow-[var(--shadow-panel)] [&>p]:my-2">{children}</blockquote>
-          ),
-          table: ({ children }) => (
-            <div className="md-surface my-6 overflow-x-auto rounded-md bg-card shadow-[var(--shadow-panel)]"><table className="w-full border-collapse text-[0.9rem]">{children}</table></div>
-          ),
-          th: ({ children }) => (
-            <th className="border-b border-hairline px-4 py-2.5 text-left text-[0.75rem] font-medium text-faint">{children}</th>
-          ),
-          td: ({ children }) => <td className="border-b border-hairline px-4 py-2.5 text-left align-top last:border-b-0">{children}</td>,
-          code({ className, children, ...props }) {
-            const text = String(children).replace(/\n$/, '')
-            if (className === 'language-mermaid') return <SequenceDiagram chart={text} />
-            if (!className) return <code className={INLINE_CODE}>{children}</code>
-            return (
-              <pre className="md-surface my-6 overflow-x-auto rounded-md bg-card px-4 py-3.5 font-mono text-[0.8125rem] leading-relaxed shadow-[var(--shadow-panel)]">
-                <code {...props}>{children}</code>
-              </pre>
-            )
-          },
-        }}
-      >
-        {body}
-      </ReactMarkdown>
-    </div>
+    <RecallScope.Provider value={scope}>
+      <div className={cn('md', className)}>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkCallouts]}
+          components={{
+            h2: ({ children }) => <h2 id={slug(textOf(children))}>{children}</h2>,
+            h3: ({ children }) => <h3 id={slug(textOf(children))}>{children}</h3>,
+            a: ({ href, children }) => <Link href={href}>{children}</Link>,
+            aside: ({ children, ...props }) => {
+              const label = (props as { 'data-callout'?: string })['data-callout'] ?? ''
+              return (
+                <aside className="callout">
+                  <span className="label">{label}</span>
+                  {children}
+                </aside>
+              )
+            },
+            table: ({ children }) => (
+              <div className="md-table">
+                <table>{children}</table>
+              </div>
+            ),
+            pre: ({ children }) => {
+              const child = Children.toArray(children)[0] as ReactElement<{ className?: string }> | undefined
+              if (child && isValidElement(child) && RICH.test(child.props.className ?? '')) return <>{children}</>
+              return <pre>{children}</pre>
+            },
+            code: ({ className: cls, children }) => {
+              const text = String(children).replace(/\n$/, '')
+              const m = /language-(\w+)/.exec(cls ?? '')
+              if (m && RICH.test(cls ?? '')) return <RichBlock lang={m[1]} text={text} />
+              return <code className={cls}>{children}</code>
+            },
+          }}
+        >
+          {pixelText(body)}
+        </ReactMarkdown>
+      </div>
+    </RecallScope.Provider>
   )
 }

@@ -1,0 +1,52 @@
+{
+  "course": "ai",
+  "blurb": "Building applications on top of foundation models: how models behave, the patterns (prompting, tools, retrieval, agents, context engineering), what production demands (evals, safety, cost, latency, serving), an honest read on the stack, and worked design cases. Written for a software engineer preparing for AI-engineering interviews and for shipping real systems.",
+  "chapters": [
+    {
+      "id": "ai-foundations",
+      "title": "How models behave",
+      "summary": "Tokens, sampling, attention and the KV cache, embeddings, and how to pick a model: the mechanics that explain cost, latency and quality.",
+      "lessons": ["ai-tokens", "ai-sampling", "ai-attention-kv", "ai-embeddings", "ai-model-choice"],
+      "problemIds": []
+    },
+    {
+      "id": "ai-patterns",
+      "title": "Building blocks",
+      "summary": "Prompting, structured outputs, tool calling and retrieval: the pieces almost every LLM application is assembled from.",
+      "lessons": ["ai-role", "ai-prompting", "ai-structured-outputs", "ai-tool-calling", "ai-rag", "ai-chunking", "ai-hybrid-search", "ai-query-transform", "ai-rag-vs-long-context"],
+      "problemIds": ["ai-019", "ai-020", "ai-003", "ai-022", "ai-002", "ai-025"]
+    },
+    {
+      "id": "ai-agents",
+      "title": "Agents and context",
+      "summary": "Workflows vs agents, the loop, memory, multi-agent trade-offs, human checkpoints, MCP, and context engineering.",
+      "lessons": ["ai-agents-vs-workflows", "ai-workflow-patterns", "ai-agent-loop", "ai-memory", "ai-single-vs-multi-agent", "ai-hitl", "ai-mcp", "ai-context-engineering"],
+      "problemIds": ["ai-017", "ai-005", "ai-006", "ai-007", "ai-008", "ai-023", "ai-004", "ai-009", "ai-018"]
+    },
+    {
+      "id": "ai-production",
+      "title": "Production",
+      "summary": "Evals, observability, safety, prompt injection, cost and latency, fine-tuning, and serving: what separates a demo from a system people trust.",
+      "lessons": [
+        "ai-evals", "ai-eval-datasets", "ai-rag-eval", "ai-llm-as-judge", "ai-observability", "ai-prompt-versioning",
+        "ai-guardrails", "ai-prompt-injection", "ai-prompt-caching", "ai-routing-batching", "ai-latency",
+        "ai-fine-tune-vs-prompt", "ai-finetuning-methods", "ai-inference-serving"
+      ],
+      "problemIds": ["ai-001", "ai-014", "ai-021", "ai-024", "ai-013", "ai-010", "ai-011", "ai-012"]
+    },
+    {
+      "id": "ai-stack",
+      "title": "The stack",
+      "summary": "Frameworks, vector databases, eval tools and gateways, and what to say about them.",
+      "lessons": ["ai-frameworks", "ai-vector-dbs", "ai-eval-and-gateway-tools", "ai-stack-judgment"],
+      "problemIds": ["ai-015", "ai-016"]
+    },
+    {
+      "id": "ai-design",
+      "title": "Design cases",
+      "summary": "Three worked system designs and a framework for any AI design question.",
+      "lessons": ["ai-case-support-bot", "ai-case-coding-agent", "ai-case-doc-pipeline", "ai-interview-framework"],
+      "problemIds": []
+    }
+  ]
+}

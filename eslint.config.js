@@ -32,8 +32,10 @@ export default tseslint.config([
     languageOptions: { globals: globals.worker, sourceType: 'module' },
   },
   {
-    // Vendored shadcn/ui primitives co-export cva variants alongside components.
-    files: ['src/renderer/ui/**/*.tsx'],
+    // Vendored shadcn/ui primitives co-export cva variants alongside components,
+    // and the content blocks export their parsers next to the component that
+    // renders them. Fast refresh is a dev-server nicety, not a correctness rule.
+    files: ['src/renderer/ui/**/*.tsx', 'src/renderer/components/**/*.tsx', 'src/renderer/routes/**/*.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },
 ])
