@@ -706,6 +706,7 @@
 .md {
   font-size: 16px;
   line-height: 28px;
+  overflow-wrap: anywhere;
 }
 .md > * + * {
   margin-top: 20px;
@@ -779,7 +780,12 @@
   background: var(--wash);
   border: 1px solid var(--hair);
   padding: 0 4px;
-  white-space: nowrap;
+  /* Inline code wraps like prose, and a long token (a URL, a path) breaks
+     instead of pushing the column past its pane. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 .md pre {
   background: var(--surface);

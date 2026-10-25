@@ -14,7 +14,7 @@ export interface HomeArea {
 // Explicit learning sequence by course key. DSA first, then the study areas
 // in dependency order (single-machine design → distributed → above-a-system →
 // how real systems run).
-const ORDER = ['dsa', 'lld', 'sd', 'arch', 'ai', 'ops', 'sec']
+const ORDER = ['dsa', 'lld', 'sd', 'arch', 'ai', 'scratch', 'ops', 'sec']
 
 const DSA_AREA: HomeArea = {
   key: 'dsa',

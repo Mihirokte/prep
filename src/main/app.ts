@@ -119,7 +119,8 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
     const settings = await readSettings(path.join(userData, 'settings.json'))
     let win: BrowserWindow | null = null
     const broadcast = (content: Content) => win?.webContents.send('content:changed', content)
-    const agent = new Agent(store, path.join(userData, 'agent'), settings.agent ?? {}, broadcast)
+    const progressLine = (text: string) => win?.webContents.send('agent:progress', text)
+    const agent = new Agent(store, path.join(userData, 'agent'), settings.agent ?? {}, broadcast, progressLine)
     await agent.init()
 
     protocol.handle(SCHEME, async (request) => {

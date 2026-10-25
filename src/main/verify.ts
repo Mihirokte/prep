@@ -3,8 +3,10 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
-import type { TranscriptEntry } from '../shared/api'
+import type { AgentResult, TranscriptEntry } from '../shared/api'
+import { lintBlocks } from '../shared/blocks'
 import type { Content } from '../shared/types'
+import { buildHomeAreas } from '../renderer/areas'
 import { type AppHandles, startApp } from './app'
 
 // End-to-end verification of the real app, run with `npm run verify:app`.
@@ -22,11 +24,15 @@ import { type AppHandles, startApp } from './app'
 //  5. With PREP_VERIFY_AGENT=1: real natural-language CRUD through agy — one
 //     command through the Assistant panel UI, the rest through the same main-
 //     process API the panel calls — then undo everything and confirm the store
-//     is byte-for-byte the seed again. Requires the agy CLI.
+//     is byte-for-byte the seed again. Requires the agy CLI. One scenario reads
+//     a public GitHub page, so it also needs the network.
+//     PREP_VERIFY_SCENARIOS=<regex> runs only the matching scenarios.
 
 const OUT = path.resolve(process.env.PREP_VERIFY_OUT ?? 'verify-report')
 const WEBSITE = process.env.PREP_VERIFY_WEBSITE || null
 const AGENT = process.env.PREP_VERIFY_AGENT === '1'
+/** PREP_VERIFY_SCENARIOS=<regex>: run only the matching assistant scenarios, and skip the page checks. */
+const ONLY = process.env.PREP_VERIFY_SCENARIOS ? new RegExp(process.env.PREP_VERIFY_SCENARIOS, 'i') : null
 const userData = mkdtempSync(path.join(os.tmpdir(), 'prep-verify-'))
 
 interface CheckResult {
@@ -532,7 +538,7 @@ async function features(h: AppHandles, win: BrowserWindow) {
   const landed = await waitFor(() => js<string>(win, 'location.hash'), (x) => x !== '#/', 5000, 'palette navigation')
   const c = h.store.get()
   const expected =
-    9 + // home index entries
+    buildHomeAreas(c.courses).length + // home index entries
     c.courses.reduce((n, co) => n + co.chapters.reduce((m, ch) => m + ch.lessons.length, 0), 0) +
     c.areas.reduce((n, a) => n + a.drills.length, 0) +
     c.companies.length +
@@ -563,6 +569,10 @@ interface Scenario {
   command: string
   expect: 'proposal' | 'answer'
   check: (c: Content, reply: string) => boolean
+  /** Extra checks on the result itself (sources read). */
+  result?: (r: AgentResult) => boolean
+  /** Runs only when PREP_VERIFY_SCENARIOS selects it. */
+  optional?: boolean
 }
 
 function scenarios(seed: Content): Scenario[] {
@@ -571,7 +581,7 @@ function scenarios(seed: Content): Scenario[] {
   const pat = (c: Content, key: string) => c.patterns.find((p) => p.key === key)
   const acme = (c: Content) => c.companies.find((x) => /acme/i.test(x.name))
   const acmeQ = (c: Content) => acme(c)?.questions.flatMap((g) => g.questions).find((q) => /substring/i.test(q.q))
-  return [
+  const list: Scenario[] = [
     {
       name: 'create: company + round + question + question→pattern mapping + note',
       command:
@@ -640,7 +650,37 @@ function scenarios(seed: Content): Scenario[] {
       expect: 'proposal',
       check: (c) => !acme(c),
     },
+    {
+      // The assistant has no tools: the app reads the URL and puts the page in the prompt.
+      name: 'read: answers from a web source the app fetches',
+      command:
+        'Read https://github.com/rohitg00/ai-engineering-from-scratch/blob/main/phases/14-agent-engineering/01-the-agent-loop/docs/en.md and list the five ingredients of an agent loop it names.',
+      expect: 'answer',
+      check: (_c, reply) => /tool registry/i.test(reply) && /stop condition/i.test(reply) && /turn budget/i.test(reply),
+      result: (r) => 'sources' in r && Boolean(r.sources?.some((s) => s.ok && /01-the-agent-loop\/docs\/en\.md/.test(s.url))),
+    },
+    {
+      // Large work: more lessons than one plan holds, so the plan comes back as
+      // slices that run in parallel and are joined. Slow (several minutes), so
+      // it runs only when PREP_VERIFY_SCENARIOS selects it.
+      name: 'large: six lessons from six web sources, planned as parallel slices',
+      optional: true,
+      command: [
+        'Create a new chapter "Agent patterns in depth" in the AI Engineering course with six new lessons, one written from each source below, in this app\'s lesson format with a diagram and a recall deck each:',
+        ...['02-rewoo-plan-and-execute', '03-reflexion-verbal-rl', '04-tree-of-thoughts-lats', '05-self-refine-and-critic', '06-tool-use-and-function-calling', '07-memory-virtual-context-memgpt'].map(
+          (l) => `https://github.com/rohitg00/ai-engineering-from-scratch/blob/main/phases/14-agent-engineering/${l}/docs/en.md`,
+        ),
+      ].join('\n'),
+      expect: 'proposal',
+      check: (c) => {
+        const ai = c.courses.find((co) => co.key === 'ai')
+        const ch = ai?.chapters.find((x) => /agent patterns in depth/i.test(x.title))
+        extra.largeChapter = ch?.lessons.map((l) => `${l.id} | ${l.title} | ${l.minutes} min`)
+        return Boolean(ch && ch.lessons.length >= 5 && ch.lessons.every((l) => /```recall/.test(l.body) && lintBlocks(l.body, l.id).errors.length === 0))
+      },
+    },
   ]
+  return list.filter((s) => (ONLY ? ONLY.test(s.name) : !s.optional))
 }
 
 async function assistantUi(h: AppHandles, win: BrowserWindow) {
@@ -709,12 +749,12 @@ async function assistantApi(h: AppHandles, seed: Content) {
       if (!applied.ok) detail = applied.error
       else {
         transcript.push({ role: 'applied', text: applied.summary })
-        ok = s.check(h.store.get(), reply)
+        ok = s.check(h.store.get(), reply) && (s.result?.(r) ?? true)
         detail = `${r.changes.length} change(s): ${applied.summary.slice(0, 160)}`
       }
     }
     const secs = Math.round((Date.now() - t0) / 1000)
-    timings.push({ scenario: s.name, seconds: secs, kind: r.kind, ok })
+    timings.push({ scenario: s.name, seconds: secs, kind: r.kind, ok, reply: reply.slice(0, 3000), sources: 'sources' in r ? r.sources : undefined })
     check(`assistant — ${s.name} (${secs}s)`, ok, detail)
   }
   extra.assistantTimings = timings
@@ -759,14 +799,17 @@ async function main() {
   const seed = JSON.parse(readFileSync(path.join(__dirname, '..', '..', 'seed', 'content.json'), 'utf8')) as Content
   const routes = routesOf(h.store.get())
   try {
-    await auditSelfTest(win)
-    await sweep(win, routes)
-    await screens(win, h.store.get())
-    await extraShots(win)
-    await features(h, win)
-    if (AGENT) {
-      await assistantUi(h, win)
-      await assistantApi(h, seed)
+    if (ONLY) await assistantApi(h, seed)
+    else {
+      await auditSelfTest(win)
+      await sweep(win, routes)
+      await screens(win, h.store.get())
+      await extraShots(win)
+      await features(h, win)
+      if (AGENT) {
+        await assistantUi(h, win)
+        await assistantApi(h, seed)
+      }
     }
   } catch (e) {
     check('verification run completed', false, e instanceof Error ? e.message : String(e))

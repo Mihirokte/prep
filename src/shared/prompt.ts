@@ -2,6 +2,7 @@ import type { TranscriptEntry } from './api'
 import { buildIndex, renderRecords, type RecordRef } from './digest'
 import { ENTITIES } from './locate'
 import { LIST_FIELDS, OP_KINDS, RELATIONS } from './ops'
+import { renderSources, type Source } from './sources'
 import type { Content } from './types'
 
 // The assistant's contract with the model: instructions, the JSON schema its
@@ -53,6 +54,25 @@ export const OUTPUT_SCHEMA = {
         required: ['entity', 'id'],
       },
     },
+    fetch: {
+      type: 'array',
+      description: 'Web or GitHub URLs to read before you can plan or answer. The app downloads them and asks again with their text under SOURCES.',
+      items: { type: 'string' },
+    },
+    tasks: {
+      type: 'array',
+      description: 'For work too large for one plan: independent slices, each run as its own command and combined into one plan.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          title: { type: 'string', description: 'A few words, shown to the user.' },
+          instructions: { type: 'string', description: 'The complete brief for this slice, naming every id it creates or changes.' },
+          urls: { type: 'array', items: { type: 'string' }, description: 'Source URLs this slice must read.' },
+        },
+        required: ['title', 'instructions'],
+      },
+    },
   },
   required: ['reply', 'operations'],
 } as const
@@ -66,7 +86,7 @@ const listFields = Object.entries(LIST_FIELDS)
 const INSTRUCTIONS = `You are the data editor inside "Prep", a personal interview-preparation app. Turn the user's command into a change plan over the app's content store, or answer their question about the content.
 
 RULES
-- Do not use any tools, commands or files. Everything you know about the data is in this message.
+- Do not use any tools, commands or files. Everything you know is in this message. To read a web page or a GitHub repository, list its URL in "fetch" (see SOURCES).
 - If you need a record that is not shown in full below, list it in "need" and return no operations yet.
 - Only change what the user asked for. Reference only ids that exist in the index, or ids you create in the same plan.
 - A question gets an answer in "reply" and no operations.
@@ -80,7 +100,7 @@ ENTITIES  (id = how the record is addressed; parent = where a child record lives
 - pack      id = the problem id (only DSA problems have one). Runnable statement for the code editor. Fields: slug, title, difficulty, topic?, link, description_md (markdown statement with an example and constraints), signature {name, type? ("class" for design problems), params: [{name, kind?}], returns?: {kind?}}, starter_code (Python), reference_solution? (Python), solution_source?.
 - course    id = key. Fields: label, blurb, problemAreaKey?, suppressedProblemIds?, references? [{label, url}]. Children: chapters.
 - chapter   id = "<course key>-<slug>". parent = course key. Fields: title, summary, problemIds? (practice problems). Children: lessons.
-- lesson    id = "<course key>-<slug>". parent = chapter id. Fields: title, minutes, body (markdown; \`\`\`mermaid sequenceDiagram fences render as diagrams), deeper? (markdown "Go deeper" section).
+- lesson    id = "<course key>-<slug>". parent = chapter id. Fields: title, minutes, body (markdown with the blocks under LESSONS), deeper? (markdown "Go deeper" section).
 - pattern   id = key (slug of the name). Fields: name, family, canonical (true only for the 16 canonical patterns), essence (one sentence), cues [], mechanism (markdown), template (Python), complexity, pitfalls [], contrasts? [{key, how}], problemIds [].
 - company   id = key (slug of the name). Fields: name, descriptor (one neutral line: what the company does, where, size), rolesCovered?, coverage ("good" | "moderate" | "thin"), lldPrep [{topic, why}], specialNotes [], dsaPatterns? [{key, basis ("reported" | "implied"), why}]. Children: rounds. The "updated" date is stamped automatically.
 - round     id = "<company key>-<slug of round name>". parent = company key. Fields: round (its name, e.g. "DSA", "LLD / machine coding"). Children: questions.
@@ -111,13 +131,55 @@ OPERATIONS (data_json and items_json are JSON encoded as a string)
 - remove_items  entity, id, field, items_json (exact values, or 0-based indexes)
 - link / unlink relation, from, to, data_json? (link only)
 List fields: ${listFields}.
-New ids: lowercase letters and digits joined by hyphens, following the conventions above; problems take the next free number.`
+New ids: lowercase letters and digits joined by hyphens, following the conventions above; problems take the next free number.
+
+LESSONS (the reader studies from the page, so a lesson teaches: the core idea in 2 to 4 sentences, then 3 to 6 "##" sections such as how it works, a worked example with numbers or a short code sketch, trade-offs, failure modes, interview angle)
+- Body 650 to 1100 words; "deeper" 250 to 700 words of internals, formulas or edge cases. minutes = round(words / 180).
+- Titles 4 to 8 words; headings 2 to 6 words; no quotes or apostrophes in either (the display font has a tiny glyph set). Plain ASCII punctuation: "->" for arrows, no em dashes, no emojis.
+- At least one diagram block in the body, and the body ends with exactly one recall block of 3 to 5 questions that test understanding (why, when, what breaks).
+- Rich blocks are fenced code blocks with these exact info strings:
+  flow: optional first line "dir: LR" or "dir: TB"; node lines "id: Label | kind" with kind one of step, actor, model, store, tool, gate (labels <= 28 chars, <= 12 nodes); edge lines "a -> b : label" or "a --> b" for dashed (labels <= 24 chars). Declare every node before an edge uses it.
+  mermaid: "sequenceDiagram" then "participant X as Name" lines (<= 6), messages "X->>Y: text" or "X-->>Y: text" (<= 40 chars), and "Note over X: text". Nothing else.
+  stack (one bar split into parts) and bars (compared magnitudes): optional "title: ..." and "unit: ..." lines, then 2 to 8 rows "Label | number | optional note"; the number has no unit in it.
+  steps: 3 to 8 rows "Title | one-sentence description".
+  recall: "Q: question" then "A: answer" lines, repeated.
+- Callouts: a blockquote starting with a bold label, one of Pitfall, Interview, Rule of thumb, Numbers, Key idea: "> **Pitfall.** text". At most 4 per lesson.
+- Code fences take a language (python, json, text); Python sketches at most 25 lines and correct. Never invent statistics or prices; label illustrative numbers as illustrative.
+
+SOURCES (web pages and GitHub repositories)
+- To read a page, a repository, a directory or a file, put its URL in "fetch" and return no operations yet. The app downloads it and asks you again with the text under SOURCES. URLs in the command are read before you see it.
+- A GitHub repository URL gives its description, licence, README and a two-level directory listing. Fetch https://github.com/<owner>/<repo>/tree/<branch>/<dir> to list a directory and https://github.com/<owner>/<repo>/blob/<branch>/<file> to read a file.
+- Fetch only what the work needs: at most 8 URLs a round. FETCH ROUNDS LEFT says how many rounds remain.
+- Content built from a source:
+  - Map it onto this app first: compare the source with the courses, chapters and lessons in the INDEX, extend what overlaps, and add only what is missing. Never duplicate a lesson that exists.
+  - Write it as lessons in this app's format (LESSONS above), enriched with diagrams, a worked example and a recall deck. Keep the source's facts; do not pad it with claims it does not make.
+  - Copy text word for word only when the source's licence (shown with it) allows reuse, and otherwise write it in your own words. Either way, add the source to the course's "references" ({label, url}) unless it is there already.
+  - In "reply", say what you took from the source and what is left for a later command.
+
+LARGE WORK (tasks)
+- One plan holds at most about 4 new or rewritten lessons. For more, return "tasks" instead: 2 to 10 slices, each a complete brief for one part (for example one new chapter with its lessons, or new lessons for one existing chapter), with the source URLs that slice must read in "urls".
+- Every task runs on its own, in parallel, under these same rules, and the app combines all slices into one plan the user reviews. So each brief names the exact ids it creates and the existing ids it changes, and no two tasks touch the same record: a chapter and its new lessons go in the same task.
+- Next to "tasks" you may return "operations" for shared edits that belong to no single slice, such as adding the source to a course's references. They apply first, and no task may touch those records.
+- Read enough of the source before you split it (the listing and the key files), so each brief is specific. "reply" says how the work is split.`
+
+/** Set when the command is one slice of a larger job. */
+export interface SliceContext {
+  /** The user's original command. */
+  parent: string
+  /** What the planning step said about the split. */
+  planReply: string
+  titles: string[]
+  index: number
+}
 
 export interface PromptInput {
   content: Content
   command: string
   transcript: TranscriptEntry[]
   records: RecordRef[]
+  sources?: Source[]
+  fetchRoundsLeft?: number
+  slice?: SliceContext
   /** Errors from the previous attempt, to be fixed. */
   rejected?: string[]
   /** The previous attempt's operations, shown next to the errors. */
@@ -141,7 +203,18 @@ export function buildPrompt(input: PromptInput): string {
     `FULL RECORDS\n${text || '(none matched the command; request any you need via "need")'}` +
       (omitted.length ? `\n(Also relevant but not shown for space: ${omitted.map((r) => `${r.entity} ${r.id}`).join(', ')})` : ''),
   ]
+  if (input.sources?.length) sections.push(`SOURCES (downloaded for this command)\n\n${renderSources(input.sources)}`)
+  const left = input.fetchRoundsLeft ?? 0
+  sections.push(`FETCH ROUNDS LEFT: ${left}${left === 0 ? ' (work with the sources you have; "fetch" is ignored now)' : ''}`)
   if (history) sections.push(`CONVERSATION SO FAR (oldest first)\n${history}`)
+  if (input.slice) {
+    const s = input.slice
+    sections.push(
+      `THIS COMMAND IS ONE SLICE OF A LARGER JOB\nThe user's command: ${clip(s.parent, 4_000)}\nHow the work was split: ${clip(s.planReply, 2_000)}\nAll slices:\n${s.titles
+        .map((t, i) => `${i + 1}. ${t}${i === s.index ? '   <- yours' : ''}`)
+        .join('\n')}\nDo only your slice, exactly as briefed, and return its operations. Do not return tasks. Other slices create their own records at the same time, so never reference an id another slice creates.`,
+    )
+  }
   if (input.rejected?.length)
     sections.push(
       (input.previousPlan ? `YOUR PREVIOUS PLAN\n${clip(JSON.stringify(input.previousPlan), 30_000)}\n\n` : '') +

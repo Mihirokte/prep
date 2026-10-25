@@ -2,6 +2,7 @@ import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 're
 import { pixelText } from './pixelText'
 import type { AgentResult, AgentStatus, TranscriptEntry } from '../../shared/api'
 import type { Change } from '../../shared/ops'
+import type { SourceRef } from '../../shared/sources'
 import { cn } from '../lib/utils'
 import { Button } from '../ui/button'
 import Markdown from './Markdown'
@@ -14,10 +15,19 @@ type PlanState = 'pending' | 'applying' | 'applied' | 'discarded' | 'failed'
 
 type Item =
   | { kind: 'user'; id: number; text: string }
-  | { kind: 'answer'; id: number; text: string }
+  | { kind: 'answer'; id: number; text: string; sources?: SourceRef[] }
   | { kind: 'error'; id: number; text: string }
   | { kind: 'note'; id: number; text: string }
-  | { kind: 'plan'; id: number; planId: string; reply: string; changes: Change[]; state: PlanState; outcome?: string }
+  | {
+      kind: 'plan'
+      id: number
+      planId: string
+      reply: string
+      changes: Change[]
+      sources?: SourceRef[]
+      state: PlanState
+      outcome?: string
+    }
 
 let nextId = 1
 
@@ -46,9 +56,38 @@ function toTranscript(items: Item[]): TranscriptEntry[] {
 }
 
 function fromResult(r: AgentResult): Item {
-  if (r.kind === 'answer') return { kind: 'answer', id: nextId++, text: r.reply }
+  if (r.kind === 'answer') return { kind: 'answer', id: nextId++, text: r.reply, sources: r.sources }
   if (r.kind === 'error') return { kind: 'error', id: nextId++, text: r.message }
-  return { kind: 'plan', id: nextId++, planId: r.id, reply: r.reply, changes: r.changes, state: 'pending' }
+  return { kind: 'plan', id: nextId++, planId: r.id, reply: r.reply, changes: r.changes, sources: r.sources, state: 'pending' }
+}
+
+const shortUrl = (u: string) => {
+  try {
+    const url = new URL(u)
+    return `${url.host}${url.pathname === '/' ? '' : url.pathname}`
+  } catch {
+    return u
+  }
+}
+
+/** The pages and files a reply was built from. */
+function Sources({ sources }: { sources?: SourceRef[] }) {
+  if (!sources?.length) return null
+  return (
+    <div className="mt-3 px-1">
+      <p className="label">Sources read</p>
+      <ul className="m-0 mt-1 list-none p-0">
+        {sources.map((s) => (
+          <li key={s.url} className="break-words leading-7">
+            <a href={s.url} target="_blank" rel="noopener">
+              {pixelText(shortUrl(s.url))}
+            </a>
+            {!s.ok && <span className="text-ink-2"> (could not be read)</span>}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 }
 
 function ChangeRow({ c }: { c: Change }) {
@@ -91,10 +130,13 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [progress, setProgress] = useState('')
   const [status, setStatus] = useState<AgentStatus | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const applyRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => window.prep.agent.onProgress(setProgress), [])
 
   const refreshStatus = useCallback(() => {
     window.prep.agent.status().then(setStatus)
@@ -130,6 +172,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
     setItems((xs) => [...xs, { kind: 'user', id: nextId++, text: message }])
     setText('')
     setElapsed(0)
+    setProgress('')
     setBusy(true)
     const result: AgentResult = await window.prep.agent
       .run({ message, transcript })
@@ -208,7 +251,12 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
                 </p>
               )
             if (it.kind === 'answer')
-              return <Markdown key={it.id} body={it.text} className="px-1 [&>*+*]:!mt-3" />
+              return (
+                <div key={it.id}>
+                  <Markdown body={it.text} className="px-1 [&>*+*]:!mt-3" />
+                  <Sources sources={it.sources} />
+                </div>
+              )
             if (it.kind === 'error' || it.kind === 'note')
               return (
                 <p
@@ -225,6 +273,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
             return (
               <div key={it.id}>
                 {it.reply && <Markdown body={it.reply} className="px-1 [&>*+*]:!mt-3" />}
+                <Sources sources={it.sources} />
                 <div className="panel mt-3 overflow-hidden">
                   <ul className="list m-0 list-none p-0">
                     {it.changes.map((c, i) => (
@@ -257,14 +306,17 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
             )
           })}
           {busy && (
-            <div className="label flex items-center gap-3 px-1">
-              <span className="live-dot" />
-              <span>
-                Working <span className="num">{elapsed}s</span>
-              </span>
-              <Button variant="ghost" size="sm" onClick={() => window.prep.agent.cancel()}>
-                Cancel
-              </Button>
+            <div className="px-1">
+              <div className="label flex items-center gap-3">
+                <span className="live-dot" />
+                <span>
+                  Working <span className="num">{elapsed}s</span>
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => window.prep.agent.cancel()}>
+                  Cancel
+                </Button>
+              </div>
+              {progress && <p className="mt-1 break-words leading-7 text-ink-2">{pixelText(progress)}</p>}
             </div>
           )}
         </div>

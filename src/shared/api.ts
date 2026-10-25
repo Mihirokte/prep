@@ -1,4 +1,5 @@
 import type { Change } from './ops'
+import type { SourceRef } from './sources'
 import type { Content } from './types'
 
 // The bridge the preload script exposes as `window.prep`. Types only — the
@@ -10,8 +11,8 @@ export interface TranscriptEntry {
 }
 
 export type AgentResult =
-  | { kind: 'answer'; reply: string }
-  | { kind: 'proposal'; id: string; reply: string; changes: Change[] }
+  | { kind: 'answer'; reply: string; sources?: SourceRef[] }
+  | { kind: 'proposal'; id: string; reply: string; changes: Change[]; sources?: SourceRef[] }
   | { kind: 'error'; message: string }
 
 export type ApplyResult = { ok: true; summary: string } | { ok: false; error: string }
@@ -44,6 +45,8 @@ export interface PrepApi {
     discard(proposalId: string): Promise<void>
     undo(): Promise<ApplyResult>
     status(): Promise<AgentStatus>
+    /** Fires with a one-line status while a command runs (reading sources, slices done). */
+    onProgress(cb: (text: string) => void): () => void
   }
   onMenu(cb: (event: MenuEvent) => void): () => void
 }
