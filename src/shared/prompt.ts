@@ -1,8 +1,10 @@
-import type { TranscriptEntry } from './api'
+import type { AskContext, TranscriptEntry } from './api'
 import { buildIndex, renderRecords, type RecordRef } from './digest'
 import { ENTITIES } from './locate'
-import { LIST_FIELDS, OP_KINDS, RELATIONS } from './ops'
+import { type MemoryNote, renderMemory } from './memory'
+import { LIST_FIELDS, OP_KINDS, RELATIONS, TEXT_FIELDS } from './ops'
 import { renderSources, type Source } from './sources'
+import { TEACHING } from './teaching'
 import type { Content } from './types'
 
 // The assistant's contract with the model: instructions, the JSON schema its
@@ -37,9 +39,21 @@ export const OUTPUT_SCHEMA = {
           to: { type: 'string' },
           data_json: { type: 'string', description: 'A JSON object, encoded as a string.' },
           items_json: { type: 'string', description: 'A JSON array, encoded as a string.' },
+          find: { type: 'string', description: 'replace_text only: the exact passage to replace, copied from the record.' },
+          replace: { type: 'string', description: 'replace_text only: the new text for that passage.' },
         },
         required: ['op'],
       },
+    },
+    remember: {
+      type: 'array',
+      description: 'New things to remember about the learner (preferences, goals, level, feedback on how they want to be taught), one short sentence each. Usually empty.',
+      items: { type: 'string' },
+    },
+    forget: {
+      type: 'array',
+      description: 'Ids of LEARNER MEMORY notes the learner asked you to drop.',
+      items: { type: 'string' },
     },
     need: {
       type: 'array',
@@ -83,7 +97,11 @@ const listFields = Object.entries(LIST_FIELDS)
   )
   .join(', ')
 
-const INSTRUCTIONS = `You are the data editor inside "Prep", a personal interview-preparation app. Turn the user's command into a change plan over the app's content store, or answer their question about the content.
+const textFields = Object.entries(TEXT_FIELDS)
+  .flatMap(([e, fields]) => (fields ?? []).map((f) => `${e}.${f}`))
+  .join(', ')
+
+const INSTRUCTIONS = `You are the data editor and the teacher inside "Prep", a personal interview-preparation app. Turn the user's command into a change plan over the app's content store, or answer their question as a teacher (see EXPLAINING).
 
 RULES
 - Do not use any tools, commands or files. Everything you know is in this message. To read a web page or a GitHub repository, list its URL in "fetch" (see SOURCES).
@@ -130,19 +148,23 @@ OPERATIONS (data_json and items_json are JSON encoded as a string)
 - add_items     entity, id, field, items_json (values to append)
 - remove_items  entity, id, field, items_json (exact values, or 0-based indexes)
 - link / unlink relation, from, to, data_json? (link only)
+- replace_text  entity, id, field, find, replace. Edits one passage in place: "find" is copied exactly from the record and appears once in that field; "replace" is the new text ("" deletes it). Text fields: ${textFields}. Prefer it over update when only part of a long text changes.
 List fields: ${listFields}.
 New ids: lowercase letters and digits joined by hyphens, following the conventions above; problems take the next free number.
 
-LESSONS (the reader studies from the page, so a lesson teaches: the core idea in 2 to 4 sentences, then 3 to 6 "##" sections such as how it works, a worked example with numbers or a short code sketch, trade-offs, failure modes, interview angle)
+${TEACHING}
+
+LESSONS (format)
 - Body 650 to 1100 words; "deeper" 250 to 700 words of internals, formulas or edge cases. minutes = round(words / 180).
 - Titles 4 to 8 words; headings 2 to 6 words; no quotes or apostrophes in either (the display font has a tiny glyph set). Plain ASCII punctuation: "->" for arrows, no em dashes, no emojis.
-- At least one diagram block in the body, and the body ends with exactly one recall block of 3 to 5 questions that test understanding (why, when, what breaks).
+- At least one diagram block in the body, one check block right after the core mechanism, and the body ends with exactly one recall block of 3 to 5 questions that test understanding (why, when, what breaks).
 - Rich blocks are fenced code blocks with these exact info strings:
   flow: optional first line "dir: LR" or "dir: TB"; node lines "id: Label | kind" with kind one of step, actor, model, store, tool, gate (labels <= 28 chars, <= 12 nodes); edge lines "a -> b : label" or "a --> b" for dashed (labels <= 24 chars). Declare every node before an edge uses it.
   mermaid: "sequenceDiagram" then "participant X as Name" lines (<= 6), messages "X->>Y: text" or "X-->>Y: text" (<= 40 chars), and "Note over X: text". Nothing else.
   stack (one bar split into parts) and bars (compared magnitudes): optional "title: ..." and "unit: ..." lines, then 2 to 8 rows "Label | number | optional note"; the number has no unit in it.
   steps: 3 to 8 rows "Title | one-sentence description".
   recall: "Q: question" then "A: answer" lines, repeated.
+  check: one question with instant feedback: "Q: question", then 2 to 5 option lines "- wrong option" or "* right option" (exactly one "*"), then "Why: explanation".
 - Callouts: a blockquote starting with a bold label, one of Pitfall, Interview, Rule of thumb, Numbers, Key idea: "> **Pitfall.** text". At most 4 per lesson.
 - Code fences take a language (python, json, text); Python sketches at most 25 lines and correct. Never invent statistics or prices; label illustrative numbers as illustrative.
 
@@ -184,10 +206,50 @@ export interface PromptInput {
   rejected?: string[]
   /** The previous attempt's operations, shown next to the errors. */
   previousPlan?: unknown
+  /** The passage the reader selected, when the command came from a page. */
+  context?: AskContext
+  /** What the assistant remembers about the learner. */
+  memory?: readonly MemoryNote[]
   date: string
 }
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s)
+
+const MEMORY_RULES = `To save something new the learner tells you about how they learn, what they already know, their goal or their level, put it in "remember" as one short third-person sentence ("Prefers worked examples before formulas."). Never save content facts or anything secret. Follow these notes in every answer and every lesson you write. If the learner retracts a note, put its id in "forget".`
+
+function readerContext(c: AskContext, content: Content): string {
+  let page: string
+  if (c.kind === 'lesson') {
+    const course = content.courses.find((x) => x.key === c.courseKey)
+    const lesson = course?.chapters.flatMap((ch) => ch.lessons).find((l) => l.id === c.lessonId)
+    page = `lesson ${c.lessonId}${lesson ? ` "${lesson.title}"` : ''} in course ${c.courseKey} (#/study/${c.courseKey}/${c.lessonId}). Its full record is under FULL RECORDS.`
+  } else {
+    const rec = contextRecord(c)
+    page = `${c.route}${rec ? `, which shows ${rec.entity} ${rec.id} (its full record is under FULL RECORDS)` : ''}.`
+  }
+  const target = c.kind === 'lesson' ? 'that lesson' : 'the record the page shows'
+  return `READER CONTEXT (the learner selected a passage while reading and wrote the command about it)
+Page: ${page}
+Selected passage (as rendered on the page, so markdown marks may be missing):
+"""
+${clip(c.quote, 3_000)}
+"""
+Decide what the command is, and do every part that applies:
+- A question about the passage: answer in "reply" following EXPLAINING, with no operations.
+- A request to change the content (simplify, add an example, expand, rewrite, fix): operations on ${target} plus a one-sentence "reply". For one passage use replace_text, with "find" copied exactly from the record's markdown (long enough to be unique) and "replace" written following TEACHING. For "rewrite this lesson", update its body (and deeper) as a whole, following TEACHING. Keep every other part intact.
+- Feedback that the passage is wrong, unclear, too dense or too shallow: fix it as above and say in "reply" what you changed and why.
+- A preference about how they want to learn: put it in "remember" and apply it now.
+A command can be several of these at once, for example a question that shows the passage is unclear: answer it in "reply" and also propose the fix.`
+}
+
+/** The record a page shows, so its full text goes into the prompt. */
+export function contextRecord(c: AskContext): RecordRef | null {
+  if (c.kind === 'lesson') return { entity: 'lesson', id: c.lessonId }
+  const m = /^#\/(pattern|drill|company|study)\/([^/]+)$/.exec(c.route)
+  if (!m) return null
+  const entity = ({ pattern: 'pattern', drill: 'problem', company: 'company', study: 'course' } as const)[m[1] as 'pattern']
+  return { entity, id: decodeURIComponent(m[2]) }
+}
 
 export function buildPrompt(input: PromptInput): string {
   const { text, omitted } = renderRecords(input.content, input.records)
@@ -207,6 +269,8 @@ export function buildPrompt(input: PromptInput): string {
   const left = input.fetchRoundsLeft ?? 0
   sections.push(`FETCH ROUNDS LEFT: ${left}${left === 0 ? ' (work with the sources you have; "fetch" is ignored now)' : ''}`)
   if (history) sections.push(`CONVERSATION SO FAR (oldest first)\n${history}`)
+  sections.push(`LEARNER MEMORY\n${renderMemory(input.memory ?? [])}\n${MEMORY_RULES}`)
+  if (input.context) sections.push(readerContext(input.context, input.content))
   if (input.slice) {
     const s = input.slice
     sections.push(

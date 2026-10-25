@@ -3,6 +3,7 @@ import { Sidebar, Toolbar, NotFound } from './components/nav'
 import { useHashRoute } from './useHashRoute'
 import Assistant from './components/Assistant'
 import CommandPalette from './components/CommandPalette'
+import SelectionAsk from './components/SelectionAsk'
 import Home from './routes/Home'
 import { CoursePage } from './routes/Study'
 import { LessonPage } from './routes/Lesson'
@@ -127,12 +128,13 @@ export default function App() {
         <div ref={contentRef} data-scroll className={cn('relative min-h-0 flex-1', wide ? 'overflow-hidden' : 'overflow-y-auto')}>
           {/* Balance: the column is centered in the pane, so the weight sits on
               the pane's axis rather than piling up against the sidebar. */}
-          {wide ? <div className="h-full">{view}</div> : <div className="mx-auto w-full max-w-[1024px] px-8 pb-24 pt-2 sm:px-12">{view}</div>}
+          {wide ? <div className="h-full">{view}</div> : <div className="@container mx-auto w-full max-w-[1024px] px-8 pb-24 pt-2 sm:px-12">{view}</div>}
         </div>
       </div>
 
       <Assistant open={assistantOpen} onClose={() => setAssistantOpen(false)} />
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <SelectionAsk root={contentRef} hash={hash} />
     </div>
   )
 }

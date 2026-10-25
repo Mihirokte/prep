@@ -844,11 +844,13 @@
 .md .callout {
   margin-top: 32px;
 }
-.md .diagram li {
+.md .diagram li,
+.md .check li {
   padding-left: 0;
   margin: 0;
 }
-.md .diagram li::before {
+.md .diagram li::before,
+.md .check li::before {
   content: none;
 }
 .md .diagram ol,

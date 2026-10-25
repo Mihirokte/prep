@@ -64,7 +64,9 @@ export function LessonPage({ courseKey, lessonId }: { courseKey: string; lessonI
   return (
     // Balance: the 640px reading column and its 200px outline are centered as
     // one unit; without the outline the column is centered on its own.
-    <div ref={root} className={cn('mx-auto grid max-w-[640px] gap-x-16 pt-2', sections.length > 1 && 'xl:w-fit xl:max-w-none xl:grid-cols-[640px_200px]')}>
+    // The rail sits beside the column only when the pane (not the window) has
+    // room: with the assistant open the pane is 420px narrower.
+    <div ref={root} className={cn('mx-auto grid max-w-[640px] gap-x-16 pt-2', sections.length > 1 && '@min-[904px]:w-fit @min-[904px]:max-w-none @min-[904px]:grid-cols-[640px_200px]')}>
       <div aria-hidden="true" className="pointer-events-none sticky top-0 z-20 col-span-full -mt-2 mb-4 h-[2px]">
         <div className="h-full bg-ink transition-[width] duration-150" style={{ width: `${pct}%` }} />
       </div>
@@ -119,7 +121,7 @@ export function LessonPage({ courseKey, lessonId }: { courseKey: string; lessonI
       </article>
 
       {sections.length > 1 && (
-        <aside className="sticky top-6 hidden h-fit xl:block" aria-label="In this lesson">
+        <aside className="sticky top-6 hidden h-fit @min-[904px]:block" aria-label="In this lesson">
           <p className="label mb-3">On this page</p>
           <ol className="border-l border-hair">
             {sections.map((s) => (

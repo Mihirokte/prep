@@ -63,9 +63,53 @@ export function lintBlocks(md: string, at: string): BlockLint {
       const parts = (text.match(/^\s*participant\s/gm) ?? []).length
       if (parts > 6) warnings.push(`${where}: ${parts} participants (max 6)`)
       if (!/sequenceDiagram/.test(text)) errors.push(`${where}: not a sequenceDiagram`)
+    } else if (lang === 'check') {
+      const c = parseCheck(text)
+      if (!c) errors.push(`${where}: needs "Q: ...", 2 to 5 option lines ("- wrong", "* right", exactly one "*") and "Why: ..."`)
+      else {
+        const lens = c.options.map((o) => o.text.split(/\s+/).length)
+        if (Math.max(...lens) - Math.min(...lens) > 4) warnings.push(`${where}: option lengths differ a lot; the longest one gives the answer away`)
+      }
     }
   }
   return { errors, warnings }
+}
+
+export interface CheckSpec {
+  q: string
+  options: { text: string; right: boolean }[]
+  why: string
+}
+
+/** ```check — one question with options and an explanation:
+ *  "Q: ...", then "- wrong" / "* right" lines (exactly one right), then "Why: ...". */
+export function parseCheck(src: string): CheckSpec | null {
+  let q = ''
+  let why = ''
+  let mode: 'q' | 'why' | 'opt' | null = null
+  const options: { text: string; right: boolean }[] = []
+  for (const raw of src.split('\n')) {
+    const line = raw.trim()
+    if (!line) continue
+    const mq = /^Q\s*:\s*(.*)$/.exec(line)
+    const mw = /^Why\s*:\s*(.*)$/i.exec(line)
+    const mo = /^([-*])\s+(.+)$/.exec(line)
+    if (mq) {
+      q = mq[1]
+      mode = 'q'
+    } else if (mw) {
+      why = mw[1]
+      mode = 'why'
+    } else if (mo && mode !== 'why') {
+      options.push({ text: mo[2].trim(), right: mo[1] === '*' })
+      mode = 'opt'
+    } else if (mode === 'q') q += ` ${line}`
+    else if (mode === 'why') why += ` ${line}`
+    else if (mode === 'opt') options[options.length - 1].text += ` ${line}`
+  }
+  const right = options.filter((o) => o.right).length
+  if (!q.trim() || !why.trim() || options.length < 2 || options.length > 5 || right !== 1) return null
+  return { q: q.trim(), options, why: why.trim() }
 }
 
 function lessonsById(c: Content): Map<string, Lesson> {

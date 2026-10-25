@@ -1,3 +1,4 @@
+import type { MemoryNote } from './memory'
 import type { Change } from './ops'
 import type { SourceRef } from './sources'
 import type { Content } from './types'
@@ -10,9 +11,26 @@ export interface TranscriptEntry {
   text: string
 }
 
+/** Where the reader was when they asked: a passage they selected on a page. */
+export type AskContext =
+  | {
+      kind: 'lesson'
+      courseKey: string
+      lessonId: string
+      /** The selected text, as shown on the page. */
+      quote: string
+    }
+  | { kind: 'page'; route: string; quote: string }
+
+/** Memory changes a command made, shown under its reply. */
+export interface MemoryDelta {
+  remembered?: MemoryNote[]
+  forgotten?: string[]
+}
+
 export type AgentResult =
-  | { kind: 'answer'; reply: string; sources?: SourceRef[] }
-  | { kind: 'proposal'; id: string; reply: string; changes: Change[]; sources?: SourceRef[] }
+  | ({ kind: 'answer'; reply: string; sources?: SourceRef[] } & MemoryDelta)
+  | ({ kind: 'proposal'; id: string; reply: string; changes: Change[]; sources?: SourceRef[] } & MemoryDelta)
   | { kind: 'error'; message: string }
 
 export type ApplyResult = { ok: true; summary: string } | { ok: false; error: string }
@@ -39,7 +57,7 @@ export interface PrepApi {
     remove(key: string): Promise<void>
   }
   agent: {
-    run(request: { message: string; transcript: TranscriptEntry[] }): Promise<AgentResult>
+    run(request: { message: string; transcript: TranscriptEntry[]; context?: AskContext }): Promise<AgentResult>
     cancel(): Promise<void>
     apply(proposalId: string): Promise<ApplyResult>
     discard(proposalId: string): Promise<void>
@@ -47,6 +65,9 @@ export interface PrepApi {
     status(): Promise<AgentStatus>
     /** Fires with a one-line status while a command runs (reading sources, slices done). */
     onProgress(cb: (text: string) => void): () => void
+    /** What the assistant remembers about the learner. */
+    memory(): Promise<MemoryNote[]>
+    forget(id: string): Promise<void>
   }
   onMenu(cb: (event: MenuEvent) => void): () => void
 }

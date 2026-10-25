@@ -37,6 +37,14 @@ The key fact: if vectors are normalised to unit length, cosine similarity, dot p
 
 > **Pitfall.** Indexing with one metric and querying with another, or normalising on one side only. Rankings go subtly wrong and recall drops with no error thrown. Pick one metric, normalise consistently.
 
+```check
+Q: Your embedding model returns unit-length vectors. You switch the index metric from cosine to dot product. What happens to the ranking?
+- It changes, because dot product also rewards longer vectors
+* Nothing, because for unit vectors dot product equals cosine
+- It reverses, because dot product measures distance, not similarity
+Why: Cosine is the dot product divided by the two vector lengths. When every length is 1, that division changes nothing, so both scores and the ranking are identical. Dot product does reward length, but only when lengths differ. This is why stores often suggest dot product on normalised vectors: the same result for less work.
+```
+
 ## Dimensions and Matryoshka truncation
 
 Bigger vectors can hold more information but cost more to store and search. Matryoshka Representation Learning (Kusupati et al.) trains a model so the most important information is packed into the early dimensions. That lets you truncate a long vector to a shorter prefix and keep most of the quality. OpenAI's text-embedding-3 models are trained this way and expose a `dimensions` parameter to request a shorter vector (OpenAI embeddings docs, as of 2026, re-check). Reported results show large truncations keeping most retrieval quality, for example text-embedding-3-large truncated to 256 dimensions beating the older ada-002 at 1536 on a public benchmark (OpenAI, MTEB; illustrative of the trade-off).

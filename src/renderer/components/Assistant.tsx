@@ -1,6 +1,7 @@
 import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from 'react'
 import { pixelText } from './pixelText'
-import type { AgentResult, AgentStatus, TranscriptEntry } from '../../shared/api'
+import type { AgentResult, AgentStatus, MemoryDelta, TranscriptEntry } from '../../shared/api'
+import type { MemoryNote } from '../../shared/memory'
 import type { Change } from '../../shared/ops'
 import type { SourceRef } from '../../shared/sources'
 import { cn } from '../lib/utils'
@@ -15,7 +16,7 @@ type PlanState = 'pending' | 'applying' | 'applied' | 'discarded' | 'failed'
 
 type Item =
   | { kind: 'user'; id: number; text: string }
-  | { kind: 'answer'; id: number; text: string; sources?: SourceRef[] }
+  | { kind: 'answer'; id: number; text: string; sources?: SourceRef[]; memory?: MemoryDelta }
   | { kind: 'error'; id: number; text: string }
   | { kind: 'note'; id: number; text: string }
   | {
@@ -25,6 +26,7 @@ type Item =
       reply: string
       changes: Change[]
       sources?: SourceRef[]
+      memory?: MemoryDelta
       state: PlanState
       outcome?: string
     }
@@ -56,9 +58,10 @@ function toTranscript(items: Item[]): TranscriptEntry[] {
 }
 
 function fromResult(r: AgentResult): Item {
-  if (r.kind === 'answer') return { kind: 'answer', id: nextId++, text: r.reply, sources: r.sources }
+  const memory = r.kind === 'error' ? undefined : { remembered: r.remembered, forgotten: r.forgotten }
+  if (r.kind === 'answer') return { kind: 'answer', id: nextId++, text: r.reply, sources: r.sources, memory }
   if (r.kind === 'error') return { kind: 'error', id: nextId++, text: r.message }
-  return { kind: 'plan', id: nextId++, planId: r.id, reply: r.reply, changes: r.changes, sources: r.sources, state: 'pending' }
+  return { kind: 'plan', id: nextId++, planId: r.id, reply: r.reply, changes: r.changes, sources: r.sources, memory, state: 'pending' }
 }
 
 const shortUrl = (u: string) => {
@@ -71,7 +74,7 @@ const shortUrl = (u: string) => {
 }
 
 /** The pages and files a reply was built from. */
-function Sources({ sources }: { sources?: SourceRef[] }) {
+export function Sources({ sources }: { sources?: SourceRef[] }) {
   if (!sources?.length) return null
   return (
     <div className="mt-3 px-1">
@@ -90,7 +93,68 @@ function Sources({ sources }: { sources?: SourceRef[] }) {
   )
 }
 
-function ChangeRow({ c }: { c: Change }) {
+/** Notes a reply saved to (or dropped from) the learner memory, each with a way to take it back. */
+export function Remembered({ memory }: { memory?: MemoryDelta }) {
+  const [gone, setGone] = useState<string[]>([])
+  const notes: MemoryNote[] = (memory?.remembered ?? []).filter((n) => !gone.includes(n.id))
+  const dropped = memory?.forgotten?.length ?? 0
+  if (!notes.length && !dropped && !gone.length) return null
+  return (
+    <div className="mt-3 px-1">
+      {notes.length > 0 && <p className="label">Saved to memory</p>}
+      <ul className="m-0 mt-1 list-none p-0">
+        {notes.map((n) => (
+          <li key={n.id} className="flex items-baseline gap-3 leading-7">
+            <span className="min-w-0 flex-1 break-words">{pixelText(n.text)}</span>
+            <button
+              type="button"
+              className="tool"
+              onClick={() => void window.prep.agent.forget(n.id).then(() => setGone((g) => [...g, n.id]))}
+            >
+              Forget
+            </button>
+          </li>
+        ))}
+      </ul>
+      {gone.length > 0 && <p className="text-ink-2">Forgot {gone.length === 1 ? 'one note' : `${gone.length} notes`}.</p>}
+      {dropped > 0 && <p className="text-ink-2">Dropped {dropped === 1 ? 'one note' : `${dropped} notes`} from memory.</p>}
+    </div>
+  )
+}
+
+/** Everything the assistant remembers about the learner, newest first, each removable. */
+function MemoryList() {
+  const [notes, setNotes] = useState<MemoryNote[] | null>(null)
+  useEffect(() => {
+    void window.prep.agent.memory().then(setNotes)
+  }, [])
+  if (!notes) return null
+  const forget = (id: string) => void window.prep.agent.forget(id).then(() => setNotes((ns) => (ns ?? []).filter((n) => n.id !== id)))
+  return (
+    <section aria-label="Memory" className="mb-4 border-b border-hair pb-4">
+      <p className="label">What the assistant remembers about you</p>
+      {notes.length === 0 ? (
+        <p className="mt-2 text-ink-2">
+          Nothing yet. Tell it how you like to learn (for example, "always show a worked example first") and it saves that here.
+        </p>
+      ) : (
+        <ul className="m-0 mt-2 list-none p-0">
+          {[...notes].reverse().map((n) => (
+            <li key={n.id} className="flex items-baseline gap-3 border-t border-hair py-2 leading-7 first:border-t-0">
+              <span className="min-w-0 flex-1 break-words">{pixelText(n.text)}</span>
+              <span className="label shrink-0">{n.at}</span>
+              <button type="button" className="tool shrink-0" onClick={() => forget(n.id)}>
+                Forget
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
+export function ChangeRow({ c }: { c: Change }) {
   const destructive = c.kind === 'delete' || c.kind === 'unlink'
   const { label } = KIND[c.kind]
   return (
@@ -132,6 +196,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
   const [elapsed, setElapsed] = useState(0)
   const [progress, setProgress] = useState('')
   const [status, setStatus] = useState<AgentStatus | null>(null)
+  const [showMemory, setShowMemory] = useState(false)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const applyRef = useRef<HTMLButtonElement>(null)
@@ -222,6 +287,9 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
       <div className="app-drag flex h-[52px] shrink-0 items-center gap-2 pl-4 pr-2">
         <h2 className="text-[24px]">Assistant</h2>
         <span className="flex-1" />
+        <Button variant="ghost" size="sm" className="no-drag" aria-pressed={showMemory} onClick={() => setShowMemory((v) => !v)}>
+          Memory
+        </Button>
         {status && status.undoable > 0 && (
           <Button variant="ghost" size="sm" className="no-drag" onClick={undo} disabled={busy}>
             Undo last change
@@ -233,6 +301,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-4" aria-live="polite">
+        {showMemory && <MemoryList key={items.length} />}
         {status && !status.agyPath && (
           <p className="notch mb-4 border border-brand px-4 py-3">
             The agy CLI was not found, so commands cannot run. Install it to ~/.local/bin, or set agent.agyPath in
@@ -255,6 +324,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
                 <div key={it.id}>
                   <Markdown body={it.text} className="px-1 [&>*+*]:!mt-3" />
                   <Sources sources={it.sources} />
+                  <Remembered memory={it.memory} />
                 </div>
               )
             if (it.kind === 'error' || it.kind === 'note')
@@ -274,6 +344,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
               <div key={it.id}>
                 {it.reply && <Markdown body={it.reply} className="px-1 [&>*+*]:!mt-3" />}
                 <Sources sources={it.sources} />
+                <Remembered memory={it.memory} />
                 <div className="panel mt-3 overflow-hidden">
                   <ul className="list m-0 list-none p-0">
                     {it.changes.map((c, i) => (

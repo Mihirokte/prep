@@ -3,8 +3,8 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
-import type { AgentResult, TranscriptEntry } from '../shared/api'
-import { lintBlocks } from '../shared/blocks'
+import type { AgentResult, AskContext, TranscriptEntry } from '../shared/api'
+import { lintBlocks, parseCheck } from '../shared/blocks'
 import type { Content } from '../shared/types'
 import { buildHomeAreas } from '../renderer/areas'
 import { type AppHandles, startApp } from './app'
@@ -560,6 +560,48 @@ async function features(h: AppHandles, win: BrowserWindow) {
     console.log(`NOTE  agy CLI: ${status.agyPath ?? 'not found (the assistant needs it; everything else works without it)'}`)
   }
   await shot(win, '13-assistant')
+
+  // Ask about a passage: selecting text on a lesson shows "Ask", which opens a
+  // small panel scoped to that passage; Escape closes it.
+  const lessonWithCheck = c.courses.flatMap((co) => co.chapters.flatMap((ch) => ch.lessons.map((l) => ({ co: co.key, l })))).find((x) => /```check\n/.test(x.l.body))
+  const askLesson = lessonWithCheck ?? { co: c.courses[0].key, l: c.courses[0].chapters[0].lessons[0] }
+  await visit(win, `#/study/${askLesson.co}/${askLesson.l.id}`)
+  const fit = await js<{ open: boolean; over: number }>(
+    win,
+    `(() => { const s = document.querySelector('[data-scroll]'); return { open: !document.getElementById('assistant')?.hidden, over: s ? s.scrollWidth - s.clientWidth : -1 } })()`,
+  )
+  check('with the assistant open, a lesson fits its pane (no sideways scroll)', fit.open && fit.over >= 0 && fit.over <= 1, `assistant open: ${fit.open}, overflow ${fit.over}px`)
+  const picked = await js<string>(
+    win,
+    `(() => { const p = document.querySelector('article .md p'); if (!p) return ''; const r = document.createRange(); r.selectNodeContents(p); const s = getSelection(); s.removeAllRanges(); s.addRange(r); document.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); return p.textContent.slice(0, 60) })()`,
+  )
+  const askShown = await waitFor(() => js<boolean>(win, `[...document.querySelectorAll('button[data-ask-panel]')].some((b) => b.textContent === 'Ask')`), Boolean, 3000, 'the Ask button').catch(() => false)
+  if (askShown) await click(win, 'button[data-ask-panel]', 'Ask')
+  const panel = await waitFor(
+    () => js<boolean>(win, `!!document.querySelector('[role=dialog][aria-label="Ask about this passage"]') && document.activeElement?.id === 'ask-input'`),
+    Boolean,
+    3000,
+    'the ask panel',
+  ).catch(() => false)
+  const quoted = await js<boolean>(win, `(document.querySelector('[role=dialog][aria-label="Ask about this passage"] blockquote')?.textContent || '').startsWith(${JSON.stringify(picked.slice(0, 20))})`)
+  await shot(win, '16-ask-panel')
+  await js(win, `document.getElementById('ask-input')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`)
+  await sleep(150)
+  const closed = await js<boolean>(win, `!document.querySelector('[data-ask-panel]')`)
+  check('selecting a passage shows Ask; it opens a panel quoting the passage; Escape closes it', askShown && panel && quoted && closed, `selected "${picked.slice(0, 40)}"`)
+
+  // Quick check block: picking an option shows the verdict and the reason.
+  if (lessonWithCheck) {
+    await js(win, `document.querySelector('[aria-label="Quick check"]')?.scrollIntoView()`)
+    await sleep(300)
+    const verdict = await js<string>(
+      win,
+      `(() => { const s = document.querySelector('[aria-label="Quick check"]'); const b = s?.querySelector('li button'); b?.click(); return new Promise((res) => setTimeout(() => res(s?.textContent || ''), 200)) })()`,
+    )
+    await sleep(600)
+    await shot(win, '17-quick-check')
+    check('check block: an answer shows Correct or Not quite with the reason', /Correct|Not quite/.test(verdict) && /Try again/.test(verdict), lessonWithCheck.l.id)
+  } else check('check block: a lesson in the seed uses it', false, 'no lesson has a check block')
 }
 
 // ---- assistant: real natural-language CRUD through agy ----
@@ -567,7 +609,9 @@ async function features(h: AppHandles, win: BrowserWindow) {
 interface Scenario {
   name: string
   command: string
-  expect: 'proposal' | 'answer'
+  expect: 'proposal' | 'answer' | 'any'
+  /** Sent as if the reader had selected a passage on a page. */
+  context?: AskContext
   check: (c: Content, reply: string) => boolean
   /** Extra checks on the result itself (sources read). */
   result?: (r: AgentResult) => boolean
@@ -581,6 +625,12 @@ function scenarios(seed: Content): Scenario[] {
   const pat = (c: Content, key: string) => c.patterns.find((p) => p.key === key)
   const acme = (c: Content) => c.companies.find((x) => /acme/i.test(x.name))
   const acmeQ = (c: Content) => acme(c)?.questions.flatMap((g) => g.questions).find((q) => /substring/i.test(q.q))
+  const lessonOf = (c: Content, id: string) => c.courses.flatMap((co) => co.chapters.flatMap((ch) => ch.lessons)).find((l) => l.id === id)
+  // A passage as the page shows it: the first plain paragraph, markdown marks removed.
+  const caching = lessonOf(seed, 'ai-prompt-caching')!
+  const para = caching.body.split('\n\n').find((p) => p.length > 120 && !/^[#`>|\-\d]/.test(p.trim()))!
+  const quote = para.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/[*_`]/g, '')
+  const onLesson = (lessonId: string, q: string): AskContext => ({ kind: 'lesson', courseKey: 'ai', lessonId, quote: q })
   const list: Scenario[] = [
     {
       name: 'create: company + round + question + question→pattern mapping + note',
@@ -679,6 +729,43 @@ function scenarios(seed: Content): Scenario[] {
         return Boolean(ch && ch.lessons.length >= 5 && ch.lessons.every((l) => /```recall/.test(l.body) && lintBlocks(l.body, l.id).errors.length === 0))
       },
     },
+    {
+      name: 'ask: a question about a selected passage gets a teaching answer and no change',
+      context: onLesson('ai-prompt-caching', quote),
+      command: 'I do not get this. Explain it with a concrete example.',
+      expect: 'answer',
+      check: (c, reply) => lessonOf(c, 'ai-prompt-caching')?.body === caching.body && reply.split(/\s+/).length >= 60,
+    },
+    {
+      name: 'ask: feedback on a passage becomes an in-place edit of that lesson',
+      context: onLesson('ai-prompt-caching', quote),
+      command: 'This passage is too abstract for me. Add a short worked example with concrete numbers right after it.',
+      expect: 'proposal',
+      check: (c) => {
+        const l = lessonOf(c, 'ai-prompt-caching')
+        return Boolean(l && l.body !== caching.body && l.body.length > caching.body.length && l.body.includes(para.slice(0, 80)) && lintBlocks(l.body, l.id).errors.length === 0)
+      },
+    },
+    {
+      name: 'ask: a learning preference is saved to the assistant memory',
+      context: onLesson('ai-prompt-caching', quote),
+      command: 'From now on, always show me a worked example with real numbers before any formula.',
+      expect: 'any',
+      check: () => true,
+      result: (r) => r.kind !== 'error' && (r.remembered?.length ?? 0) >= 1,
+    },
+    {
+      name: 'teach: rewrite a lesson following the teaching method',
+      context: onLesson('ai-sampling', lessonOf(seed, 'ai-sampling')!.title),
+      command: 'Rewrite this whole lesson following the teaching method. Keep its facts.',
+      expect: 'proposal',
+      check: (c) => {
+        const l = lessonOf(c, 'ai-sampling')
+        const checkBlock = /```check\n([\s\S]*?)```/.exec(l?.body ?? '')
+        extra.rewrittenLesson = l?.body
+        return Boolean(l && checkBlock && parseCheck(checkBlock[1]) && /```recall\n/.test(l.body) && lintBlocks(l.body, l.id).errors.length === 0)
+      },
+    },
   ]
   return list.filter((s) => (ONLY ? ONLY.test(s.name) : !s.optional))
 }
@@ -730,25 +817,26 @@ async function assistantApi(h: AppHandles, seed: Content) {
   const timings: Record<string, unknown>[] = []
   for (const s of scenarios(seed)) {
     const t0 = Date.now()
-    const r = await h.agent.run(s.command, transcript)
-    transcript.push({ role: 'user', text: s.command })
+    // A passage question starts a fresh conversation, like the Ask panel does.
+    const r = await h.agent.run(s.command, s.context ? [] : transcript, s.context)
+    if (!s.context) transcript.push({ role: 'user', text: s.command })
     let reply = ''
     let ok = false
     let detail = ''
     if (r.kind === 'error') detail = r.message.split('\n').slice(0, 3).join(' ')
-    else if (r.kind !== s.expect) detail = `expected ${s.expect}, got ${r.kind}: ${'reply' in r ? r.reply : ''}`
+    else if (s.expect !== 'any' && r.kind !== s.expect) detail = `expected ${s.expect}, got ${r.kind}: ${'reply' in r ? r.reply : ''}`
     else if (r.kind === 'answer') {
       reply = r.reply
-      transcript.push({ role: 'assistant', text: reply })
-      ok = s.check(h.store.get(), reply)
+      if (!s.context) transcript.push({ role: 'assistant', text: reply })
+      ok = s.check(h.store.get(), reply) && (s.result?.(r) ?? true)
       detail = reply.replace(/\s+/g, ' ').slice(0, 160)
     } else {
       reply = r.reply
-      transcript.push({ role: 'assistant', text: reply })
+      if (!s.context) transcript.push({ role: 'assistant', text: reply })
       const applied = await h.agent.apply(r.id)
       if (!applied.ok) detail = applied.error
       else {
-        transcript.push({ role: 'applied', text: applied.summary })
+        if (!s.context) transcript.push({ role: 'applied', text: applied.summary })
         ok = s.check(h.store.get(), reply) && (s.result?.(r) ?? true)
         detail = `${r.changes.length} change(s): ${applied.summary.slice(0, 160)}`
       }

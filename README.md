@@ -91,6 +91,7 @@ Gatekeeper does not quarantine it; it opens like any other app.
   created is kept (see `src/shared/seedMerge.ts`).
 - `progress.json` — problem status, notes and code.
 - `agent/log.jsonl` — every assistant command, plan, error and applied change.
+- `agent/memory.json` — what the assistant remembers about how you learn.
 - `settings.json` (optional) — `{"agent": {"effort": "low" | "medium" | "high",
   "model": "...", "timeoutSec": 300, "agyPath": "/path/to/agy"}}`.
 
@@ -128,6 +129,43 @@ A command too large for one plan (more than about four lessons) comes back
 as slices. The app runs the slices three at a time and joins them into one
 plan to review. Every lesson a plan writes must have well-formed diagram
 blocks, or the plan goes back to agy with the errors.
+
+### Ask about a passage
+
+Select text on any page and an Ask button appears at the end of the
+selection. It opens a small panel tied to that passage, and agy receives the
+passage plus the full record the page shows:
+
+- A question gets a direct teaching answer. Nothing changes.
+- A change request or feedback ("too abstract, add an example") becomes a
+  plan to review, usually a `replace_text` edit of that one passage. Apply,
+  Discard and Undo work as in the main panel.
+- A preference about how you learn ("always show numbers before a formula")
+  is saved to the assistant memory, `agent/memory.json` in the data folder.
+  Every later command reads it. The Memory button in the assistant panel
+  lists the notes, and each one has Forget.
+
+### Teaching method
+
+Every lesson the assistant writes or rewrites, and every answer it gives,
+follows `src/shared/teaching.ts`: one win per lesson, problem before
+definition, concrete before general, a mid-lesson `check` question, a named
+misconception, a "Use it" transfer section, and a recall deck at the end. The
+method is distilled from three published skills (credited in that file). To
+bring an existing lesson to it, select its title and ask "Rewrite this whole
+lesson following the teaching method". A rewrite takes several minutes.
+
+A `check` block is one question with instant feedback:
+
+````md
+```check
+Q: question
+- wrong option
+* right option (exactly one)
+- wrong option
+Why: why the right one is right and the tempting one is wrong
+```
+````
 
 ## Content
 
@@ -204,9 +242,11 @@ vacuous. Hover states are outside the audit.
 
 Two opt-in extensions of `verify:app`:
 
-- `PREP_VERIFY_AGENT=1` runs ten real natural-language CRUD commands through
-  agy (one through the panel UI), then undoes them all and checks the store is
-  byte-for-byte the seed again. Needs agy and several minutes.
+- `PREP_VERIFY_AGENT=1` runs fourteen real natural-language commands through
+  agy (one through the panel UI): CRUD, passage questions and edits, a saved
+  learning preference and a full lesson rewrite. It then undoes them all and
+  checks the store is byte-for-byte the seed again. Needs agy and about 20
+  minutes.
 - `PREP_VERIFY_WEBSITE=<url>` compares the visible text of every route with a
   deployment of the web portal this app was extracted from.
 

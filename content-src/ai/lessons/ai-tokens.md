@@ -31,6 +31,14 @@ Output reserve | 8
 
 The chat-history segment is the dangerous one: it grows every turn, so a long conversation silently eats the budget retrieval and output need. This is why agents compact history and why RAG trims to top-k chunks instead of stuffing documents.
 
+```check
+Q: The window is 200k tokens and your prompt is 196k. You need a 6k-token report. How much report can you get?
+- All 6k tokens, because output has its own separate budget
+* At most about 4k tokens, because input and output share the window
+- All 6k tokens, because the model drops the oldest prompt tokens
+Why: The context window counts input and output together, so 196k of input leaves about 4k for output. Output has no separate budget, and the model does not quietly drop your prompt to make room: depending on the API, the call fails or the output stops at the limit. Shorten the prompt or use a model with a larger window.
+```
+
 ## Prefill and decode: two different costs
 
 A request runs in two phases.

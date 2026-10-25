@@ -2,17 +2,18 @@ import type { ChildProcess } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { appendFile, mkdir } from 'node:fs/promises'
 import path from 'node:path'
-import type { AgentResult, AgentStatus, ApplyResult, TranscriptEntry } from '../shared/api'
+import type { AgentResult, AgentStatus, ApplyResult, AskContext, MemoryDelta, TranscriptEntry } from '../shared/api'
 import { lintChangedLessons } from '../shared/blocks'
 import { findMentions, type RecordRef } from '../shared/digest'
 import { ENTITIES, type Entity, exists } from '../shared/locate'
 import { applyOps, type Change, decodeOps, type Op, summarizeChanges, type WireOp } from '../shared/ops'
-import { buildPrompt, OUTPUT_SCHEMA, type SliceContext } from '../shared/prompt'
+import { buildPrompt, contextRecord, OUTPUT_SCHEMA, type SliceContext } from '../shared/prompt'
 import { extractUrls, type Source, toRef } from '../shared/sources'
 import type { Content } from '../shared/types'
 import { type AgyOutput, findAgy, runAgy } from './agy'
 import { writeAtomic } from './fsutil'
 import type { ContentStore } from './store'
+import { MemoryStore } from './memory'
 import { WebReader } from './web'
 
 export interface AgentSettings {
@@ -47,6 +48,8 @@ interface Structured {
   need: RecordRef[]
   fetch: string[]
   tasks: Task[]
+  remember: string[]
+  forget: string[]
 }
 
 /** One planning call chain (with its fetch, need and repair rounds). */
@@ -57,14 +60,15 @@ interface PlanInput {
   records: RecordRef[]
   sources: Source[]
   slice?: SliceContext
+  context?: AskContext
   timeoutSec: number
   /** Prefix for progress lines, e.g. "Slice 2/6". */
   label: string
 }
 
 type PlanOutcome =
-  | { kind: 'answer'; reply: string; sources: Source[] }
-  | { kind: 'plan'; reply: string; ops: Op[]; tasks: Task[]; sources: Source[] }
+  | { kind: 'answer'; reply: string; sources: Source[]; remember: string[]; forget: string[] }
+  | { kind: 'plan'; reply: string; ops: Op[]; tasks: Task[]; sources: Source[]; remember: string[]; forget: string[] }
   | { kind: 'error'; message: string; sources: Source[] }
 
 const MAX_NEED_ROUNDS = 2
@@ -90,7 +94,7 @@ function readStructured(v: unknown): Structured | null {
     .filter((t): t is Record<string, unknown> => Boolean(t) && typeof t === 'object')
     .map((t) => ({ title: String(t.title ?? '').trim(), instructions: String(t.instructions ?? '').trim(), urls: strings(t.urls).flatMap((u) => extractUrls(u, 1)) }))
     .filter((t) => t.title && t.instructions)
-  return { reply: o.reply, operations, need, fetch, tasks }
+  return { reply: o.reply, operations, need, fetch, tasks, remember: strings(o.remember), forget: strings(o.forget) }
 }
 
 /** Run `fn` over `items`, at most `n` at a time, keeping order. */
@@ -120,6 +124,7 @@ export class Agent {
   private busy = false
   private agyPath: string | null = null
   private readonly web = new WebReader()
+  readonly memory: MemoryStore
   private readonly schemaFile: string
   private readonly cwd: string
   private readonly logFile: string
@@ -143,11 +148,13 @@ export class Agent {
     // An empty working directory: the model has nothing on disk to reach for.
     this.cwd = path.join(dir, 'workspace')
     this.logFile = path.join(dir, 'log.jsonl')
+    this.memory = new MemoryStore(path.join(dir, 'memory.json'))
   }
 
   async init(): Promise<void> {
     await mkdir(this.cwd, { recursive: true })
     await writeAtomic(this.schemaFile, JSON.stringify(OUTPUT_SCHEMA, null, 1))
+    await this.memory.load()
     this.agyPath = await findAgy(this.settings.agyPath)
   }
 
@@ -191,7 +198,7 @@ export class Agent {
   }
 
   private async plan(bin: string, input: PlanInput, date: string): Promise<PlanOutcome> {
-    const { content, command, transcript, slice } = input
+    const { content, command, transcript, slice, context } = input
     let { records, sources } = input
     let rejected: string[] | undefined
     let previousPlan: unknown
@@ -209,6 +216,8 @@ export class Agent {
         sources,
         fetchRoundsLeft: MAX_FETCH_ROUNDS - fetchRounds,
         slice,
+        context,
+        memory: this.memory.list(),
         rejected,
         previousPlan,
         date,
@@ -298,7 +307,8 @@ export class Agent {
         answer.tasks = []
       }
 
-      if (answer.operations.length === 0 && answer.tasks.length === 0) return { kind: 'answer', reply: answer.reply, sources }
+      const { remember, forget } = answer
+      if (answer.operations.length === 0 && answer.tasks.length === 0) return { kind: 'answer', reply: answer.reply, sources, remember, forget }
 
       const checked = answer.operations.length ? this.check(content, answer.operations, date) : { ok: true as const, ops: [], next: content }
       if (!checked.ok) {
@@ -314,7 +324,7 @@ export class Agent {
           sources,
         }
       }
-      return { kind: 'plan', reply: answer.reply, ops: checked.ops, tasks: answer.tasks.slice(0, MAX_TASKS), sources }
+      return { kind: 'plan', reply: answer.reply, ops: checked.ops, tasks: answer.tasks.slice(0, MAX_TASKS), sources, remember, forget }
     }
   }
 
@@ -378,7 +388,15 @@ export class Agent {
     return { ops, notes, sources }
   }
 
-  async run(command: string, transcript: TranscriptEntry[]): Promise<AgentResult> {
+  /** Save what the learner asked to be remembered or forgotten. */
+  private async remember(outcome: { remember: string[]; forget: string[] }, date: string, context?: AskContext): Promise<MemoryDelta> {
+    const remembered = await this.memory.add(outcome.remember.slice(0, 5), { at: date, lessonId: context?.kind === 'lesson' ? context.lessonId : undefined })
+    const forgotten = await this.memory.forget(outcome.forget)
+    if (remembered.length || forgotten.length) await this.log({ kind: 'memory', remembered, forgotten })
+    return { ...(remembered.length ? { remembered } : {}), ...(forgotten.length ? { forgotten } : {}) }
+  }
+
+  async run(command: string, transcript: TranscriptEntry[], context?: AskContext): Promise<AgentResult> {
     if (this.busy) return { kind: 'error', message: 'Still working on the previous command.' }
     this.agyPath ??= await findAgy(this.settings.agyPath)
     const bin = this.agyPath
@@ -394,6 +412,8 @@ export class Agent {
     const content = this.store.get()
     const baseRevision = this.store.revision
     const recentUserText = transcript.filter((t) => t.role === 'user').slice(-2).map((t) => t.text)
+    // The record the reader is looking at always goes into the prompt in full.
+    const pinned = context ? contextRecord(context) : null
     let sources: Source[] = []
 
     try {
@@ -407,8 +427,12 @@ export class Agent {
           content,
           command,
           transcript,
-          records: findMentions(content, [command, ...recentUserText].join('\n')),
+          records: [
+            ...(pinned && exists(content, pinned.entity, pinned.id) ? [pinned] : []),
+            ...findMentions(content, [command, context?.quote ?? '', ...recentUserText].join('\n')),
+          ],
           sources,
+          context,
           timeoutSec: this.settings.timeoutSec ?? 300,
           label: 'Planning',
         },
@@ -419,9 +443,10 @@ export class Agent {
         await this.log({ command, kind: 'error', error: top.message })
         return { kind: 'error', message: top.message }
       }
+      const memory = await this.remember(top, date, context)
       if (top.kind === 'answer') {
         await this.log({ command, kind: 'answer', reply: top.reply })
-        return { kind: 'answer', reply: top.reply || 'No answer.', sources: sources.map(toRef) }
+        return { kind: 'answer', reply: top.reply || 'No answer.', sources: sources.map(toRef), ...memory }
       }
 
       let ops = top.ops
@@ -446,7 +471,7 @@ export class Agent {
       const id = randomUUID()
       this.proposals.set(id, { command, ops, baseRevision, next: result.content, changes: result.changes })
       await this.log({ command, kind: 'proposal', id, reply, tasks: top.tasks.map((t) => t.title), ops })
-      return { kind: 'proposal', id, reply, changes: result.changes, sources: sources.map(toRef) }
+      return { kind: 'proposal', id, reply, changes: result.changes, sources: sources.map(toRef), ...memory }
     } catch (e) {
       if (e instanceof Cancelled || this.abort.signal.aborted) return { kind: 'error', message: 'Cancelled.' }
       const message = e instanceof Error ? e.message : String(e)
