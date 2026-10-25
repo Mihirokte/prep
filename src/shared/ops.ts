@@ -28,8 +28,19 @@ export const OP_KINDS = [
   'remove_items',
   'link',
   'unlink',
+  'replace_text',
 ] as const
 export type OpKind = (typeof OP_KINDS)[number]
+
+/** Text fields `replace_text` may edit in place. */
+export const TEXT_FIELDS: Partial<Record<Entity, string[]>> = {
+  lesson: ['body', 'deeper', 'title'],
+  problem: ['prompt', 'notes', 'solution'],
+  pattern: ['essence', 'mechanism', 'template', 'complexity'],
+  question: ['q', 'answer'],
+  chapter: ['summary'],
+  course: ['blurb'],
+}
 
 type Data = Record<string, unknown>
 
@@ -42,6 +53,7 @@ export type Op =
   | { op: 'remove_items'; entity: Entity; id: string; field: string; items: unknown[] }
   | { op: 'link'; relation: Relation; from: string; to: string; data?: Data }
   | { op: 'unlink'; relation: Relation; from: string; to: string }
+  | { op: 'replace_text'; entity: Entity; id: string; field: string; find: string; replace: string }
 
 export interface FieldChange {
   field: string
@@ -79,6 +91,8 @@ export interface WireOp {
   to?: string
   data_json?: string
   items_json?: string
+  find?: string
+  replace?: string
 }
 
 const isEntity = (v: unknown): v is Entity => ENTITIES.includes(v as Entity)
@@ -139,6 +153,12 @@ export function decodeOps(wire: WireOp[]): { ops: Op[]; errors: string[] } {
           const items = parseJson(w.items_json, 'items_json')
           if (!Array.isArray(items) || items.length === 0) throw new Error('items_json must encode a non-empty array')
           return void ops.push({ op: kind, entity: w.entity, id, field: w.field, items })
+        }
+        case 'replace_text': {
+          if (!w.field) throw new Error('"field" is required')
+          if (!w.find) throw new Error('"find" is required: the exact text to replace, copied from the record')
+          if (typeof w.replace !== 'string') throw new Error('"replace" is required (use "" to delete the text)')
+          return void ops.push({ op: 'replace_text', entity: w.entity, id, field: w.field, find: w.find, replace: w.replace })
         }
       }
     } catch (e) {
@@ -473,6 +493,38 @@ function updateRecord(d: Content, op: Extract<Op, { op: 'update' }>, ctx: Ctx) {
   const co = companyOf(d, entity, id)
   if (co) ctx.touchedCompanies.add(co)
   ctx.changes.push({ kind: 'update', entity, id, label: labelOf(d, entity, id), fields, notes })
+}
+
+// ---- replace_text (an in-place edit of one passage) ----
+
+/** The passage around a match, for the preview. */
+function around(text: string, at: number, len: number, pad = 90): string {
+  const start = Math.max(0, at - pad)
+  const end = Math.min(text.length, at + len + pad)
+  return `${start > 0 ? '…' : ''}${text.slice(start, end)}${end < text.length ? '…' : ''}`
+}
+
+function replaceText(d: Content, op: Extract<Op, { op: 'replace_text' }>, ctx: Ctx) {
+  const { entity, id, field, find, replace } = op
+  const allowed = TEXT_FIELDS[entity] ?? []
+  if (!allowed.includes(field)) fail(`replace_text edits ${allowed.length ? allowed.map((f) => `${entity}.${f}`).join(', ') : 'no field'} of a ${entity}`)
+  const rec = must(recordOf(d, entity, id), `${entity} "${id}"`)
+  const text = rec[field]
+  if (typeof text !== 'string') fail(`${entity} "${id}" has no ${field} text`)
+  const at = text.indexOf(find)
+  if (at < 0) fail(`the "find" text does not appear in ${field}; copy it exactly from the record`)
+  if (text.indexOf(find, at + 1) >= 0) fail(`the "find" text appears more than once in ${field}; include more of the surrounding text`)
+  const next = text.slice(0, at) + replace + text.slice(at + find.length)
+  rec[field] = next
+  const co = companyOf(d, entity, id)
+  if (co) ctx.touchedCompanies.add(co)
+  ctx.changes.push({
+    kind: 'update',
+    entity,
+    id,
+    label: labelOf(d, entity, id),
+    fields: [{ field, before: around(text, at, find.length), after: around(next, at, replace.length) }],
+  })
 }
 
 // ---- delete (cascading) ----
@@ -911,6 +963,8 @@ export function applyOps(content: Content, ops: Op[], date = today()): PlanResul
             return link(d as Content, op, ctx)
           case 'unlink':
             return unlink(d as Content, op, ctx)
+          case 'replace_text':
+            return replaceText(d as Content, op, ctx)
         }
       } catch (e) {
         if (!(e instanceof OpError)) throw e

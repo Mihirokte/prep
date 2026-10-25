@@ -46,6 +46,14 @@ The order matters. If the answer text is not in the retrieved context, no prompt
 
 > **Pitfall.** Debugging RAG from the generation prompt. If recall at k is low the model never saw the answer, and every prompt tweak is wasted motion. Measure the retriever first.
 
+```check
+Q: A RAG answer is wrong. The logs show the passage with the right answer was not in the top 5 retrieved chunks. Where is the fault?
+- In generation, so add stricter grounding rules to the prompt
+* In retrieval, so fix the chunking, the query or the ranking
+- In the model, so switch to a larger model with more knowledge
+Why: The model can only ground its answer in what it receives. If the right passage never reached the context, no prompt and no bigger model can make the answer faithful to it. That is a retrieval failure: measure recall at k, then fix chunking, query rewriting, hybrid search or reranking. A generation failure is the other case, where the right chunk was there and the model still got it wrong.
+```
+
 ## Citations and faithfulness
 
 A grounded answer should cite which retrieved chunk each claim came from, by attaching an id to each chunk in the prompt and asking the model to reference it. Citations do two jobs: they let a user verify the answer, and they let you measure faithfulness, whether every claim in the answer is actually supported by a retrieved chunk rather than invented. An answer that is fluent, confident, and unsupported by any retrieved chunk is the classic RAG hallucination, and citations are how you catch it.

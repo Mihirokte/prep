@@ -28,6 +28,15 @@ const api: PrepApi = {
     discard: (id) => ipcRenderer.invoke('agent:discard', id),
     undo: () => ipcRenderer.invoke('agent:undo'),
     status: () => ipcRenderer.invoke('agent:status'),
+    memory: () => ipcRenderer.invoke('agent:memory'),
+    forget: (id) => ipcRenderer.invoke('agent:forget', id),
+    onProgress: (cb) => {
+      const handler = (_e: IpcRendererEvent, text: string) => cb(text)
+      ipcRenderer.on('agent:progress', handler)
+      return () => {
+        ipcRenderer.removeListener('agent:progress', handler)
+      }
+    },
   },
   onMenu: (cb) => {
     const handler = (_e: IpcRendererEvent, event: MenuEvent) => cb(event)

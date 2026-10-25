@@ -12,7 +12,7 @@ import {
 } from 'electron'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { MenuEvent, TranscriptEntry } from '../shared/api'
+import type { AskContext, MenuEvent, TranscriptEntry } from '../shared/api'
 import type { Content } from '../shared/types'
 import { Agent, type AgentSettings } from './agent'
 import { isMissing, writeAtomic } from './fsutil'
@@ -119,7 +119,8 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
     const settings = await readSettings(path.join(userData, 'settings.json'))
     let win: BrowserWindow | null = null
     const broadcast = (content: Content) => win?.webContents.send('content:changed', content)
-    const agent = new Agent(store, path.join(userData, 'agent'), settings.agent ?? {}, broadcast)
+    const progressLine = (text: string) => win?.webContents.send('agent:progress', text)
+    const agent = new Agent(store, path.join(userData, 'agent'), settings.agent ?? {}, broadcast, progressLine)
     await agent.init()
 
     protocol.handle(SCHEME, async (request) => {
@@ -326,7 +327,7 @@ function registerIpc(ctx: { store: ContentStore; progress: ProgressStore; agent:
   })
   ipcMain.handle('agent:run', (e, req: unknown) => {
     guard(e)
-    const r = (req ?? {}) as { message?: unknown; transcript?: unknown }
+    const r = (req ?? {}) as { message?: unknown; transcript?: unknown; context?: unknown }
     const message = str(r.message, 20_000, 'message').trim()
     if (!message) throw new Error('empty command')
     const transcript: TranscriptEntry[] = (Array.isArray(r.transcript) ? r.transcript : [])
@@ -336,7 +337,27 @@ function registerIpc(ctx: { store: ContentStore; progress: ProgressStore; agent:
       })
       .slice(-20)
       .map((t) => ({ role: t.role, text: t.text.slice(0, 4000) }))
-    return agent.run(message, transcript)
+    const c = (r.context ?? null) as Record<string, unknown> | null
+    const context: AskContext | undefined =
+      c?.kind === 'lesson'
+        ? {
+            kind: 'lesson',
+            courseKey: str(c.courseKey, 200, 'course key'),
+            lessonId: str(c.lessonId, 300, 'lesson id'),
+            quote: str(c.quote, 20_000, 'quote').trim(),
+          }
+        : c?.kind === 'page'
+          ? { kind: 'page', route: str(c.route, 500, 'route'), quote: str(c.quote, 20_000, 'quote').trim() }
+          : undefined
+    return agent.run(message, transcript, context)
+  })
+  ipcMain.handle('agent:memory', (e) => {
+    guard(e)
+    return agent.memory.list()
+  })
+  ipcMain.handle('agent:forget', async (e, id: unknown) => {
+    guard(e)
+    await agent.memory.forget([str(id, 40, 'memory id')])
   })
   ipcMain.handle('agent:cancel', (e) => {
     guard(e)

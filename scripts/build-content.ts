@@ -12,6 +12,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import type { Chapter, Content, Lesson } from '../src/shared/types'
+import { lintBlocks } from '../src/shared/blocks'
 import { validateContent } from '../src/shared/validate'
 
 const root = process.cwd()
@@ -30,7 +31,12 @@ interface ChapterDef {
 }
 interface CourseDef {
   course: string
+  /** Set for a course the seed does not have yet: the build creates it. */
+  label?: string
   blurb?: string
+  references?: { label: string; url: string }[]
+  /** Place a new course after this one (defaults to the end). */
+  after?: string
   chapters: ChapterDef[]
 }
 
@@ -74,52 +80,10 @@ const words = (md: string) =>
     .split(/\s+/)
     .filter(Boolean).length
 
-function fences(md: string): { lang: string; text: string }[] {
-  return [...md.matchAll(/```(\w*)\n([\s\S]*?)```/g)].map((m) => ({ lang: m[1], text: m[2] }))
-}
-
 function checkBlocks(id: string, md: string, where: string) {
-  for (const { lang, text } of fences(md)) {
-    const at = `${id} (${where}, ${lang})`
-    if (lang === 'flow') {
-      const nodes = new Set<string>()
-      let edges = 0
-      for (const raw of text.split('\n')) {
-        const line = raw.trim()
-        if (!line || line.startsWith('#') || /^dir\s*:/i.test(line)) continue
-        const e = /^([\w-]+)\s*(-->|->)\s*([\w-]+)(?:\s*:\s*(.+))?$/.exec(line)
-        if (e) {
-          edges++
-          for (const n of [e[1], e[3]]) if (!nodes.has(n)) errors.push(`${at}: edge uses undeclared node "${n}"`)
-          if (e[4] && e[4].length > 24) warnings.push(`${at}: edge label over 24 chars: "${e[4]}"`)
-          continue
-        }
-        const n = /^([\w-]+)\s*:\s*(.+?)(?:\s*\|\s*(\w+))?$/.exec(line)
-        if (n) {
-          nodes.add(n[1])
-          if (n[2].length > 28) warnings.push(`${at}: node label over 28 chars: "${n[2]}"`)
-          if (n[3] && !['step', 'actor', 'model', 'store', 'tool', 'gate'].includes(n[3].toLowerCase())) errors.push(`${at}: unknown node kind "${n[3]}"`)
-        } else errors.push(`${at}: unparseable line "${line}"`)
-      }
-      if (nodes.size > 12) warnings.push(`${at}: ${nodes.size} nodes (max 12)`)
-      if (edges === 0) errors.push(`${at}: no edges`)
-    } else if (lang === 'stack' || lang === 'bars') {
-      const rows = text.split('\n').filter((l) => l.includes('|') && !/^(title|unit):/i.test(l.trim()))
-      if (rows.length < 2 || rows.length > 8) errors.push(`${at}: needs 2 to 8 rows, has ${rows.length}`)
-      for (const r of rows) if (!Number.isFinite(Number(r.split('|')[1]?.trim().replace(/,/g, '')))) errors.push(`${at}: non-numeric value in "${r}"`)
-    } else if (lang === 'steps') {
-      const rows = text.split('\n').filter((l) => l.trim())
-      if (rows.length < 3 || rows.length > 8) warnings.push(`${at}: ${rows.length} steps (3 to 8)`)
-    } else if (lang === 'recall') {
-      const q = (text.match(/^Q:/gm) ?? []).length
-      const a = (text.match(/^A:/gm) ?? []).length
-      if (q !== a || q < 2) errors.push(`${at}: ${q} questions, ${a} answers`)
-    } else if (lang === 'mermaid') {
-      const parts = (text.match(/^\s*participant\s/gm) ?? []).length
-      if (parts > 6) warnings.push(`${at}: ${parts} participants (max 6)`)
-      if (!/sequenceDiagram/.test(text)) errors.push(`${at}: not a sequenceDiagram`)
-    }
-  }
+  const lint = lintBlocks(md, `${id} (${where})`)
+  errors.push(...lint.errors)
+  warnings.push(...lint.warnings)
 }
 
 function checkProse(id: string, md: string) {
@@ -137,8 +101,15 @@ function checkProse(id: string, md: string) {
 
 const seedFile = path.join(root, 'seed', 'content.json')
 const seed = JSON.parse(readFileSync(seedFile, 'utf8')) as Content
-const course = seed.courses.find((c) => c.key === def.course)
-if (!course) throw new Error(`seed has no course "${def.course}"`)
+let course = seed.courses.find((c) => c.key === def.course)
+if (!course) {
+  if (!def.label) throw new Error(`seed has no course "${def.course}" and course.json gives no label to create it`)
+  course = { key: def.course, label: def.label, blurb: def.blurb ?? '', chapters: [] }
+  const at = def.after ? seed.courses.findIndex((c) => c.key === def.after) : -1
+  seed.courses.splice(at < 0 ? seed.courses.length : at + 1, 0, course)
+}
+if (def.label) course.label = def.label
+if (def.references) course.references = def.references
 
 const allIds = def.chapters.flatMap((c) => c.lessons)
 const dup = allIds.filter((id, i) => allIds.indexOf(id) !== i)

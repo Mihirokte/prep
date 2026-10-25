@@ -1,0 +1,159 @@
+---
+id: scratch-19-74-leaderboard-aggregation
+chapter: scratch-19-capstone-projects
+title: Leaderboard Aggregation
+minutes: 0
+---
+> Per-task scores are easy. Per-model rankings across heterogeneous tasks are harder. Statistical significance on a thousand-prediction leaderboard is the part everyone skips. This lesson does not skip it.
+
+**Type:** Build
+**Languages:** Python
+**Prerequisites:** Phase 19 Track B foundations, lessons 70, 71, 73
+**Time:** ~90 min
+
+## Learning objectives
+
+- Aggregate per-task scores across multiple models and multiple tasks into a tidy per-model row.
+- Normalise heterogeneous scores so that pass rates and BLEU values do not over-influence the aggregate.
+- Rank models by mean and by win-rate, and explain when each is the right summary.
+- Compute bootstrap confidence intervals on the mean score per model and on pairwise differences.
+- Output the leaderboard as a JSON report and as a markdown table the runner in lesson 75 can paste into a CI comment.
+
+## The shape of input
+
+The aggregator consumes a list of `EvalRun` records:
+```python
+@dataclass
+class EvalRun:
+    model_id: str
+    task_id: str
+    metric_name: str
+    score: float          # in [0, 1]
+    category: str
+```
+The runner in lesson 75 emits one record per `(model, task)` pair. The aggregator does not care how the score was produced. It expects normalisation to already have happened: every score is in `[0, 1]`.
+
+## The output
+
+Three tables come out:
+```flow
+dir: LR
+A: list of EvalRun | step
+B: per-task pivot model x task | model
+C: per-model mean | model
+D: per-model win rate | model
+E: bootstrap CI on mean | step
+F: pairwise CI on diff | step
+G: leaderboard rows | step
+H: JSON + markdown table | step
+A -> B
+B -> C
+B -> D
+C -> E
+D -> F
+E -> G
+F -> G
+G -> H
+```
+The leaderboard row contains: `model_id`, `mean_score`, `mean_ci_lo`, `mean_ci_hi`, `win_rate`, `tasks_completed`, and an optional `categories` map for per-category mean.
+
+## Normalisation
+
+If one task scores in `[0, 1]` and another in `[0, 100]`, the second silently dominates the mean. The aggregator validates that every input score sits in `[0, 1]` and refuses the run otherwise. The fix lives upstream: the metric should already return a fraction. Lessons 71 to 73 enforce that contract.
+
+## Mean and win-rate
+
+The two ranking schemes serve different goals.
+
+Mean score is the average of per-task scores for one model. It is the headline number leaderboards report. It is sensitive to outliers and to task imbalance.
+
+Win-rate counts how often a model beats every other model on the same task. For each task, the model with the highest score wins (a tie gives a full win to every tied model). Win rate equals wins divided by the number of tasks where the model has a score. It is less sensitive to outliers and to scale differences but loses information.
+```python
+def win_rate(model_id, runs_by_task, all_models):
+    wins, total = 0, 0
+    for task_id, runs in runs_by_task.items():
+        scores = {r.model_id: r.score for r in runs if r.model_id in all_models}
+        if model_id not in scores:
+            continue
+        total += 1
+        best = max(scores.values())
+        if scores[model_id] >= best:
+            wins += 1
+    return wins / total if total else 0.0
+```
+The harness reports both. The runner in lesson 75 ranks by mean by default; the markdown column for win-rate is right there in case the user prefers it.
+
+## Bootstrap confidence intervals
+
+Per-model means come with a confidence interval estimated by bootstrap resampling over tasks. We resample task ids with replacement, compute the mean over the resampled set, repeat `B` times, and take the percentile interval at level `alpha`.
+```flow
+dir: TB
+A: per-task scores for model M | model
+B: loop B times | step
+C: sample N tasks with replacement | step
+D: mean of sampled scores | step
+E: record bootstrap mean | step
+F: sort B means | step
+G: take alpha/2 and 1 - alpha/2 percentiles | step
+H: CI lo, CI hi | step
+A -> B
+B -> C
+C -> D
+D -> E
+E -> B
+E -> F
+F -> G
+G -> H
+```
+For pairwise comparisons we bootstrap the per-task difference `score_A - score_B`, take the percentile interval, and report it. The user reads off whether the interval excludes zero. If it does, the difference is significant at level alpha. If it does not, the leaderboard treats the models as tied.
+
+The low-level helpers (`bootstrap_mean_ci`, `bootstrap_pairwise_diff`) default to `B=1000`; the public aggregators (`aggregate`, `pairwise_diffs`) default to `b=500` so the demo and tests stay quick. The default alpha is 0.05. The lesson keeps the bootstrap pure numpy, no scipy.
+
+## Categories
+
+If `EvalRun.category` is set, the aggregator also reports per-category mean. This is the column on every leaderboard that says `math`, `reasoning`, `code`, `safety`. It lets the runner spot whether a model is good overall but weak in code, which is information the headline mean hides.
+
+## Markdown rendering
+
+The leaderboard is rendered as a markdown table:
+```text
+| Rank | Model | Mean | 95% CI | Win rate | Tasks |
+|------|-------|------|--------|----------|-------|
+| 1    | gpt   | 0.78 | 0.74-0.82 | 0.62 | 50 |
+| 2    | claude| 0.75 | 0.71-0.79 | 0.34 | 50 |
+| 3    | random| 0.10 | 0.07-0.13 | 0.04 | 50 |
+```
+The table is sorted by mean score. The CI is rendered to two decimals. Long model ids are truncated to twenty characters.
+
+## What this lesson does not do
+
+It does not run models. It does not call the metric layer. It does not implement adaptive ECE or other calibration variants; those are lesson 73. It does not implement task weighting. Every task counts the same here. Production leaderboards weight tasks; we leave that hook open through the `weight` field but ignore it in the aggregator. Add weighting in a follow-up lesson if you need it.
+
+## How to read the code
+
+`main.py` defines `EvalRun`, `LeaderboardRow`, `aggregate`, `bootstrap_mean_ci`, `bootstrap_pairwise_diff`, and `render_markdown`. The demo builds a synthetic suite of three models and twelve tasks, aggregates, and prints the leaderboard plus the pairwise diff table. The tests in `code/tests/test_leaderboard.py` pin the bootstrap, the markdown rendering, the win-rate edge cases, and the empty-input behaviour.
+
+Read `main.py` top to bottom. The data shape (EvalRun, LeaderboardRow) comes first, the aggregator next, the bootstrap third, the rendering last. Each function has a focused contract.
+
+## Going further
+
+The per-model intervals are unpaired, but model comparisons should be paired. If model A and B both ran the same hundred tasks, the appropriate test is the paired bootstrap on task-by-task differences, which `bootstrap_pairwise_diff` already implements. Beyond that, you want a hierarchical bootstrap that respects task families (math problems are not independent from each other; an arithmetic error pattern affects ten of them). That is a follow-up. The point of this lesson is to get the floor right so the eval reports a number you can defend.
+
+Source: [AI Engineering from Scratch, phase 19, 74-leaderboard-aggregation](https://github.com/rohitg00/ai-engineering-from-scratch/tree/3f9715c62a3bedcffb68a260f1a65ee2dd9cc10a/phases/19-capstone-projects/74-leaderboard-aggregation), with its code and notebook. MIT licence, (c) Rohit Ghumare and contributors.
+
+## Check yourself
+
+```recall
+Q: Why does the aggregator require every input score to be in [0, 1]?
+A: Without a common scale, a single metric with a 0-100 range dominates the per-model mean. If pass-rate is in [0,1] and BLEU is in [0,100], the latter swamps the average. Normalisation belongs at the metric layer and is checked here.
+Q: What information does mean score hide that win-rate exposes?
+A: Per-task wins resist outliers and scale shifts; mean is sensitive to both. Win-rate counts task-by-task wins. A model can have a high mean from one easy task and still lose most pairwise comparisons.
+Q: How does bootstrap_mean_ci estimate the confidence interval?
+A: By resampling task scores with replacement, computing the mean over each sample, then taking the alpha/2 and 1 - alpha/2 percentiles. Non-parametric percentile bootstrap on the per-task scores; no distributional assumption, no scipy.
+Q: When does the pairwise diff CI report `significant`?
+A: When the CI does not contain zero. A CI that strictly excludes zero means the difference is unlikely to be zero at the chosen level; that is the operational definition the lesson uses.
+Q: Why is the pairwise bootstrap paired rather than independent?
+A: Paired bootstrap respects that the same task feeds both models; differences are computed task by task before resampling. Paired bootstrap reduces noise: we sample over tasks, not over models, so the comparison is on the same task set every iteration.
+Q: Why does the aggregator return per-category means alongside the headline number?
+A: Headline mean can mask category-level weakness (good overall, bad at code); per-category exposes that. A model can win on aggregate by being okay everywhere or by dominating one category. Per-category breakdown lets the consumer see which.
+```

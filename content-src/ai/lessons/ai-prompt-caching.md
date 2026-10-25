@@ -28,6 +28,14 @@ llm -> req : output
 prefix --> llm : miss recompute
 ```
 
+```check
+Q: Each call sends a timestamp line, then the system text, then the tool schemas, then the user message. Cache hits stay near zero. Why?
+- The tool schemas are too long for the cache to hold
+* The timestamp changes each call, so no prefix ever matches
+- The user message changes each call, so the cache resets
+Why: A prompt cache matches from the first token forward and stops at the first difference. A timestamp at the top differs on every call, so nothing after it can match. A changing user message is normal: it sits at the end, after the cached prefix. Move the timestamp, and anything else that varies, after the stable parts.
+```
+
 ## A worked cost model
 
 Take Anthropic's multipliers and a prompt with a 10k-token stable prefix (system prompt plus tool schemas plus a fixed knowledge block) reused across 20 turns of a conversation, each turn adding a small variable suffix.
