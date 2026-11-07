@@ -38,6 +38,20 @@ const api: PrepApi = {
       }
     },
   },
+  tutor: {
+    questions: (lessonId) => ipcRenderer.invoke('tutor:questions', lessonId),
+    generate: (lessonId) => ipcRenderer.invoke('tutor:generate', lessonId),
+    clearQuestions: (lessonId) => ipcRenderer.invoke('tutor:clear', lessonId),
+    verify: (problemId, code) => ipcRenderer.invoke('tutor:verify', problemId, code),
+    cancel: () => ipcRenderer.invoke('tutor:cancel'),
+    onProgress: (cb) => {
+      const handler = (_e: IpcRendererEvent, text: string) => cb(text)
+      ipcRenderer.on('tutor:progress', handler)
+      return () => {
+        ipcRenderer.removeListener('tutor:progress', handler)
+      }
+    },
+  },
   onMenu: (cb) => {
     const handler = (_e: IpcRendererEvent, event: MenuEvent) => cb(event)
     ipcRenderer.on('menu', handler)

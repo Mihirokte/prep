@@ -1,4 +1,5 @@
 import type { ProgressState } from './store/progressSlice'
+import { parseProgress, type ParseResult } from './progressFile'
 
 export function exportProgress(state: ProgressState): void {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })
@@ -9,10 +10,9 @@ export function exportProgress(state: ProgressState): void {
   URL.revokeObjectURL(a.href)
 }
 
-export function readProgressFile(file: File): Promise<ProgressState> {
-  return file.text().then((text) => {
-    const parsed = JSON.parse(text) as Partial<ProgressState>
-    if (typeof parsed !== 'object' || parsed === null) throw new Error('not a progress file')
-    return { lessons: parsed.lessons ?? {}, problems: parsed.problems ?? {}, recall: parsed.recall ?? {} }
-  })
+export function readProgressFile(file: File): Promise<ParseResult> {
+  return file
+    .text()
+    .then(parseProgress)
+    .catch((e: unknown) => ({ ok: false as const, error: `The file could not be read: ${String(e)}` }))
 }

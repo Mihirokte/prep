@@ -200,7 +200,7 @@ export default function SelectionAsk({ root, hash }: { root: RefObject<HTMLEleme
         onPointerDown={(e) => e.preventDefault()}
         onClick={() => setOpen(true)}
         style={{ left: Math.min(anchor.x + 4, maxX - 64), top: anchor.bottom + 6 }}
-        className="notch fixed z-50 inline-flex h-8 items-center bg-ink px-3 font-label text-[12px] uppercase tracking-[0.12em] text-paper shadow-[0_2px_0_var(--edge)] transition-colors hover:bg-brand"
+        className="notch fixed z-50 inline-flex h-8 items-center bg-fill px-3 text-[14px] text-white rounded-md transition-colors hover:bg-[var(--fill-hover)]"
       >
         Ask
       </button>
@@ -275,7 +275,7 @@ export default function SelectionAsk({ root, hash }: { root: RefObject<HTMLEleme
                     {t.state === 'applying' && <span className="label">Applying</span>}
                     {t.state === 'applied' && <span className="label !text-ink">Applied. Undo is in the assistant panel.</span>}
                     {t.state === 'discarded' && <span className="label">Discarded</span>}
-                    {t.state === 'failed' && <span className="whitespace-pre-wrap text-brand">{t.outcome}</span>}
+                    {t.state === 'failed' && <span className="whitespace-pre-wrap text-danger">{t.outcome}</span>}
                   </div>
                 </div>
               </div>

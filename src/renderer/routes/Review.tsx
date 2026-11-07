@@ -32,30 +32,48 @@ export function allCards(m: Model): Card[] {
   return out
 }
 
-/** Cards to review now: due ones first (oldest due first), then never-seen cards. */
-export function dueCards(m: Model, recall: Record<string, RecallCard>, now = Date.now()): Card[] {
+/** Cards to review now: due ones first, then unseen cards from lessons the
+ * learner has actually completed. A newly installed library contains thousands
+ * of cards; admitting all of them at once turns review into an unbounded inbox. */
+export function dueCards(
+  m: Model,
+  recall: Record<string, RecallCard>,
+  eligibleLessons: ReadonlySet<string>,
+  now = Date.now(),
+): Card[] {
   const cards = allCards(m)
   const due = cards.filter((c) => recall[c.id] && new Date(recall[c.id].due).getTime() <= now)
   due.sort((a, b) => new Date(recall[a.id].due).getTime() - new Date(recall[b.id].due).getTime())
-  const fresh = cards.filter((c) => !recall[c.id])
+  const fresh = cards.filter((c) => !recall[c.id] && eligibleLessons.has(c.lessonId))
   return [...due, ...fresh]
 }
 
 export function ReviewPage() {
   const m = useModel()
+  const lessons = useAppSelector((s) => s.progress.lessons)
   const recall = useAppSelector((s) => s.progress.recall ?? {})
   const dispatch = useAppDispatch()
+  const eligibleLessons = useMemo(
+    () => new Set(Object.entries(lessons).filter(([, p]) => p.status === 'read').map(([id]) => id)),
+    [lessons],
+  )
   // Freeze the session queue when the page opens: rating a card must not reshuffle it.
-  const [queue] = useState(() => dueCards(m, recall).slice(0, 20).map((c) => c.id))
+  const [queue] = useState(() => dueCards(m, recall, eligibleLessons).slice(0, 20).map((c) => c.id))
   const cards = useMemo(() => new Map(allCards(m).map((c) => [c.id, c])), [m])
   const [i, setI] = useState(0)
   const [open, setOpen] = useState(false)
   const [done, setDone] = useState(0)
 
-  const all = cards.size
   const seen = Object.keys(recall).filter((k) => cards.has(k)).length
   const learned = Object.entries(recall).filter(([k, r]) => cards.has(k) && r.box >= 3).length
-  const dueNow = useMemo(() => dueCards(m, recall).filter((c) => recall[c.id]).length, [m, recall])
+  const available = useMemo(
+    () => seen + allCards(m).filter((c) => !recall[c.id] && eligibleLessons.has(c.lessonId)).length,
+    [m, recall, eligibleLessons, seen],
+  )
+  const dueNow = useMemo(
+    () => dueCards(m, recall, eligibleLessons).filter((c) => recall[c.id]).length,
+    [m, recall, eligibleLessons],
+  )
 
   const card = queue[i] ? cards.get(queue[i]) : undefined
 
@@ -74,14 +92,14 @@ export function ReviewPage() {
       {/* Key figures are M (24): important, but never as big as the title. */}
       <dl className="mt-10 grid grid-cols-2 gap-x-8 gap-y-6 border-y border-hair py-6 sm:grid-cols-4">
         {[
-          ['Cards', all],
+          ['Available', available],
           ['Started', seen],
           ['Due', dueNow],
           ['Learned', learned],
         ].map(([k, v]) => (
           <div key={k} className="flex flex-col gap-1">
             <dt className="label">{k}</dt>
-            <dd className="num font-display text-[24px] leading-none">{v}</dd>
+            <dd className="num font-semibold text-[20px] leading-none">{v}</dd>
           </div>
         ))}
       </dl>
@@ -114,7 +132,7 @@ export function ReviewPage() {
           </section>
         ) : (
           <section className="border-y border-hair py-10">
-            <p className="font-display text-[24px] leading-none">{queue.length === 0 ? 'Nothing due' : 'Session complete'}</p>
+            <p className=" font-semibold text-[20px] leading-none">{queue.length === 0 ? 'Nothing due' : 'Session complete'}</p>
             <p className="mt-4 text-ink-2">
               {queue.length === 0
                 ? 'Every card is scheduled for later. Cards appear here after you reveal them at the end of a lesson.'

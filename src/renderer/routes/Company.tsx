@@ -98,7 +98,7 @@ function RoundPatternRow({ item }: { item: RoundPattern }) {
             {pixelText(pat.name)}
           </a>
         </h3>
-        <span className={reported ? 'chip !bg-ink !text-paper' : 'chip'}>{reported ? 'From a reported question' : 'From the reported topics'}</span>
+        <span className={reported ? 'chip !bg-fill !text-white !border-fill' : 'chip'}>{reported ? 'From a reported question' : 'From the reported topics'}</span>
         <span className="label num ml-auto">{pat.problemIds.length} drills</span>
       </div>
       <p className="mt-3 max-w-[70ch]">{pixelText(pat.essence)}</p>

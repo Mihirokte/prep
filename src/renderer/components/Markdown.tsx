@@ -112,8 +112,7 @@ function RichBlock({ lang, text }: { lang: string; text: string }) {
   }
 }
 
-/** Lesson prose, styled by the `.md` rules in prep.css (pixel body, Pixelta
- *  headings, square bullets, hairline tables). Rich fenced blocks render as
+/** Lesson prose, styled by the `.md` rules in prep.css. Rich fenced blocks render as
  *  live diagrams. `scope` ties recall cards to their lesson.
  *
  *  The component map is module-level on purpose: a new map on each render gives

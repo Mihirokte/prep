@@ -1,12 +1,15 @@
 # Prep
 
-A local Mac app for interview study and practice, drawn in a pixel-typeset,
-drafted-paper style (night by default, day with the switch in the toolbar).
+A local Mac app for interview study and practice, in a plain Bootstrap 5.3
+look (light and dark, with the switch in the toolbar).
 Seven study areas — DSA plus six courses (low-level design, system design,
-architecture, AI engineering, production and ops, security) — whose lessons
-carry animated diagrams and self-check cards; 241 drills, of which 148 are
-Python problems in a split-pane workspace (statement, hints, approach, editor,
-offline syntax check); 29 pattern cards, each with a step-through
+architecture, AI engineering, production and ops, security). Each topic has
+one lesson; no two courses teach the same topic.
+Each topic has three tabs: Read, Resources (the links it cites, the course
+reading list, practice drills) and Questions (its own questions, or a set
+generated on demand). The 148 DSA problems are grouped by pattern; you write
+pseudocode or Python in the editor and press Verify for a review. 254 drills in
+total, local tests where authored; 29 pattern cards, each with a step-through
 walk-through of the real algorithm, mapped to every problem; a spaced-review
 deck built from the lessons' self-check cards; and company research with
 questions, answer sketches and variants. Progress is kept on disk. An
@@ -185,37 +188,41 @@ sequence diagrams, `stack` and `bars` charts, `steps`, `recall` (self-check
 cards that feed the Review page) and `viz <scene-id>` (algorithm
 walk-throughs). The syntax is specified in `content-src/ai/SPEC.md`.
 
-### AI from Scratch (imported course)
+### Lessons from AI Engineering from Scratch
 
-`content-src/scratch/` holds the 542 lessons of
+The lessons with ids that start with `scratch-` come from
 [AI Engineering from Scratch](https://github.com/rohitg00/ai-engineering-from-scratch)
-(MIT), one chapter per phase. The files are generated: do not edit them by
-hand. `scripts/import/from-scratch.ts` converts the upstream lessons. It
-redraws mermaid flowcharts and state diagrams as `flow` blocks, keeps the
-sequence-diagram subset Prep draws, turns each `quiz.json` into a recall
-deck, points lesson links at Prep and other links at GitHub, and moves
-Exercises, Key Terms and Further Reading into "Go deeper". To pull a newer
-upstream version:
-
-```sh
-git clone --depth 1 --filter=blob:none --no-checkout https://github.com/rohitg00/ai-engineering-from-scratch /tmp/aies
-git -C /tmp/aies sparse-checkout set --no-cone /LICENSE '/phases/*/README.md' '/phases/*/*/docs/en.md' '/phases/*/*/quiz.json'
-git -C /tmp/aies checkout main
-node scripts/run-ts.mjs scripts/import/from-scratch.ts --src=/tmp/aies
-node scripts/run-ts.mjs scripts/build-content.ts --course=scratch
-```
-
-Then bump `seed/revision.json`. `content-src/scratch/SOURCE.md` records the
-imported commit and the source licence.
+(MIT). They are part of the AI Engineering course (and, for the reverse
+engineering chapter, the Security course), and you edit them like any other
+lesson. Lessons that taught a topic an existing lesson already teaches were
+removed, so each topic has one lesson.
+`content-src/ai/SOURCE-ai-engineering-from-scratch.md` records the source
+commit and its licence.
 
 ## Design
 
-The visual language is the "Mihir" house style: Pixelta for display,
-Pixel Operator for body, Determination for labels (fonts in
-`src/renderer/assets/fonts/`; Pixel Operator is CC0, Determination is CC BY 3.0
-and is credited in the sidebar). Paper and ink, 2px frames with stepped
-notch corners, hard offset shadows, a 16px dot grid, red only for
-interaction. Tokens live at the top of `src/renderer/prep.css`.
+The look is Bootstrap 5.3: the system font, Bootstrap's light and dark
+palettes, 6px radii, 1px borders, blue for links and the primary action.
+Colours are Bootstrap's, darkened only where a pair failed WCAG AA. Tokens live
+at the top of `src/renderer/prep.css`; Bootstrap itself is not a dependency,
+its values are mapped onto the existing Tailwind and shadcn components.
+
+## Tutor: Generate and Verify
+
+Generate (lesson questions) and Verify (code review) run through two fixed
+LangGraph graphs in the main process (`src/main/tutor.ts`). Each graph has one
+model step, agy with schema-enforced JSON, between deterministic steps:
+
+- **Questions:** load lesson, generate, ground, then retry or save. A question
+  is kept only if it has 4 distinct options, one answer, an explanation, and a
+  quote found word for word in the lesson. Up to 3 tries; needs 5 to save.
+- **Verify:** prepare, cache, critique, validate, then retry or save. A review
+  is kept only if every issue quotes code you wrote, the pattern key exists,
+  and a partial or incorrect verdict names an issue. The same code for the same
+  problem returns the saved review without calling the model.
+
+The rules are pure functions in `src/shared/tutor.ts`. Generated questions and
+reviews are stored in `~/Library/Application Support/Prep/agent/tutor.json`.
 
 ## Verify
 
@@ -225,16 +232,20 @@ npm run verify:seed    # seed/content.json: schemas, unique ids, every reference
 npm run verify:app     # builds, then drives the real app in a throwaway data dir:
                        # every route renders, Pyodide validator, progress persistence,
                        # ⌘K palette, assistant panel; screenshots → verify-report/
+npm run verify:tutor   # tutor rules and both graphs with a scripted model;
+                       # PREP_VERIFY_AGENT=1 adds real agy runs
+npm run verify:progress # progress import and seed migration from older revisions
 ```
 
 `verify:app` also audits the rendered UI against the visual-design principles
 the design follows (Nielsen Norman Group, "5 Principles of Visual Design in
 UX"), on every route at night and every screen type by day:
 
-- **Scale:** text uses only the 12/16/24/40px steps, with at most one 40px title.
+- **Scale:** text uses only 32 (title), 20 (heading), 16 (body), 14 (secondary)
+  and 12 (diagram labels), with at most one 32px title.
 - **Contrast:** every drawn text meets WCAG AA against its resolved background
   (4.5:1, or 3:1 at 24px and up), and no text is faded with opacity.
-- **Shape:** no rounded corners, blurred shadows, blur filters or gradients.
+- **Shape:** no blurred shadows, blur filters or gradients.
 - **Balance:** page content is centered in its pane.
 
 A self-test plants one violation of each kind first, so a clean result is not

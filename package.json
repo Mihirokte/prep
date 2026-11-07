@@ -19,6 +19,8 @@
     "package": "npm run build && node scripts/package.mjs",
     "install-app": "node scripts/install-app.mjs",
     "verify:seed": "node scripts/run-ts.mjs scripts/verify-seed.ts",
+    "verify:tutor": "node scripts/run-ts.mjs scripts/verify-tutor.ts",
+    "verify:progress": "node scripts/run-ts.mjs scripts/verify-progress.ts",
     "verify:app": "npm run build && electron dist/verify/index.cjs",
     "import:seed": "node scripts/run-ts.mjs scripts/import/migrate-from-portfolio.ts",
     "import:verify": "node scripts/run-ts.mjs scripts/import/verify-data-parity.ts"
@@ -26,6 +28,8 @@
   "dependencies": {
     "@codemirror/lang-python": "6.2.1",
     "@codemirror/language": "6.12.4",
+    "@langchain/core": "1.3.5",
+    "@langchain/langgraph": "1.7.2",
     "@lezer/highlight": "1.2.4",
     "@reduxjs/toolkit": "2.12.0",
     "@tailwindcss/vite": "4.1.12",

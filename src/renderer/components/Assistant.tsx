@@ -161,7 +161,7 @@ export function ChangeRow({ c }: { c: Change }) {
     <li className="flex gap-3 px-4 py-3">
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-3">
-          <span className={cn('label', destructive ? '!text-brand' : '!text-ink')}>{label}</span>
+          <span className={cn('label', destructive ? '!text-danger' : '!text-ink')}>{label}</span>
           <span className="label">{c.entity}</span>
         </div>
         <p className="mt-1 break-words leading-6">{pixelText(c.label)}</p>
@@ -285,7 +285,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
       className={cn('h-full w-[420px] max-w-full shrink-0 flex-col border-l border-hair bg-paper', open ? 'flex' : 'hidden')}
     >
       <div className="app-drag flex h-[52px] shrink-0 items-center gap-2 pl-4 pr-2">
-        <h2 className="text-[24px]">Assistant</h2>
+        <h2 className="text-[20px]">Assistant</h2>
         <span className="flex-1" />
         <Button variant="ghost" size="sm" className="no-drag" aria-pressed={showMemory} onClick={() => setShowMemory((v) => !v)}>
           Memory
@@ -370,7 +370,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
                     )}
                     {it.state === 'applied' && <span className="label !text-ink">Applied</span>}
                     {it.state === 'discarded' && <span className="label">Discarded</span>}
-                    {it.state === 'failed' && <span className="whitespace-pre-wrap text-brand">{it.outcome}</span>}
+                    {it.state === 'failed' && <span className="whitespace-pre-wrap text-danger">{it.outcome}</span>}
                   </div>
                 </div>
               </div>
@@ -418,7 +418,7 @@ export default function Assistant({ open, onClose }: { open: boolean; onClose: (
             type="submit"
             disabled={busy || !text.trim()}
             aria-label="Send"
-            className="notch inline-flex h-9 shrink-0 items-center justify-center bg-ink px-4 font-label text-[12px] uppercase tracking-[0.12em] text-paper transition-colors hover:bg-brand disabled:bg-transparent disabled:text-ink-2 disabled:shadow-[inset_0_0_0_1px_var(--edge)]"
+            className="notch inline-flex h-9 shrink-0 items-center justify-center bg-fill px-4 text-[14px] text-white rounded-md transition-colors hover:bg-[var(--fill-hover)] disabled:bg-wash disabled:text-ink-2"
           >
             Send
           </button>

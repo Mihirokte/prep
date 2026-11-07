@@ -2,6 +2,7 @@ import type { MemoryNote } from './memory'
 import type { Change } from './ops'
 import type { SourceRef } from './sources'
 import type { Content } from './types'
+import type { CodeReview, QuestionSet } from './tutor'
 
 // The bridge the preload script exposes as `window.prep`. Types only — the
 // renderer never sees ipcRenderer, Node, or the file system directly.
@@ -45,6 +46,9 @@ export interface AgentStatus {
 
 export type MenuEvent = 'palette' | 'assistant' | 'home' | 'sidebar'
 
+export type TutorQuestionsResult = { ok: true; set: QuestionSet; attempts: number; dropped: number } | { ok: false; error: string }
+export type TutorVerifyResult = { ok: true; review: CodeReview; cached: boolean } | { ok: false; error: string }
+
 export interface PrepApi {
   content: {
     get(): Promise<Content>
@@ -68,6 +72,15 @@ export interface PrepApi {
     /** What the assistant remembers about the learner. */
     memory(): Promise<MemoryNote[]>
     forget(id: string): Promise<void>
+  }
+  /** Lesson questions and code review, run through the LangGraph tutor. */
+  tutor: {
+    questions(lessonId: string): Promise<QuestionSet | null>
+    generate(lessonId: string): Promise<TutorQuestionsResult>
+    clearQuestions(lessonId: string): Promise<void>
+    verify(problemId: string, code: string): Promise<TutorVerifyResult>
+    cancel(): Promise<void>
+    onProgress(cb: (text: string) => void): () => void
   }
   onMenu(cb: (event: MenuEvent) => void): () => void
 }

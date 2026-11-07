@@ -66,7 +66,7 @@ export function CardFace({
   return (
     <div className="cast-sm">
       <div className="panel px-8 py-6">
-        <p className="font-display text-[24px] leading-[1.15]">{q}</p>
+        <p className=" font-semibold text-[20px] leading-snug">{q}</p>
         {open ? (
           <div className="rise mt-6 border-t border-hair pt-6">
             <p>{a}</p>
@@ -145,7 +145,7 @@ export function RecallDeck({ pairs }: { pairs: RecallPair[] }) {
             aria-selected={k === i}
             aria-label={`Card ${k + 1}`}
             onClick={() => setI(k)}
-            className={`h-2 w-6 border border-ink ${k === i ? 'bg-ink' : 'bg-transparent hover:border-brand'}`}
+            className={`h-2 w-6 border border-ink ${k === i ? 'bg-fill border-fill' : 'bg-transparent hover:border-brand'}`}
           />
         ))}
       </div>

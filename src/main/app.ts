@@ -18,6 +18,7 @@ import { Agent, type AgentSettings } from './agent'
 import { isMissing, writeAtomic } from './fsutil'
 import { ProgressStore } from './progress'
 import { ContentStore } from './store'
+import { Tutor } from './tutor'
 
 // Main process. Owns the data on disk and the assistant; the renderer is a
 // sandboxed page that reaches them only through the preload bridge.
@@ -27,7 +28,7 @@ const ORIGIN = `${SCHEME}://app`
 const RENDERER_DIR = path.join(__dirname, '..', 'renderer')
 const PRELOAD = path.join(__dirname, '..', 'preload', 'index.cjs')
 const SEED = path.join(__dirname, '..', '..', 'seed', 'content.json')
-const BACKGROUND = '#121216' // night paper, so no flash on open
+const BACKGROUND = '#212529' // dark body colour, so no flash on open
 
 const CSP = [
   "default-src 'self'",
@@ -122,6 +123,9 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
     const progressLine = (text: string) => win?.webContents.send('agent:progress', text)
     const agent = new Agent(store, path.join(userData, 'agent'), settings.agent ?? {}, broadcast, progressLine)
     await agent.init()
+    const tutorLine = (text: string) => win?.webContents.send('tutor:progress', text)
+    const tutor = new Tutor(path.join(userData, 'agent'), settings.agent ?? {}, () => store.get(), tutorLine)
+    await tutor.init()
 
     protocol.handle(SCHEME, async (request) => {
       const url = new URL(request.url)
@@ -150,7 +154,7 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
       item.setSaveDialogOptions({ defaultPath: path.join(app.getPath('downloads'), item.getFilename()) })
     })
 
-    registerIpc({ store, progress, agent, isAppUrl })
+    registerIpc({ store, progress, agent, tutor, isAppUrl })
 
     const send = (ev: MenuEvent) => (BrowserWindow.getFocusedWindow() ?? win)?.webContents.send('menu', ev)
     const history = () => (BrowserWindow.getFocusedWindow() ?? win)?.webContents.navigationHistory
@@ -161,7 +165,7 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
       applicationName: 'Prep',
       applicationVersion: app.getVersion(),
       credits:
-        'Type: Pixelta; Pixel Operator by Jayvee Enaguas (CC0); Determination by anonymous-1438277 on FontStruct, licensed CC BY 3.0 (creativecommons.org/licenses/by/3.0).',
+        'Interface in the Bootstrap 5.3 style, set in the system font.',
     })
 
     const windowFile = path.join(userData, 'window.json')
@@ -298,8 +302,8 @@ function menuTemplate(ctx: {
 
 // ---- IPC: every handler checks its sender and its arguments ----
 
-function registerIpc(ctx: { store: ContentStore; progress: ProgressStore; agent: Agent; isAppUrl: (url: string) => boolean }) {
-  const { store, progress, agent, isAppUrl } = ctx
+function registerIpc(ctx: { store: ContentStore; progress: ProgressStore; agent: Agent; tutor: Tutor; isAppUrl: (url: string) => boolean }) {
+  const { store, progress, agent, tutor, isAppUrl } = ctx
   const guard = (e: IpcMainInvokeEvent) => {
     const url = e.senderFrame?.url ?? ''
     if (!isAppUrl(url)) throw new Error(`blocked IPC from ${url || 'unknown frame'}`)
@@ -378,5 +382,25 @@ function registerIpc(ctx: { store: ContentStore; progress: ProgressStore; agent:
   ipcMain.handle('agent:status', (e) => {
     guard(e)
     return agent.status()
+  })
+  ipcMain.handle('tutor:questions', (e, id: unknown) => {
+    guard(e)
+    return tutor.questions(str(id, 300, 'lesson id'))
+  })
+  ipcMain.handle('tutor:generate', (e, id: unknown) => {
+    guard(e)
+    return tutor.generateQuestions(str(id, 300, 'lesson id'))
+  })
+  ipcMain.handle('tutor:clear', (e, id: unknown) => {
+    guard(e)
+    return tutor.clearQuestions(str(id, 300, 'lesson id'))
+  })
+  ipcMain.handle('tutor:verify', (e, id: unknown, code: unknown) => {
+    guard(e)
+    return tutor.verify(str(id, 300, 'problem id'), str(code, 100_000, 'code'))
+  })
+  ipcMain.handle('tutor:cancel', (e) => {
+    guard(e)
+    tutor.cancel()
   })
 }

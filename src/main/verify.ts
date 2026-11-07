@@ -84,16 +84,17 @@ interface PageState {
   buttons: number
 }
 
-/** The house type scale (design system, "Scale"): L 40, M 24, S 16 body and
- *  12 labels (one visual step: both have a 9px cap height). */
-const TYPE_SCALE = [12, 16, 24, 40]
+/** The type scale (Bootstrap look, three steps): L 32 page title, M 20 section
+ *  heading, S 16 body with 14 secondary text and 12 inside diagrams. */
+const TYPE_SCALE = [12, 14, 16, 20, 32]
+const TITLE = 32
 
 /** Visual-design audit of the rendered page, run inside the renderer. Encodes
  *  the NN/g principles the design system adopts as hard rules:
  *   scale     every text size is on the scale; at most one 40px (L) title
  *   contrast  every drawn text pair meets WCAG AA against its resolved
  *             background (4.5:1, 3:1 at 24px+), and no text is faded with opacity
- *   shape     no rounded corners, blurred shadows, blur filters or gradients
+ *   shape     no blurred shadows, blur filters or gradients
  *   balance   the page's content is centered in its pane
  *  Hover states are not covered (they need pointer input). */
 const AUDIT = `(() => {
@@ -154,7 +155,6 @@ const AUDIT = `(() => {
     if (s.display === 'none') continue
     // shape: radius, soft shadows, blur, gradients
     if (!el.closest('.cm-editor')) {
-      if ([s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius].some((r) => parseFloat(r) > 0)) shape.push('radius ' + where(el))
       for (const sh of s.boxShadow === 'none' ? [] : s.boxShadow.split(/,(?![^(]*\\))/)) {
         const px = (sh.replace(/rgba?\\([^)]*\\)|color\\([^)]*\\)/g, '').match(/-?[\\d.]+px/g) || []).map(parseFloat)
         if ((px[2] || 0) > 0) shape.push('soft shadow ' + where(el))
@@ -175,7 +175,7 @@ const AUDIT = `(() => {
     const text = (el.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 40)
     sizes.add(size)
     if (!${JSON.stringify(TYPE_SCALE)}.includes(size)) off.push(size + 'px ' + where(el) + ' «' + text + '»')
-    if (size === 40 && Math.round(parseFloat(cs(el.parentElement).fontSize)) !== 40) large++
+    if (size === ${TITLE} && Math.round(parseFloat(cs(el.parentElement).fontSize)) !== ${TITLE}) large++
     if (pane && pane.contains(el)) {
       // Only what is visible counts: clip to every scroller between the text and the pane.
       let L = r.left, R = r.right
@@ -236,9 +236,9 @@ class DesignAudit {
       const f = this.fails[k]
       check(`design (${this.theme}) — ${what}`, f.length === 0, f.length ? `${f.length}/${n} routes; ${f.slice(0, 3).join(' | ')}` : `${n} routes`)
     }
-    line('scale', `type on the 12/16/24/40 scale, at most one 40px title`)
+    line('scale', `type on the ${TYPE_SCALE.join('/')} scale, at most one ${TITLE}px title`)
     line('contrast', 'every text at WCAG AA against its background, no faded text')
-    line('shape', 'no radius, soft shadow, blur or gradient')
+    line('shape', 'no soft shadow, blur or gradient')
     line('balance', 'page content centered in its pane')
     extra[`design_${this.theme}`] = this.fails
   }
@@ -260,9 +260,9 @@ async function auditSelfTest(win: BrowserWindow) {
     contrast: a.low.some((x) => x.includes('probe low')),
     faded: a.faded.some((x) => x.includes('probe faded')),
     scale: a.off.some((x) => x.includes('probe size')),
-    shape: a.shape.some((x) => x.startsWith('radius')) && a.shape.some((x) => x.startsWith('soft shadow')),
+    shape: a.shape.some((x) => x.startsWith('soft shadow')),
   }
-  check('design audit catches planted violations (contrast, faded text, off-scale size, radius, soft shadow)', Object.values(caught).every(Boolean), JSON.stringify(caught))
+  check('design audit catches planted violations (contrast, faded text, off-scale size, soft shadow)', Object.values(caught).every(Boolean), JSON.stringify(caught))
 }
 
 function routesOf(c: Content): string[] {
@@ -331,6 +331,15 @@ const pressTab = (win: BrowserWindow, text: string) =>
     win,
     `(() => { const el = [...document.querySelectorAll('[role=tab]')].find((e) => e.textContent === ${JSON.stringify(text)}); if (!el) return false; el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 })); return true })()`,
   )
+
+/** Press the tab whose label starts with `text` (a count may follow), then let it render. */
+async function clickTab(win: BrowserWindow, text: string) {
+  await js(
+    win,
+    `(() => { const el = [...document.querySelectorAll('[role=tab]')].find((e) => (e.textContent || '').startsWith(${JSON.stringify(text)})); el?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 })) })()`,
+  )
+  await sleep(300)
+}
 
 function firstDiff(a: string, b: string): string {
   let i = 0
@@ -493,23 +502,129 @@ async function extraShots(win: BrowserWindow) {
   }
 }
 
-async function features(h: AppHandles, win: BrowserWindow) {
-  // Validator: Pyodide boots from the bundled files and checks the starter code.
-  await visit(win, '#/drill/dsa-001')
-  await waitFor(
-    () => js<boolean>(win, `[...document.querySelectorAll('button')].some((b) => b.textContent === 'Check syntax' && !b.disabled)`),
-    Boolean,
-    120000,
-    'Pyodide to load',
+/** The learner's problem records as the app persisted them to disk. */
+function storedProblems(): Record<string, { status?: string; code?: string }> {
+  const raw = JSON.parse(readFileSync(path.join(userData, 'progress.json'), 'utf8')) as Record<string, string>
+  return JSON.parse(JSON.parse(raw['persist:prep-v2']).problems)
+}
+
+/** Code as the editor shows it, whitespace-insensitive (CodeMirror renders lines as blocks). */
+const squash = (s: string) => s.replace(/\s+/g, '')
+const editorText = (win: BrowserWindow) => js<string>(win, `document.querySelector('.cm-content')?.innerText ?? ''`)
+
+/** Replace the editor's whole text the way typing does (CodeMirror sees real input events). */
+async function typeCode(win: BrowserWindow, code: string) {
+  await js(
+    win,
+    `(() => { const el = document.querySelector('.cm-content'); el.focus(); document.execCommand('selectAll'); document.execCommand('insertText', false, ${JSON.stringify(code)}) })()`,
   )
-  await click(win, 'button', 'Check syntax')
-  const verdict = await waitFor(
-    () => js<string>(win, `(() => { const el = [...document.querySelectorAll('p, div')].find((d) => /Looks valid|Error|could not load/.test(d.textContent || '') && d.children.length === 0); return el ? el.textContent : '' })()`),
+}
+
+async function runValidator(win: BrowserWindow): Promise<string> {
+  // React reuses the console <p> across runs, so wait for a verdict whose text
+  // differs from what the console showed before the click.
+  const consoleText = `[...document.querySelectorAll('[aria-live="polite"] p')].map((p) => p.textContent || '').join('|')`
+  const before = await js<string>(win, consoleText)
+  await js(win, `document.querySelector('button[aria-label="Run local Python validation"]')?.click()`)
+  return waitFor(
+    () => js<string>(win, `(() => { const el = [...document.querySelectorAll('[aria-live="polite"] p')].find((p) => /Passed|Test \\d+ (failed|raised)|Looks valid|Error/.test(p.textContent || '') && !${JSON.stringify(before)}.split('|').includes(p.textContent || '')); return el ? el.textContent : '' })()`),
     (v) => v.length > 0,
     30000,
     'the validator verdict',
   )
-  check('Python validator runs offline from bundled Pyodide', verdict.startsWith('Looks valid'), verdict)
+}
+
+/** Problem workspace behaviour: attempted status, both validator modes,
+ *  autosave without pressing Check, and Reset. Ends back on dsa-001. */
+async function drillWorkspace(h: AppHandles, win: BrowserWindow) {
+  await sleep(700)
+  const first = storedProblems()['dsa-001']
+  check('running the validator marks an unstarted problem attempted', first?.status === 'attempted', `stored: ${first?.status}`)
+
+  const packs = h.store.get().packs
+  const authored = packs['dsa-001']
+  await typeCode(win, authored.reference_solution ?? '')
+  const pass = await runValidator(win)
+  check(
+    'authored local tests: the reference solution passes every case',
+    pass === `Passed ${authored.tests!.length}/${authored.tests!.length} local tests.`,
+    pass,
+  )
+
+  // A pack with no authored cases falls back to a syntax check and says so.
+  const plain = packs['dsa-002']
+  await visit(win, '#/drill/dsa-002')
+  await waitFor(() => editorText(win), (t) => t.length > 0, 5000, 'the editor')
+  const edited = `${plain.starter_code}\n# autosave probe\n`
+  await typeCode(win, edited)
+  await sleep(1200)
+  const saved = storedProblems()['dsa-002']?.code ?? ''
+  check('editor autosaves without pressing Check', saved.includes('# autosave probe'), `stored ${saved.length} chars`)
+  const controls = await js<{ verify: boolean; tests: boolean }>(
+    win,
+    `({ verify: !!document.querySelector('button[aria-label="Verify with the tutor"]'), tests: !!document.querySelector('button[aria-label="Run local Python validation"]') })`,
+  )
+  check('a pack without local tests offers Verify and no test runner', controls.verify && !controls.tests, JSON.stringify(controls))
+
+  await js(win, `[...document.querySelectorAll('button')].find((b) => b.textContent === 'Reset')?.click()`)
+  await sleep(700)
+  const shown = await editorText(win)
+  const after = storedProblems()['dsa-002']?.code ?? ''
+  check(
+    'Reset restores the starter code in the editor and on disk',
+    squash(shown) === squash(plain.starter_code) && after === plain.starter_code,
+    `editor match ${squash(shown) === squash(plain.starter_code)}, disk match ${after === plain.starter_code}`,
+  )
+  await visit(win, '#/drill/dsa-001')
+}
+
+/** Curriculum order and review eligibility on a fresh library. */
+async function curriculum(h: AppHandles, win: BrowserWindow) {
+  const c = h.store.get()
+  const order = buildHomeAreas(c.courses)
+    .filter((a) => a.kind === 'study')
+    .flatMap((a) => c.courses.find((co) => co.key === a.key)?.chapters.flatMap((ch) => ch.lessons.map((l) => ({ course: a.key, l }))) ?? [])
+  const [l1, l2] = order
+  const home = await visit(win, '#/')
+  check('Home continues with the first lesson in curriculum order', home.text.includes(l1.l.title), l1.l.id)
+
+  const before = await visit(win, '#/review')
+  const avail = (t: string) => Number(/Available\s*(\d+)/.exec(t)?.[1] ?? -1)
+  check('Review admits no unseen cards before any lesson is read', avail(before.text) === 0, `available ${avail(before.text)}`)
+
+  await visit(win, `#/study/${l1.course}/${l1.l.id}`)
+  await js(win, `[...document.querySelectorAll('button')].find((b) => b.textContent === 'Mark as read')?.click()`)
+  await sleep(400)
+  const cards = (l1.l.body + (l1.l.deeper ?? '')).match(/```recall\n[\s\S]*?```/g)?.length ?? 0
+  const afterRead = await visit(win, '#/review')
+  check(
+    "Review admits a lesson's cards once it is read",
+    cards === 0 ? avail(afterRead.text) === 0 : avail(afterRead.text) > 0,
+    `${l1.l.id}: ${cards} recall blocks, available ${avail(afterRead.text)}`,
+  )
+  const next = await visit(win, '#/')
+  check('Home moves on to the next lesson after one is read', next.text.includes(l2.l.title), l2.l.id)
+}
+
+async function features(h: AppHandles, win: BrowserWindow) {
+  // Validator: Pyodide boots from the bundled files and checks the starter code.
+  await visit(win, '#/drill/dsa-001')
+  await waitFor(
+    () => js<boolean>(win, `!!document.querySelector('button[aria-label="Run local Python validation"]:not(:disabled)')`),
+    Boolean,
+    120000,
+    'Pyodide to load',
+  )
+  await js(win, `document.querySelector('button[aria-label="Run local Python validation"]')?.click()`)
+  const verdict = await waitFor(
+    () => js<string>(win, `(() => { const el = [...document.querySelectorAll('p, div')].find((d) => /Passed|Test \\d+ (failed|raised)|Looks valid|Error|could not load/.test(d.textContent || '') && d.children.length === 0); return el ? el.textContent : '' })()`),
+    (v) => v.length > 0,
+    30000,
+    'the validator verdict',
+  )
+  // Starter code returns None, so "Test 1 failed" is the expected honest verdict.
+  check('Python validator runs offline from bundled Pyodide', /^(Passed|Test \d+ (failed|raised)|Looks valid)/.test(verdict), verdict)
+  await drillWorkspace(h, win)
 
   // Progress: status persists to disk and survives a reload.
   const clicked = await click(win, '[role=group][aria-label*="status"] button', 'solved')
@@ -524,6 +639,7 @@ async function features(h: AppHandles, win: BrowserWindow) {
   check('status survives a reload', still)
   const home = await visit(win, '#/')
   check('home index counts the solved problem', home.text.includes('1/148'))
+  await curriculum(h, win)
 
   // ⌘K palette opens, filters, and navigates.
   await js(win, `window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, bubbles: true }))`)
@@ -590,18 +706,25 @@ async function features(h: AppHandles, win: BrowserWindow) {
   const closed = await js<boolean>(win, `!document.querySelector('[data-ask-panel]')`)
   check('selecting a passage shows Ask; it opens a panel quoting the passage; Escape closes it', askShown && panel && quoted && closed, `selected "${picked.slice(0, 40)}"`)
 
-  // Quick check block: picking an option shows the verdict and the reason.
+  // A topic has three tabs. Read carries no question blocks; Questions has the
+  // lesson's own questions, and picking an option shows the verdict and why.
   if (lessonWithCheck) {
-    await js(win, `document.querySelector('[aria-label="Quick check"]')?.scrollIntoView()`)
-    await sleep(300)
+    const tabs = await js<string[]>(win, `[...document.querySelectorAll('article [role=tab]')].map((t) => t.textContent.replace(/\\s*\\(\\d+\\)$/, ''))`)
+    const readClean = await js<boolean>(win, `!document.querySelector('article [role=tabpanel] [aria-label="Quick check"], article [role=tabpanel] [aria-label="Self-check"]')`)
+    check('a topic has Read, Resources and Questions; Read has no question blocks', tabs.join(',') === 'Read,Resources,Questions' && readClean, `${tabs.join(',')}; read clean ${readClean}`)
+    await clickTab(win, 'Questions')
     const verdict = await js<string>(
       win,
-      `(() => { const s = document.querySelector('[aria-label="Quick check"]'); const b = s?.querySelector('li button'); b?.click(); return new Promise((res) => setTimeout(() => res(s?.textContent || ''), 200)) })()`,
+      `(() => { const s = document.querySelector('[data-question="mcq"]'); s?.querySelector('[role=group] button')?.click(); return new Promise((res) => setTimeout(() => res(s?.textContent || ''), 300)) })()`,
     )
-    await sleep(600)
-    await shot(win, '17-quick-check')
-    check('check block: an answer shows Correct or Not quite with the reason', /Correct|Not quite/.test(verdict) && /Try again/.test(verdict), lessonWithCheck.l.id)
-  } else check('check block: a lesson in the seed uses it', false, 'no lesson has a check block')
+    const source = await js<string>(win, `document.querySelector('[data-question-source]')?.getAttribute('data-question-source') ?? ''`)
+    await sleep(400)
+    await shot(win, '17-questions')
+    check('Questions: the lesson\'s own question answers with Correct or Not quite and why', /Correct|Not quite/.test(verdict) && source === 'lesson', `${lessonWithCheck.l.id}, source ${source}`)
+    await clickTab(win, 'Resources')
+    const res = await js<string>(win, `document.querySelector('article [role=tabpanel][data-state=active]')?.textContent?.slice(0, 80) ?? ''`)
+    check('Resources lists reading or says there is none', /Further reading|Practice|No extra reading/.test(res), res.slice(0, 60))
+  } else check('a lesson in the seed has its own check question', false, 'no lesson has a check block')
 }
 
 // ---- assistant: real natural-language CRUD through agy ----

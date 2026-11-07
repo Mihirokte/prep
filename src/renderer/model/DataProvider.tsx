@@ -21,6 +21,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const model = useMemo(() => (content ? buildModel(content) : null), [content])
-  if (!model) return null
+  if (!model)
+    return (
+      <main className="flex h-full items-center justify-center" aria-live="polite">
+        <p className="label">Loading study library...</p>
+      </main>
+    )
   return <ModelContext.Provider value={model}>{children}</ModelContext.Provider>
 }

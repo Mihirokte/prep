@@ -11,7 +11,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import type { Chapter, Content, Lesson } from '../src/shared/types'
+import type { Chapter, Content, Drill, Lesson } from '../src/shared/types'
 import { lintBlocks } from '../src/shared/blocks'
 import { validateContent } from '../src/shared/validate'
 
@@ -38,6 +38,11 @@ interface CourseDef {
   /** Place a new course after this one (defaults to the end). */
   after?: string
   chapters: ChapterDef[]
+}
+
+interface DrillDef {
+  label?: string
+  drills: Drill[]
 }
 
 if (process.argv.includes('--extract')) {
@@ -111,6 +116,25 @@ if (!course) {
 if (def.label) course.label = def.label
 if (def.references) course.references = def.references
 
+// Optional authored practice for non-DSA courses. The file is additive: it
+// replaces drills with matching ids and preserves unrelated drills already in
+// the seed. This lets a course own its interview exercises without forcing the
+// large DSA pack through this lesson builder.
+const drillFile = path.join(srcDir, 'drills.json')
+if (existsSync(drillFile)) {
+  const authored = JSON.parse(readFileSync(drillFile, 'utf8')) as DrillDef
+  let area = seed.areas.find((a) => a.key === def.course)
+  if (!area) {
+    area = { key: def.course, label: authored.label ?? course.label, drills: [] }
+    seed.areas.push(area)
+  }
+  if (authored.label) area.label = authored.label
+  const byId = new Map(area.drills.map((d) => [d.id, d]))
+  for (const drill of authored.drills) byId.set(drill.id, drill)
+  area.drills = [...byId.values()]
+  course.problemAreaKey = def.course
+}
+
 const allIds = def.chapters.flatMap((c) => c.lessons)
 const dup = allIds.filter((id, i) => allIds.indexOf(id) !== i)
 if (dup.length) errors.push(`duplicate lesson ids in course.json: ${dup.join(', ')}`)
@@ -121,32 +145,23 @@ for (const ch of def.chapters) {
   const lessons: Lesson[] = []
   for (const id of ch.lessons) {
     const file = path.join(srcDir, 'lessons', `${id}.md`)
-    const fallback = path.join(srcDir, 'existing', `${id}.md`)
-    const usedFallback = !existsSync(file)
-    const parsed = usedFallback && !existsSync(fallback) ? null : parseFile(usedFallback ? fallback : file)
+    const parsed = existsSync(file) ? parseFile(file) : null
     if (!parsed) {
-      errors.push(`${id}: no lesson file (and no original to fall back to)`)
+      errors.push(`${id}: no lesson file, or its front matter is malformed`)
       continue
     }
-    if (usedFallback) warnings.push(`${id}: not written yet, keeping the original lesson`)
     const { meta, body, deeper } = parsed
     if (meta.id !== id) errors.push(`${id}: front matter id is "${meta.id}"`)
     if (!meta.title) errors.push(`${id}: missing title`)
-    if (!usedFallback) {
-      if (meta.chapter !== ch.id) errors.push(`${id}: front matter chapter "${meta.chapter}" but course.json puts it in ${ch.id}`)
-      checkBlocks(id, body, 'body')
-      if (deeper) checkBlocks(id, deeper, 'deeper')
-      checkProse(id, body)
-      const wb = words(body)
-      const wd = deeper ? words(deeper) : 0
-      if (courseKey === 'ai') {
-        if (wb < 450 || wb > 1500) warnings.push(`${id}: body is ${wb} words`)
-        if (!deeper) warnings.push(`${id}: no deeper section`)
-      }
-      if (!/```recall/.test(body)) warnings.push(`${id}: no recall block in the body`)
-      if (!/```(flow|mermaid|stack|bars|steps)/.test(body)) warnings.push(`${id}: no diagram in the body`)
-      totalWords += wb + wd
-    }
+    if (meta.chapter !== ch.id) errors.push(`${id}: front matter chapter "${meta.chapter}" but course.json puts it in ${ch.id}`)
+    checkBlocks(id, body, 'body')
+    if (deeper) checkBlocks(id, deeper, 'deeper')
+    checkProse(id, body)
+    const wb = words(body)
+    const wd = deeper ? words(deeper) : 0
+    if (!/```recall/.test(body)) warnings.push(`${id}: no recall block in the body`)
+    if (!/```(flow|mermaid|stack|bars|steps)/.test(body)) warnings.push(`${id}: no diagram in the body`)
+    totalWords += wb + wd
     const minutes = Math.max(2, Math.round((words(body) + (deeper ? words(deeper) : 0)) / 180))
     lessons.push({ id, title: meta.title, minutes, body, ...(deeper ? { deeper } : {}) })
   }

@@ -1,5 +1,6 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { exportProgress, readProgressFile } from '../storage'
+import { describeImport } from '../progressFile'
 import { importAll } from '../store/progressSlice'
 import { useAppDispatch, useAppSelector } from '../store'
 import { useModel } from '../model/context'
@@ -40,8 +41,16 @@ export default function Home() {
   const progress = useAppSelector((s) => s.progress)
   const dispatch = useAppDispatch()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [importMsg, setImportMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const activity = useActivity()
-  const queue = useMemo(() => dueCards(m, progress.recall ?? {}), [m, progress.recall])
+  const eligibleLessons = useMemo(
+    () => new Set(Object.entries(progress.lessons).filter(([, p]) => p.status === 'read').map(([id]) => id)),
+    [progress.lessons],
+  )
+  const queue = useMemo(
+    () => dueCards(m, progress.recall ?? {}, eligibleLessons),
+    [m, progress.recall, eligibleLessons],
+  )
   const due = queue.filter((c) => progress.recall?.[c.id]).length
   const fresh = queue.length - due
 
@@ -66,13 +75,18 @@ export default function Home() {
     return { count: `${read}/${total}`, pct: total ? Math.round((read / total) * 100) : 0 }
   }
 
-  // Where to pick up: first unread lesson (course order), first unsolved DSA problem.
+  // Where to pick up: first unread lesson in the same explicit sequence shown
+  // on this page, not the incidental storage order of the course records.
   const nextLesson = useMemo(() => {
-    for (const c of m.courses)
+    for (const area of m.homeAreas) {
+      if (area.kind !== 'study') continue
+      const c = m.findCourse(area.key)
+      if (!c) continue
       for (const ch of c.chapters)
         for (const l of ch.lessons) if (progress.lessons[l.id]?.status !== 'read') return { course: c, lesson: l }
+    }
     return null
-  }, [m.courses, progress.lessons])
+  }, [m, progress.lessons])
   const nextProblem = useMemo(() => {
     const dsa = m.areas.find((a) => a.key === 'dsa')
     return dsa?.drills.find((d) => (progress.problems[d.id]?.status ?? 'none') !== 'solved') ?? null
@@ -94,20 +108,20 @@ export default function Home() {
           {nextLesson && (
             <a className="row !min-h-[72px] py-4" href={`#/study/${nextLesson.course.key}/${nextLesson.lesson.id}`}>
               <span className="bullet" />
-              <span className="min-w-0 flex-1 truncate font-display text-[24px] leading-[1.15]">{pixelText(nextLesson.lesson.title)}</span>
+              <span className="min-w-0 flex-1 truncate font-semibold text-[20px] leading-snug">{pixelText(nextLesson.lesson.title)}</span>
               <span className="label">{nextLesson.course.label}</span>
             </a>
           )}
           {nextProblem && (
             <a className="row !min-h-[72px] py-4" href={`#/drill/${nextProblem.id}`}>
               <span className="bullet" />
-              <span className="min-w-0 flex-1 truncate font-display text-[24px] leading-[1.15]">{pixelText(nextProblem.title)}</span>
+              <span className="min-w-0 flex-1 truncate font-semibold text-[20px] leading-snug">{pixelText(nextProblem.title)}</span>
               <span className="label">DSA</span>
             </a>
           )}
           <a className="row !min-h-[72px] py-4" href="#/review">
             <span className={due > 0 ? 'live-dot' : 'bullet'} />
-            <span className="min-w-0 flex-1 font-display text-[24px] leading-[1.15]">Review</span>
+            <span className="min-w-0 flex-1 font-semibold text-[20px] leading-snug">Review</span>
             <span className="label num">
               {due} due, {fresh} new
             </span>
@@ -191,10 +205,21 @@ export default function Home() {
           accept="application/json"
           hidden
           onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) readProgressFile(f).then((p) => dispatch(importAll(p)))
+            const input = e.target
+            const f = input.files?.[0]
+            if (!f) return
+            void readProgressFile(f).then((r) => {
+              if (r.ok) {
+                dispatch(importAll(r.progress))
+                setImportMsg({ ok: true, text: describeImport(r.report) })
+              } else setImportMsg({ ok: false, text: `Import failed. ${r.error} Your progress is unchanged.` })
+              input.value = ''
+            })
           }}
         />
+        <p className={`w-full ${importMsg?.ok === false ? 'text-destructive' : 'text-ink'}`} role="status" aria-live="polite" data-import-status>
+          {importMsg?.text ?? ''}
+        </p>
       </div>
     </div>
   )

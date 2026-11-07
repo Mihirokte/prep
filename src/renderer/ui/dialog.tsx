@@ -70,7 +70,7 @@ function DialogContent({
             {showCloseButton && (
               <DialogPrimitive.Close
                 data-slot="dialog-close"
-                className="absolute top-4 right-4 font-label text-[12px] uppercase tracking-[0.12em] text-ink-2 outline-none transition-colors hover:text-brand"
+                className="absolute top-4 right-4 text-[14px] text-ink-2 outline-none transition-colors hover:text-brand"
               >
                 Esc
                 <span className="sr-only">Close</span>
@@ -90,7 +90,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
   return <div data-slot="dialog-footer" className={cn('flex justify-end gap-3 px-7 pb-7', className)} {...props} />
 }
 function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title data-slot="dialog-title" className={cn('font-display text-[24px] leading-none', className)} {...props} />
+  return <DialogPrimitive.Title data-slot="dialog-title" className={cn(' font-semibold text-[20px] leading-none', className)} {...props} />
 }
 function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Description>) {
   return <DialogPrimitive.Description data-slot="dialog-description" className={cn('text-ink-2', className)} {...props} />

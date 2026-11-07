@@ -1,0 +1,25 @@
+{
+  "label": "System Design",
+  "drills": [
+    {
+      "id": "sd-026",
+      "title": "Choose a Transaction Isolation Level",
+      "topic": "fundamentals",
+      "difficulty": "medium",
+      "prompt": "An inventory service must reserve the last unit without overselling while ordinary catalog reads stay cheap. Choose an isolation or locking strategy, show the race it prevents, and explain the retry behavior.",
+      "link": "",
+      "notes": "Do not answer with serializable for everything. Protect the invariant at the narrowest boundary.",
+      "solution": "The invariant is stock >= 0. A single atomic conditional update such as UPDATE inventory SET stock = stock - 1 WHERE sku = ? AND stock > 0 is often the cleanest solution; the affected-row count decides success. If reservation touches several rows, lock the relevant inventory rows with SELECT FOR UPDATE inside a short transaction, or use serializable isolation and retry serialization failures. Read committed is adequate for unrelated catalog reads. Keep external calls outside the transaction and make the reservation request idempotent so a client retry cannot reserve twice."
+    },
+    {
+      "id": "sd-027",
+      "title": "Plan a Zero Downtime Schema Change",
+      "topic": "fundamentals",
+      "difficulty": "hard",
+      "prompt": "A hot orders table must replace one status column with a richer representation while old and new application versions overlap. Design the migration, compatibility window, backfill, validation, and rollback.",
+      "link": "",
+      "notes": "Use expand-migrate-contract. A deploy and a schema change are separate state transitions.",
+      "solution": "Expand first: add the new nullable columns or table without removing the old field. Deploy code that can read both representations and writes both, with a clear source-of-truth rule. Backfill in small checkpointed batches ordered by primary key, throttled by database load. Compare counts and business invariants, not only row totals. Switch reads to the new representation behind a flag, observe, then stop writing the old field. Contract only after every old binary and rollback path has expired. A rollback before contract switches reads back; after destructive contract, rollback requires a restore or forward fix, which is why contract is deliberately delayed."
+    }
+  ]
+}

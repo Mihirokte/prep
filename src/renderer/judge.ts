@@ -1,3 +1,5 @@
+import type { Problem } from '../shared/types'
+
 export type JudgeState = 'booting' | 'ready' | 'failed'
 
 export type ValidateOutcome =
@@ -8,9 +10,8 @@ export type ValidateOutcome =
 
 const BOOT_BUDGET_MS = 120_000
 
-/** Lightweight Python validator: compiles the code (catches syntax/indent
- * errors) and, when an expected symbol is given, checks it's defined and
- * callable. NO correctness judging — paste into LeetCode for that. */
+/** Local Python validator. Every pack is syntax-checked; packs with authored
+ * tests are also judged for correctness without sending code off the device. */
 export class Validator {
   private worker: Worker | null = null
   private pending = new Map<string, (o: ValidateOutcome) => void>()
@@ -55,7 +56,7 @@ export class Validator {
     }
   }
 
-  async validate(code: string, expectSymbol?: string, timeoutMs = 10000): Promise<ValidateOutcome> {
+  async validate(code: string, problem?: Problem, timeoutMs = 10000): Promise<ValidateOutcome> {
     this.start()
     try {
       await Promise.race([
@@ -85,7 +86,17 @@ export class Validator {
       }, timeoutMs)
       this.pending.set(id, resolve)
       this.timers.set(id, timer)
-      this.worker!.postMessage({ type: 'validate', id, code, expectSymbol })
+      this.worker!.postMessage({
+        type: 'validate',
+        id,
+        code,
+        expectSymbol: problem?.signature?.name,
+        signatureType: problem?.signature?.type ?? 'function',
+        tests: problem?.tests ?? [],
+        compare: problem?.compare ?? 'exact',
+        mode: problem?.mode ?? '',
+        inplaceArg: problem?.inplace_arg ?? 0,
+      })
     })
   }
 }
