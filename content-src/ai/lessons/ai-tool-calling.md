@@ -27,6 +27,14 @@ sequenceDiagram
 
 The round trip: you send the prompt plus the available tool schemas; the model replies with either a final answer or a tool call naming a tool and arguments; you validate and run it; you send the result back as a new message; the model continues, possibly calling another tool, until it answers. The model proposes, the application disposes.
 
+```check
+Q: The model returns a tool call to get_weather with the city Paris. What happens next?
+- The provider runs get_weather on its servers and returns the forecast
+* Your app runs get_weather and sends the result back in a message
+- The model calls the weather API itself and keeps generating text
+Why: A tool call is only structured output: the model names a tool and its arguments, then stops. Your application decides whether to run it, runs it, and sends the result back in the next request so the model can continue. That is why permissions, timeouts and input checks live in your code, not in the model. Hosted tools that the provider runs, such as its own web search, are the exception, and the API marks them as such.
+```
+
 ## Tool schema and description design
 
 A tool is defined by a name, a description, and a typed input schema (JSON Schema, often authored with Pydantic or Zod). The model chooses tools and fills arguments based entirely on these, so they are prompt, not just plumbing.

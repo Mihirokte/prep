@@ -36,6 +36,7 @@ export function CoursePage({ courseKey }: { courseKey: string }) {
                 {read}/{ch.lessons.length} read
               </span>
             </div>
+            {ch.summary && <p className="mb-5 ml-14 max-w-[65ch] text-ink-2">{pixelText(ch.summary)}</p>}
             <div className="list">
               {ch.lessons.map((l) => (
                 <LessonRow key={l.id} courseKey={course.key} lessonId={l.id} title={l.title} minutes={l.minutes} />

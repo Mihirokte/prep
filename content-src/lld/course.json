@@ -9,11 +9,13 @@
         "lld-what-it-is",
         "lld-rubric",
         "lld-framework",
+        "lld-testing-machine-code",
         "lld-worked-tictactoe"
       ],
       "problemIds": [
         "lld-013",
-        "lld-001"
+        "lld-001",
+        "lld-019"
       ]
     },
     {
@@ -62,6 +64,7 @@
       "summary": "The follow-up that lands at SDE2 (\"now two threads race for the last seat\"), plus idempotency and the API-design questions that end almost every round.",
       "lessons": [
         "lld-concurrency-types",
+        "lld-runtime-concurrency",
         "lld-thread-safety",
         "lld-deadlocks-memory",
         "lld-rate-limiter",
@@ -75,7 +78,9 @@
         "lld-006",
         "lld-014",
         "lld-017",
-        "lld-002"
+        "lld-002",
+        "lld-020",
+        "lld-021"
       ]
     }
   ]

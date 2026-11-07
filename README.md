@@ -1,12 +1,15 @@
 # Prep
 
-A local Mac app for interview study and practice, drawn in a pixel-typeset,
-drafted-paper style (night by default, day with the switch in the toolbar).
+A local Mac app for interview study and practice, in a plain Bootstrap 5.3
+look (light and dark, with the switch in the toolbar).
 Seven study areas — DSA plus six courses (low-level design, system design,
-architecture, AI engineering, production and ops, security) — whose lessons
-carry animated diagrams and self-check cards; 241 drills, of which 148 are
-Python problems in a split-pane workspace (statement, hints, approach, editor,
-offline syntax check); 29 pattern cards, each with a step-through
+architecture, AI engineering, production and ops, security). Each topic has
+one lesson; no two courses teach the same topic.
+Each topic has three tabs: Read, Resources (the links it cites, the course
+reading list, practice drills) and Questions (its own questions, or a set
+generated on demand). The 148 DSA problems are grouped by pattern; you write
+pseudocode or Python in the editor and press Verify for a review. 254 drills in
+total, local tests where authored; 29 pattern cards, each with a step-through
 walk-through of the real algorithm, mapped to every problem; a spaced-review
 deck built from the lessons' self-check cards; and company research with
 questions, answer sketches and variants. Progress is kept on disk. An
@@ -91,6 +94,7 @@ Gatekeeper does not quarantine it; it opens like any other app.
   created is kept (see `src/shared/seedMerge.ts`).
 - `progress.json` — problem status, notes and code.
 - `agent/log.jsonl` — every assistant command, plan, error and applied change.
+- `agent/memory.json` — what the assistant remembers about how you learn.
 - `settings.json` (optional) — `{"agent": {"effort": "low" | "medium" | "high",
   "model": "...", "timeoutSec": 300, "agyPath": "/path/to/agy"}}`.
 
@@ -112,6 +116,60 @@ schemas, unique ids, every reference resolves; rejected plans go back to agy
 with the errors (twice at most). Nothing changes until you press Apply, and
 every applied plan can be undone.
 
+The CLI also cannot reach the web, so the app reads web pages and GitHub
+repositories for it. URLs in a command are read before the first call, and
+agy can ask for more URLs (for example a directory or a file it saw in a
+repository listing). A GitHub repository URL gives its description, licence,
+README and a two-level directory listing. Only public http(s) hosts are read,
+with a time and size limit. The panel lists every source a reply used. To see
+what agy would get for a URL:
+
+```sh
+node scripts/run-ts.mjs scripts/read-sources.ts <url> [<url> ...]
+```
+
+A command too large for one plan (more than about four lessons) comes back
+as slices. The app runs the slices three at a time and joins them into one
+plan to review. Every lesson a plan writes must have well-formed diagram
+blocks, or the plan goes back to agy with the errors.
+
+### Ask about a passage
+
+Select text on any page and an Ask button appears at the end of the
+selection. It opens a small panel tied to that passage, and agy receives the
+passage plus the full record the page shows:
+
+- A question gets a direct teaching answer. Nothing changes.
+- A change request or feedback ("too abstract, add an example") becomes a
+  plan to review, usually a `replace_text` edit of that one passage. Apply,
+  Discard and Undo work as in the main panel.
+- A preference about how you learn ("always show numbers before a formula")
+  is saved to the assistant memory, `agent/memory.json` in the data folder.
+  Every later command reads it. The Memory button in the assistant panel
+  lists the notes, and each one has Forget.
+
+### Teaching method
+
+Every lesson the assistant writes or rewrites, and every answer it gives,
+follows `src/shared/teaching.ts`: one win per lesson, problem before
+definition, concrete before general, a mid-lesson `check` question, a named
+misconception, a "Use it" transfer section, and a recall deck at the end. The
+method is distilled from three published skills (credited in that file). To
+bring an existing lesson to it, select its title and ask "Rewrite this whole
+lesson following the teaching method". A rewrite takes several minutes.
+
+A `check` block is one question with instant feedback:
+
+````md
+```check
+Q: question
+- wrong option
+* right option (exactly one)
+- wrong option
+Why: why the right one is right and the tempting one is wrong
+```
+````
+
 ## Content
 
 Lessons are authored as markdown in `content-src/<course>/lessons/<id>.md`
@@ -130,14 +188,41 @@ sequence diagrams, `stack` and `bars` charts, `steps`, `recall` (self-check
 cards that feed the Review page) and `viz <scene-id>` (algorithm
 walk-throughs). The syntax is specified in `content-src/ai/SPEC.md`.
 
+### Lessons from AI Engineering from Scratch
+
+The lessons with ids that start with `scratch-` come from
+[AI Engineering from Scratch](https://github.com/rohitg00/ai-engineering-from-scratch)
+(MIT). They are part of the AI Engineering course (and, for the reverse
+engineering chapter, the Security course), and you edit them like any other
+lesson. Lessons that taught a topic an existing lesson already teaches were
+removed, so each topic has one lesson.
+`content-src/ai/SOURCE-ai-engineering-from-scratch.md` records the source
+commit and its licence.
+
 ## Design
 
-The visual language is the "Mihir" house style: Pixelta for display,
-Pixel Operator for body, Determination for labels (fonts in
-`src/renderer/assets/fonts/`; Pixel Operator is CC0, Determination is CC BY 3.0
-and is credited in the sidebar). Paper and ink, 2px frames with stepped
-notch corners, hard offset shadows, a 16px dot grid, red only for
-interaction. Tokens live at the top of `src/renderer/prep.css`.
+The look is Bootstrap 5.3: the system font, Bootstrap's light and dark
+palettes, 6px radii, 1px borders, blue for links and the primary action.
+Colours are Bootstrap's, darkened only where a pair failed WCAG AA. Tokens live
+at the top of `src/renderer/prep.css`; Bootstrap itself is not a dependency,
+its values are mapped onto the existing Tailwind and shadcn components.
+
+## Tutor: Generate and Verify
+
+Generate (lesson questions) and Verify (code review) run through two fixed
+LangGraph graphs in the main process (`src/main/tutor.ts`). Each graph has one
+model step, agy with schema-enforced JSON, between deterministic steps:
+
+- **Questions:** load lesson, generate, ground, then retry or save. A question
+  is kept only if it has 4 distinct options, one answer, an explanation, and a
+  quote found word for word in the lesson. Up to 3 tries; needs 5 to save.
+- **Verify:** prepare, cache, critique, validate, then retry or save. A review
+  is kept only if every issue quotes code you wrote, the pattern key exists,
+  and a partial or incorrect verdict names an issue. The same code for the same
+  problem returns the saved review without calling the model.
+
+The rules are pure functions in `src/shared/tutor.ts`. Generated questions and
+reviews are stored in `~/Library/Application Support/Prep/agent/tutor.json`.
 
 ## Verify
 
@@ -147,16 +232,20 @@ npm run verify:seed    # seed/content.json: schemas, unique ids, every reference
 npm run verify:app     # builds, then drives the real app in a throwaway data dir:
                        # every route renders, Pyodide validator, progress persistence,
                        # ⌘K palette, assistant panel; screenshots → verify-report/
+npm run verify:tutor   # tutor rules and both graphs with a scripted model;
+                       # PREP_VERIFY_AGENT=1 adds real agy runs
+npm run verify:progress # progress import and seed migration from older revisions
 ```
 
 `verify:app` also audits the rendered UI against the visual-design principles
 the design follows (Nielsen Norman Group, "5 Principles of Visual Design in
 UX"), on every route at night and every screen type by day:
 
-- **Scale:** text uses only the 12/16/24/40px steps, with at most one 40px title.
+- **Scale:** text uses only 32 (title), 20 (heading), 16 (body), 14 (secondary)
+  and 12 (diagram labels), with at most one 32px title.
 - **Contrast:** every drawn text meets WCAG AA against its resolved background
   (4.5:1, or 3:1 at 24px and up), and no text is faded with opacity.
-- **Shape:** no rounded corners, blurred shadows, blur filters or gradients.
+- **Shape:** no blurred shadows, blur filters or gradients.
 - **Balance:** page content is centered in its pane.
 
 A self-test plants one violation of each kind first, so a clean result is not
@@ -164,9 +253,11 @@ vacuous. Hover states are outside the audit.
 
 Two opt-in extensions of `verify:app`:
 
-- `PREP_VERIFY_AGENT=1` runs ten real natural-language CRUD commands through
-  agy (one through the panel UI), then undoes them all and checks the store is
-  byte-for-byte the seed again. Needs agy and several minutes.
+- `PREP_VERIFY_AGENT=1` runs fourteen real natural-language commands through
+  agy (one through the panel UI): CRUD, passage questions and edits, a saved
+  learning preference and a full lesson rewrite. It then undoes them all and
+  checks the store is byte-for-byte the seed again. Needs agy and about 20
+  minutes.
 - `PREP_VERIFY_WEBSITE=<url>` compares the visible text of every route with a
   deployment of the web portal this app was extracted from.
 

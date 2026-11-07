@@ -56,7 +56,7 @@ export interface Problem {
   inplace_arg?: number
   compare?: string // exact | unordered | unordered_deep | float | custom
   checker_code?: string
-  /** Legacy: the retired test-based judge. Kept for the original 5 problems. */
+  /** Authored local cases used by the offline judge when available. */
   tests?: TestCase[]
 }
 

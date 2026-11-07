@@ -10,7 +10,7 @@ const STRIDE = CELL + GAP
 function toneClass(tone?: Tone): string {
   switch (tone) {
     case 'on':
-      return 'bg-ink text-paper border-ink'
+      return 'bg-fill text-white border-ink'
     case 'done':
       return 'bg-[var(--wash)] text-ink-2 border-hair-strong'
     case 'hit':

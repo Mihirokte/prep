@@ -1,0 +1,55 @@
+{
+  "label": "Production & Ops",
+  "drills": [
+    {
+      "id": "ops-001",
+      "title": "Debug a P99 Latency Regression",
+      "topic": "debugging",
+      "difficulty": "medium",
+      "prompt": "P50 is unchanged but p99 doubled after a release. Drive the investigation from symptom to confirmed cause. Name the first graphs, the trace comparison, and the evidence required before rollback or fix-forward.",
+      "link": "",
+      "notes": "Use a differential investigation: changed versus unchanged cohort, healthy versus slow requests.",
+      "solution": "Confirm the metric and customer scope, then split by version, region, endpoint and dependency. Compare slow and normal traces to find the span that widened. Check saturation signals for that resource: CPU throttling, connection-pool wait, queue depth, GC pause, lock wait or downstream latency. Correlate the onset with the deployment rather than assuming causation. Roll back when impact is material and rollback is safe; otherwise mitigate with a flag, traffic reduction or capacity. A cause is confirmed only when reversing or isolating it restores the tail, not when a dashboard merely looks suspicious."
+    },
+    {
+      "id": "ops-002",
+      "title": "Build a Capacity and Load Plan",
+      "topic": "capacity",
+      "difficulty": "medium",
+      "prompt": "A service handles 2,000 requests per second today and expects a 4x event spike. Produce a load-test plan, capacity estimate, pass criteria, and a safe way to find the breaking point.",
+      "link": "",
+      "notes": "Model arrival rate, per-request resource cost, concurrency and headroom. Average CPU alone is not a capacity plan.",
+      "solution": "Replay a representative request mix and data shape, including cache misses and downstream latency. Ramp gradually through expected peak, headroom target, and controlled overload while recording throughput, errors, p50/p95/p99, saturation and queue depth. Little's Law gives concurrency approximately arrival rate times service time: at 8,000 rps and 100 ms, about 800 requests are in flight before headroom. Define pass criteria before running, for example error rate below the product threshold and p99 inside the SLO at 1.5x expected peak. Stop at safety limits. Test autoscaling long enough to include cold starts and verify that backpressure fails predictably beyond capacity."
+    },
+    {
+      "id": "ops-003",
+      "title": "Release a Risky Database Migration",
+      "topic": "release",
+      "difficulty": "hard",
+      "prompt": "A database change touches a high-traffic table and must ship without downtime. Write the release sequence, observability, abort conditions, and rollback boundaries.",
+      "link": "",
+      "notes": "Separate schema expansion, application compatibility, backfill, read switch, and contraction.",
+      "solution": "Use expand-migrate-contract. Measure lock duration on a production-like copy, choose an online operation, and set a lock timeout. Deploy backward-compatible dual-read or dual-write code before the backfill. Backfill in small resumable batches with rate limits and checkpoints. Monitor database CPU, replica lag, lock waits, error rate and data-difference counters. Abort automatically when guardrails breach. Switch reads behind a flag, retain the old representation through the observation window, and contract only when old binaries and rollback are impossible."
+    },
+    {
+      "id": "ops-004",
+      "title": "Write an Incident Runbook",
+      "topic": "incidents",
+      "difficulty": "easy",
+      "prompt": "Create a runbook for a service whose error rate is rising and whose queue is backing up. It must help an on-call engineer act safely at 3 a.m., not explain the architecture generally.",
+      "link": "",
+      "notes": "A runbook is an executable decision aid with verified commands, expected output and escalation points.",
+      "solution": "Start with trigger and scope: which alert, service, regions and customer symptoms. Add a five-minute triage: dashboard links, queue age, consumer health, recent deployments and dependency status. List mitigations in safest-first order, each with prerequisites, exact action, expected result and rollback: pause producers, add consumers, disable a feature, reroute traffic, or roll back. State stop conditions and when to escalate. Include communication channels and how to verify recovery. Finish with cleanup tasks and the evidence to attach to the postmortem."
+    },
+    {
+      "id": "ops-005",
+      "title": "Design a Release Test Strategy",
+      "topic": "testing",
+      "difficulty": "medium",
+      "prompt": "A service change alters an API, a database write, and an event consumed by two teams. Design the minimum test stack that gives confidence without duplicating every test at every layer.",
+      "link": "",
+      "notes": "Put a behavior at the cheapest layer that can prove it, then add boundary tests where contracts cross ownership.",
+      "solution": "Use unit tests for pure validation and state transitions; repository integration tests against the real database behavior; consumer-driven contract tests for the API and event schema; one end-to-end happy path across deployed components; and a migration test that runs old data through upgrade and rollback-compatible code. Add failure-path tests for retry and idempotency. In deployment, run smoke tests, then canary with error, latency and business guardrails. Avoid mocking the database in the only test that claims SQL compatibility, and avoid an enormous E2E suite that is slow and nondiagnostic."
+    }
+  ]
+}

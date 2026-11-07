@@ -7,7 +7,8 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
       type={type}
       data-slot="input"
       className={cn(
-        'h-11 w-full min-w-0 border-0 border-b-2 border-ink bg-transparent px-1 py-2 font-sans text-[16px] leading-7 text-ink outline-none transition-colors placeholder:text-ink-2 hover:border-brand focus-visible:border-brand focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+        // Bootstrap form-control
+        'h-[38px] w-full min-w-0 rounded-md border border-edge bg-paper px-3 py-1.5 font-sans text-[16px] leading-6 text-ink outline-none transition-[border-color,box-shadow] placeholder:text-ink-2 focus-visible:border-brand focus-visible:outline-none disabled:pointer-events-none disabled:bg-wash',
         className,
       )}
       {...props}

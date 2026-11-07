@@ -44,7 +44,7 @@ export function Sidebar({ hash, open }: { hash: string; open: boolean }) {
       aria-label="Sidebar"
       aria-hidden={!open}
       className={cn(
-        'relative h-full shrink-0 overflow-hidden border-r border-hair bg-paper',
+        'relative h-full shrink-0 overflow-hidden border-r border-hair bg-surface',
         'transition-[width] duration-[320ms] ease-[var(--ease)]',
         open ? 'w-64' : 'w-0 border-r-0',
       )}
@@ -53,9 +53,9 @@ export function Sidebar({ hash, open }: { hash: string; open: boolean }) {
         {/* Title-bar strip: drags the window and hosts the traffic lights. */}
         <div className="app-drag h-[52px] shrink-0" />
 
-        <div className="px-6 pb-6">
-          <a href="#/" className="no-ring font-display text-[24px] leading-none text-ink no-underline hover:text-brand" aria-label="Prep home">
-            PREP
+        <div className="px-5 pb-4">
+          <a href="#/" className="no-ring font-semibold text-[20px] leading-none text-ink no-underline hover:text-brand" aria-label="Prep home">
+            Prep
           </a>
         </div>
 
@@ -128,7 +128,7 @@ export function Toolbar({
         </button>
         <button
           type="button"
-          className={cn('tool', assistantOpen && '!text-brand')}
+          className={cn('tool', assistantOpen && 'bg-wash')}
           onClick={onAssistant}
           aria-label="Assistant"
           aria-expanded={assistantOpen}
@@ -143,10 +143,10 @@ export function Toolbar({
           type="button"
           className="tool"
           onClick={onToggleTheme}
-          aria-label={theme === 'night' ? 'Switch to day' : 'Switch to night'}
-          title={theme === 'night' ? 'Switch to day' : 'Switch to night'}
+          aria-label={theme === 'night' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'night' ? 'Switch to light mode' : 'Switch to dark mode'}
         >
-          {theme === 'night' ? 'Day' : 'Night'}
+          {theme === 'night' ? 'Light' : 'Dark'}
         </button>
       </div>
     </header>

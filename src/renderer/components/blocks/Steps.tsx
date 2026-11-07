@@ -59,7 +59,7 @@ export default function StepsBlock({ rows }: { rows: StepRow[] }) {
                 />
               )}
               <span
-                className={`z-10 flex size-12 items-center justify-center border-2 bg-paper font-label text-[12px] tracking-[0.12em] transition-[border-color,color] duration-300 ${
+                className={`z-10 flex size-12 items-center justify-center border-2 bg-paper text-[14px] transition-[border-color,color] duration-300 ${
                   current ? 'border-brand text-brand' : on ? 'border-ink text-ink' : 'border-edge text-ink-2'
                 }`}
               >

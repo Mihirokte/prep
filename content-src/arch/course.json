@@ -52,10 +52,7 @@
         "arch-retry-backoff",
         "arch-bulkhead",
         "arch-timeout-budgets",
-        "arch-observability",
-        "arch-api-versioning",
-        "arch-feature-flags",
-        "arch-deployment-patterns"
+        "arch-api-versioning"
       ],
       "problemIds": [
         "arch-014",
@@ -75,7 +72,6 @@
       "title": "Messaging & event flow",
       "summary": "How services talk asynchronously — and what goes wrong when they do.",
       "lessons": [
-        "arch-queues-pubsub",
         "arch-backpressure-dlq"
       ],
       "problemIds": []

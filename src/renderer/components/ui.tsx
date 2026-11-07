@@ -42,7 +42,7 @@ export function ProblemStatusBar({ id }: { id: string }) {
   return (
     <div role="group" aria-label="Your status on this problem" className="seg w-fit">
       {PSTATUS.map((s) => (
-        <button key={s} type="button" aria-pressed={cur === s} onClick={() => dispatch(setProblemStatus({ id, status: cur === s ? 'none' : s }))}>
+        <button key={s} type="button" aria-pressed={cur === s} className="capitalize" onClick={() => dispatch(setProblemStatus({ id, status: cur === s ? 'none' : s }))}>
           {s}
         </button>
       ))}

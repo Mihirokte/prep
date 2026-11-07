@@ -17,7 +17,7 @@ function TabsList({ className, ...props }: React.ComponentProps<typeof TabsPrimi
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
-      className={cn('flex w-full flex-wrap items-end gap-x-6 gap-y-0 border-b border-hair', className)}
+      className={cn('flex w-full flex-wrap items-end gap-x-1 gap-y-0 border-b border-hair-strong', className)}
       {...props}
     />
   )
@@ -28,7 +28,8 @@ function TabsTrigger({ className, ...props }: React.ComponentProps<typeof TabsPr
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
       className={cn(
-        '-mb-px inline-flex h-11 items-center gap-2 border-b-2 border-transparent px-0 font-label text-[12px] leading-5 uppercase tracking-[0.12em] whitespace-nowrap text-ink-2 outline-none transition-colors hover:text-brand data-[state=active]:border-ink data-[state=active]:text-ink disabled:pointer-events-none disabled:opacity-50',
+        // Bootstrap nav-tabs: the active tab joins the panel below it.
+        '-mb-px inline-flex h-10 items-center gap-2 rounded-t-md border border-transparent px-4 text-[16px] leading-6 whitespace-nowrap text-brand outline-none transition-colors hover:border-hair hover:border-b-transparent data-[state=active]:border-hair-strong data-[state=active]:border-b-paper data-[state=active]:bg-paper data-[state=active]:text-ink disabled:pointer-events-none disabled:text-ink-2',
         className,
       )}
       {...props}

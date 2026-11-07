@@ -9,95 +9,75 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ============================================================================
-   Prep in the "Mihir" house style: a pixel-typeset, drafted-paper interface.
-   Night is the default; the switch in the toolbar flips to day.
-   Three faces, one role each (Pixelta display, Pixel Operator body,
-   Determination labels). Hairlines separate; frames are 2px ink with stepped
-   4px notch corners; shadows are hard offsets; red is interaction only.
+   Prep in a plain Bootstrap 5.3 look: the system font, Bootstrap's palette,
+   6px radii, 1px borders, blue for links and the primary action. Light and
+   dark follow Bootstrap's own colour modes; the toolbar switch flips them.
+   Values are Bootstrap's, darkened only where a pair failed WCAG AA (text
+   4.5:1, control edges 3:1).
    ========================================================================== */
-
-@font-face {
-  font-family: 'Pixelta';
-  src: url('./assets/fonts/Pixelta.ttf') format('truetype');
-  font-display: block;
-}
-@font-face {
-  font-family: 'Pixel Operator';
-  src: url('./assets/fonts/PixelOperator.ttf') format('truetype');
-  font-weight: 400;
-  font-display: block;
-}
-@font-face {
-  font-family: 'Pixel Operator';
-  src: url('./assets/fonts/PixelOperator-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-display: block;
-}
-@font-face {
-  font-family: 'Determination';
-  src: url('./assets/fonts/Determination.ttf') format('truetype');
-  font-display: block;
-}
 
 /* ---- tokens -------------------------------------------------------------- */
 
 :root {
-  /* day */
-  --paper: #f3eee4;
-  --surface: #f8f4ec;
-  --ink: #2a2a30;
-  --ink-2: #63636a;
-  --accent: #c8302f;
-  --hair: rgba(42, 42, 48, 0.16);
-  --hair-strong: rgba(42, 42, 48, 0.34);
-  /* control boundaries (inputs, text areas, chips, link underlines): 3.4:1 */
-  --edge: rgba(42, 42, 48, 0.56);
-  --shadow: rgba(42, 42, 48, 0.1);
-  --scrim: rgba(243, 238, 228, 0.45);
-  --dot: rgba(42, 42, 48, 0.16);
-  /* current / selected fill, only ever under ink text (accent on it is 4.2:1) */
-  --wash: rgba(42, 42, 48, 0.06);
+  /* light */
+  --paper: #ffffff;
+  --surface: #f8f9fa;
+  --ink: #212529;
+  --ink-2: #5c636a;
+  /* links, hover text, focus: Bootstrap primary text emphasis (6.6:1) */
+  --accent: #0a58ca;
+  /* primary button fill under white text (5.2:1) */
+  --fill: #0b5ed7;
+  --fill-hover: #0a58ca;
+  --danger: #b02a37;
+  --success: #146c43;
+  --hair: #dee2e6;
+  --hair-strong: #ced4da;
+  /* control boundaries (inputs, buttons, chips): 3.3:1 on white */
+  --edge: #868e96;
+  --shadow: rgba(0, 0, 0, 0.08);
+  --scrim: rgba(0, 0, 0, 0.5);
+  /* selected / hover fill, always under ink text */
+  --wash: #e9ecef;
+  --ring: rgba(13, 110, 253, 0.25);
   --ease: cubic-bezier(0.2, 0.9, 0.2, 1);
-  --notch: polygon(
-    0 4px, 4px 4px, 4px 0,
-    calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px,
-    100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%,
-    4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px)
-  );
+  --radius: 6px;
 }
 .dark {
-  /* night (default) */
-  --paper: #121216;
-  --surface: #19191f;
-  --ink: #ece7dc;
-  --ink-2: #9a968e;
-  --accent: #e8574e;
-  --hair: rgba(236, 231, 220, 0.14);
-  --hair-strong: rgba(236, 231, 220, 0.32);
-  --edge: rgba(236, 231, 220, 0.44);
-  --shadow: rgba(0, 0, 0, 0.5);
-  --scrim: rgba(18, 18, 22, 0.55);
-  --dot: rgba(236, 231, 220, 0.14);
-  --wash: rgba(236, 231, 220, 0.06);
+  --paper: #212529;
+  --surface: #2b3035;
+  --ink: #dee2e6;
+  --ink-2: #adb5bd;
+  --accent: #6ea8fe;
+  --fill: #0b5ed7;
+  --fill-hover: #0a58ca;
+  --danger: #ea868f;
+  --success: #75b798;
+  --hair: #3b4148;
+  --hair-strong: #495057;
+  --edge: #868e96;
+  --shadow: rgba(0, 0, 0, 0.3);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --wash: #343a40;
+  --ring: rgba(110, 168, 254, 0.35);
 }
 
 :root {
-  --font-display: 'Pixelta', 'Pixel Operator', 'Determination', sans-serif;
-  --font-sans: 'Pixel Operator', 'Determination', sans-serif;
-  --font-label: 'Determination', 'Pixel Operator', sans-serif;
-  --font-mono: 'Pixel Operator', 'Determination', monospace;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-display: var(--font-sans);
+  --font-label: var(--font-sans);
+  --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 
-  /* shadcn token names, mapped onto the house palette */
-  --radius: 0px;
+  /* shadcn token names, mapped onto the palette */
   --background: var(--paper);
   --foreground: var(--ink);
-  --sidebar: var(--paper);
-  --card: var(--surface);
+  --sidebar: var(--surface);
+  --card: var(--paper);
   --card-foreground: var(--ink);
-  --popover: var(--surface);
+  --popover: var(--paper);
   --popover-foreground: var(--ink);
-  --primary: var(--ink);
-  --primary-foreground: var(--paper);
+  --primary: var(--fill);
+  --primary-foreground: #ffffff;
   --secondary: var(--wash);
   --secondary-foreground: var(--ink);
   --muted: var(--wash);
@@ -105,13 +85,12 @@
   --faint: var(--ink-2);
   --accent-fill: var(--wash);
   --brand: var(--accent);
-  --brand-foreground: var(--paper);
-  --destructive: var(--accent);
-  --destructive-foreground: var(--paper);
+  --brand-foreground: #ffffff;
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
   --border: var(--hair);
   --hairline: var(--hair);
   --input: var(--edge);
-  --ring: var(--accent);
 }
 
 @theme inline {
@@ -121,6 +100,10 @@
   --color-surface: var(--surface);
   --color-ink: var(--ink);
   --color-ink-2: var(--ink-2);
+  --color-fill: var(--fill);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-wash: var(--wash);
   --color-sidebar: var(--sidebar);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
@@ -144,18 +127,18 @@
   --color-hair-strong: var(--hair-strong);
   --color-edge: var(--edge);
   --color-input: var(--input);
-  --color-ring: var(--ring);
+  --color-ring: var(--accent);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
   --font-display: var(--font-display);
   --font-label: var(--font-label);
-  --radius-xs: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-full: 0px;
+  --radius-xs: 4px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+  --radius-full: 9999px;
   --shadow-panel: none;
   --shadow-float: none;
   --shadow-sm: none;
@@ -164,21 +147,11 @@
   --ease-out-expo: var(--ease);
 }
 
-/* The dot grid: a 16px tile with one 1px dot, drawn as an SVG tile so it is
-   flat colour (no gradient), one per theme. */
-:root {
-  --dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='1' height='1' fill='%232a2a30' fill-opacity='.16'/%3E%3C/svg%3E");
-}
-.dark {
-  --dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16'%3E%3Crect width='1' height='1' fill='%23ece7dc' fill-opacity='.14'/%3E%3C/svg%3E");
-}
-
 /* ---- base ---------------------------------------------------------------- */
 
 @layer base {
   * {
     @apply border-border;
-    outline-color: var(--accent);
   }
   html,
   body,
@@ -190,45 +163,29 @@
   html.theming *::before,
   html.theming *::after {
     transition:
-      background-color 0.45s var(--ease),
-      color 0.45s var(--ease),
-      border-color 0.45s var(--ease),
-      fill 0.45s var(--ease),
-      stroke 0.45s var(--ease) !important;
+      background-color 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease,
+      fill 0.3s ease,
+      stroke 0.3s ease !important;
   }
   body {
     background-color: var(--paper);
-    background-image: var(--dots);
-    background-size: 16px 16px;
     color: var(--ink);
     font-family: var(--font-sans);
     font-size: 16px;
-    line-height: 28px;
+    line-height: 1.5;
     font-weight: 400;
     overflow: hidden;
-    -webkit-font-smoothing: none;
-    font-smooth: never;
-    text-rendering: optimizeSpeed;
-    font-synthesis: none;
-  }
-  img,
-  canvas,
-  svg {
-    image-rendering: pixelated;
+    -webkit-font-smoothing: antialiased;
   }
   ::selection {
-    background: var(--ink);
-    color: var(--paper);
+    background: rgba(13, 110, 253, 0.3);
   }
   :focus-visible {
-    outline: 2px dotted var(--accent);
-    outline-offset: 6px;
-  }
-  .no-ring:focus-visible {
-    outline-offset: 2px;
-  }
-  * {
-    caret-color: var(--accent);
+    outline: none;
+    box-shadow: 0 0 0 4px var(--ring);
+    border-radius: var(--radius);
   }
   a,
   button,
@@ -240,83 +197,48 @@
   [role='option'] {
     cursor: pointer;
   }
-  input,
-  textarea {
-    cursor: text;
-  }
-
-  /* pixel scrollbar on a dotted track. The thumb is chrome, not content
-     (figure/ground), so it takes the control edge rather than full ink. */
-  ::-webkit-scrollbar {
-    width: 12px;
-    height: 12px;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--edge);
-    border: 3px solid var(--paper);
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--accent);
-  }
-  ::-webkit-scrollbar-track {
-    background-color: var(--paper);
-    background-image: var(--dots);
-    background-size: 16px 16px;
-    border-left: 1px solid var(--hair);
-  }
-  ::-webkit-scrollbar-corner {
-    background: var(--paper);
-  }
 
   a {
-    color: inherit;
+    color: var(--accent);
     text-decoration: underline;
-    text-decoration-color: var(--edge);
-    text-decoration-thickness: 1px;
-    text-underline-offset: 5px;
-    transition: color 0.16s var(--ease), text-decoration-color 0.16s var(--ease);
+    text-underline-offset: 3px;
   }
   a:hover {
-    color: var(--accent);
-    text-decoration-color: var(--accent);
+    text-decoration-thickness: 2px;
   }
 
   h1,
   h2,
   h3,
   h4 {
-    font-family: var(--font-display);
-    font-weight: 400;
-    line-height: 1;
+    font-family: var(--font-sans);
+    color: var(--ink);
     text-wrap: balance;
-    letter-spacing: 0;
   }
-  /* Three steps only (scale principle): L 40 page title, M 24 section
-     heading, S 16 body / 12 labels (same 9px cap height). h3 and h4 are
-     sub-headings inside a section: body face, bold, set apart by space. */
+  /* Three steps (scale principle): L 32 page title, M 20 section heading,
+     S 16 body, with 14 for secondary text and 12 inside diagrams. */
   h1 {
-    font-size: 40px;
+    font-size: 32px;
+    line-height: 1.2;
+    font-weight: 600;
   }
   h2 {
-    font-size: 24px;
-    line-height: 1.15;
+    font-size: 20px;
+    line-height: 1.3;
+    font-weight: 600;
   }
   h3,
   h4 {
-    font-family: var(--font-sans);
     font-size: 16px;
-    line-height: 28px;
-    font-weight: 700;
+    line-height: 1.5;
+    font-weight: 600;
   }
   p {
     text-wrap: pretty;
   }
   strong,
   b {
-    font-weight: 700;
-  }
-  kbd {
-    font-family: var(--font-label);
+    font-weight: 600;
   }
   .num,
   table {
@@ -334,152 +256,134 @@
   }
 }
 
-/* ---- shapes -------------------------------------------------------------- */
+/* ---- components ---------------------------------------------------------- */
 
 @layer components {
-  /* stepped 4px pixel-notch corners */
+  /* Kept as class names from the old style; now a plain rounded box. */
   .notch {
-    clip-path: var(--notch);
+    border-radius: var(--radius);
   }
-  /* hard 8px offset shadow: the wrapper draws it around the notched shape */
-  .cast {
-    filter: drop-shadow(8px 8px 0 var(--shadow));
-  }
+  .cast,
   .cast-sm {
-    filter: drop-shadow(4px 4px 0 var(--shadow));
+    filter: none;
   }
 
-  /* A frame: 2px ink border, surface fill, notch corners. Used sparingly:
-     everything else separates by hairline and whitespace. */
+  /* A card: 1px border, 6px radius. */
   .panel {
-    background: var(--surface);
-    border: 2px solid var(--ink);
-    clip-path: var(--notch);
+    background: var(--paper);
+    border: 1px solid var(--hair-strong);
+    border-radius: var(--radius);
   }
   .panel-quiet {
     background: var(--surface);
-    border: 1px solid var(--hair-strong);
-    clip-path: var(--notch);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
   }
 
-  /* Determination 12/20 caps, secondary ink */
+  /* secondary text: 14px, secondary ink, sentence case */
   .label {
-    font-family: var(--font-label);
-    font-size: 12px;
+    font-size: 14px;
     line-height: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
     color: var(--ink-2);
-  }
-  .display-96 {
-    font-family: var(--font-display);
-    font-size: 96px;
-    line-height: 1;
   }
   .ink {
     color: var(--ink);
   }
 
-  /* 4px square bullet */
   .bullet {
     display: inline-block;
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
     flex: none;
-    background: var(--ink);
+    border-radius: 9999px;
+    background: var(--ink-2);
   }
 
-  /* Hairline-separated list */
+  /* list-group */
+  .list {
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
   .list > * + * {
     border-top: 1px solid var(--hair);
-  }
-  .list {
-    border-top: 1px solid var(--hair);
-    border-bottom: 1px solid var(--hair);
   }
   .row {
     position: relative;
     display: flex;
     align-items: center;
     gap: 16px;
-    min-height: 56px;
-    padding: 12px 16px;
+    min-height: 48px;
+    padding: 10px 16px;
     color: var(--ink);
     text-decoration: none;
-    transition: color 0.16s var(--ease), box-shadow 0.16s var(--ease);
+    transition: background-color 0.15s ease;
   }
-  /* Hover: accent text and a 2px accent edge on plain paper (the edge binds the
-     row as one region). Accent never sits on --wash: day contrast drops to 4.2:1. */
-  .row:hover {
-    color: var(--accent);
-    box-shadow: inset 2px 0 0 var(--accent);
-  }
-  .row:hover .bullet {
-    background: var(--accent);
+  a.row:hover,
+  button.row:hover {
+    background: var(--wash);
+    text-decoration: none;
   }
 
-  /* reading column */
   .prose-col {
-    max-width: 640px;
+    max-width: 680px;
   }
 
-  /* Sidebar / toolbar items: Determination caps labels */
+  /* sidebar: nav pills */
   .side-item {
     display: flex;
     align-items: center;
-    gap: 12px;
-    height: 36px;
-    padding: 0 12px 0 24px;
-    font-family: var(--font-label);
-    font-size: 12px;
+    gap: 8px;
+    height: 34px;
+    margin: 1px 8px;
+    padding: 0 12px;
+    font-size: 14px;
     line-height: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--ink-2);
+    color: var(--ink);
     text-decoration: none;
-    transition: color 0.16s var(--ease), background-color 0.16s var(--ease);
+    border-radius: var(--radius);
+    transition: background-color 0.15s ease;
   }
   .side-item:hover {
-    color: var(--accent);
-  }
-  .side-item[aria-current='page'] {
-    color: var(--ink);
     background: var(--wash);
-    box-shadow: inset 2px 0 0 var(--ink);
+    text-decoration: none;
   }
+  .side-item[aria-current='page'],
   .side-item[aria-current='page']:hover {
-    color: var(--ink);
+    color: #ffffff;
+    background: var(--fill);
   }
+
+  /* toolbar and small text buttons: btn-sm, borderless */
   .tool {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    height: 36px;
-    min-width: 36px;
-    padding: 0 12px;
-    font-family: var(--font-label);
-    font-size: 12px;
+    gap: 6px;
+    height: 32px;
+    min-width: 32px;
+    padding: 0 10px;
+    font-size: 14px;
     line-height: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
     white-space: nowrap;
-    color: var(--ink-2);
+    color: var(--ink);
     text-decoration: none;
-    transition: color 0.16s var(--ease);
+    border-radius: var(--radius);
+    transition: background-color 0.15s ease;
   }
   .tool:hover {
-    color: var(--accent);
+    background: var(--wash);
+    text-decoration: none;
   }
   .tool:disabled,
   .tool[aria-disabled='true'] {
-    opacity: 0.4;
+    color: var(--ink-2);
     pointer-events: none;
   }
   .tag {
     background: var(--paper);
     border: 1px solid var(--hair-strong);
-    clip-path: var(--notch);
+    border-radius: var(--radius);
   }
   .kbd {
     display: inline-flex;
@@ -488,87 +392,75 @@
     min-width: 20px;
     height: 20px;
     padding: 0 4px;
-    font-family: var(--font-label);
     font-size: 12px;
-    letter-spacing: 0.08em;
     color: var(--ink-2);
     border: 1px solid var(--edge);
+    border-radius: 4px;
   }
 
-  /* chips: notched tags for topics and patterns; the edge is a control boundary */
+  /* chips: btn-outline-secondary, small */
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     height: 28px;
-    padding: 0 12px;
-    font-family: var(--font-label);
-    font-size: 12px;
+    padding: 0 10px;
+    font-size: 14px;
     line-height: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    color: var(--ink-2);
+    color: var(--ink);
     text-decoration: none;
     border: 1px solid var(--edge);
-    clip-path: var(--notch);
+    border-radius: var(--radius);
     background: transparent;
-    transition: color 0.16s var(--ease), border-color 0.16s var(--ease), background-color 0.16s var(--ease);
+    transition: background-color 0.15s ease;
     white-space: nowrap;
   }
-  .chip:hover {
-    color: var(--accent);
-    border-color: var(--accent);
+  a.chip:hover,
+  button.chip:hover {
+    background: var(--wash);
+    text-decoration: none;
   }
   .chip[aria-pressed='true'],
-  .chip[data-on='true'] {
-    background: var(--ink);
-    color: var(--paper);
-    border-color: var(--ink);
+  .chip[data-on='true'],
+  .chip[aria-pressed='true']:hover,
+  .chip[data-on='true']:hover {
+    background: var(--fill);
+    color: #ffffff;
+    border-color: var(--fill);
   }
 
-  /* Segmented control: mutually exclusive options share one framed region
-     (common region), split by hairlines; the chosen one is ink-filled. */
+  /* btn-group */
   .seg {
     display: inline-flex;
     border: 1px solid var(--edge);
-    clip-path: var(--notch);
+    border-radius: var(--radius);
+    overflow: hidden;
   }
   .seg > button {
     height: 32px;
     padding: 0 12px;
-    font-family: var(--font-label);
-    font-size: 12px;
+    font-size: 14px;
     line-height: 20px;
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
     white-space: nowrap;
-    color: var(--ink-2);
-    transition: color 0.16s var(--ease), background-color 0.16s var(--ease);
+    color: var(--ink);
+    transition: background-color 0.15s ease;
   }
   .seg > button + button {
     border-left: 1px solid var(--edge);
   }
   .seg > button:hover {
-    color: var(--accent);
+    background: var(--wash);
   }
-  .seg > button[aria-pressed='true'] {
-    background: var(--ink);
-    color: var(--paper);
-  }
-  /* Hovering the chosen option: accent fill under paper text (5.3:1 night,
-     4.6:1 day), never accent text on an ink fill. */
-  .seg > button[aria-pressed='true']:hover,
-  .chip[aria-pressed='true']:hover,
-  .chip[data-on='true']:hover {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--paper);
+  .seg > button[aria-pressed='true'],
+  .seg > button[aria-pressed='true']:hover {
+    background: var(--fill);
+    color: #ffffff;
   }
 
-  /* Modal grows out of the point that opened it */
-  @keyframes grow-in {
+  /* Dialogs fade and lift slightly, like Bootstrap's modal. */
+  @keyframes modal-in {
     from {
-      transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(0.04);
+      transform: translateY(-12px);
       opacity: 0;
     }
     to {
@@ -576,34 +468,19 @@
       opacity: 1;
     }
   }
-  @keyframes shrink-out {
+  @keyframes modal-out {
     from {
-      transform: none;
       opacity: 1;
     }
     to {
-      transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(0.04);
       opacity: 0;
-    }
-  }
-  @keyframes sheet-in {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: none;
     }
   }
   .modal-pop[data-state='open'] {
-    animation: grow-in 0.5s var(--ease) both;
+    animation: modal-in 0.2s ease-out both;
   }
   .modal-pop[data-state='closed'] {
-    animation: shrink-out 0.34s var(--ease) both;
-  }
-  @media (max-width: 820px) {
-    .modal-pop[data-state='open'] {
-      animation: sheet-in 0.4s var(--ease) both;
-    }
+    animation: modal-out 0.15s ease-in both;
   }
 
   @keyframes pulse-ring {
@@ -630,6 +507,7 @@
     position: relative;
     width: 8px;
     height: 8px;
+    border-radius: 9999px;
     background: var(--accent);
     flex: none;
   }
@@ -637,6 +515,7 @@
     content: '';
     position: absolute;
     inset: 0;
+    border-radius: 9999px;
     border: 1px solid var(--accent);
     animation: pulse-ring 2.4s var(--ease) infinite;
   }
@@ -644,11 +523,10 @@
     animation: blink 1s steps(1) infinite;
   }
 
-  /* scroll reveal: diagrams and cards rise in once */
   @keyframes rise {
     from {
       opacity: 0;
-      transform: translateY(12px);
+      transform: translateY(8px);
     }
     to {
       opacity: 1;
@@ -656,25 +534,22 @@
     }
   }
   .rise {
-    animation: rise 0.5s var(--ease) both;
+    animation: rise 0.3s ease-out both;
   }
 }
 
 /* ---- rich content blocks -------------------------------------------------- */
 
 .diagram {
-  background: var(--surface);
+  background: var(--paper);
   border: 1px solid var(--hair-strong);
-  clip-path: var(--notch);
+  border-radius: var(--radius);
 }
 .diagram svg text {
   font-family: var(--font-sans);
   fill: var(--ink);
 }
 .diagram svg .lbl {
-  font-family: var(--font-label);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   fill: var(--ink-2);
 }
 @keyframes dash-flow {
@@ -688,114 +563,80 @@
 
 .callout {
   position: relative;
-  padding: 16px 20px 16px 24px;
+  padding: 12px 16px;
   background: var(--surface);
-  border-left: 2px solid var(--ink);
-  border-top: 1px solid var(--hair);
-  border-bottom: 1px solid var(--hair);
-  border-right: 1px solid var(--hair);
+  border: 1px solid var(--hair);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
 }
 .callout > .label {
   display: block;
   margin-bottom: 4px;
   color: var(--ink);
+  font-weight: 600;
 }
 
 /* ---- lesson prose ----------------------------------------------------------- */
 
 .md {
   font-size: 16px;
-  line-height: 28px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 .md > * + * {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 .md h2 {
-  margin-top: 56px;
-  margin-bottom: 4px;
+  margin-top: 40px;
   scroll-margin-top: 24px;
 }
 .md h3 {
-  margin-top: 32px;
+  margin-top: 24px;
   scroll-margin-top: 24px;
 }
-.md h2 + * {
-  margin-top: 16px;
-}
+.md h2 + *,
 .md h3 + * {
   margin-top: 8px;
 }
-.md ul,
+.md ul {
+  list-style: disc;
+  padding-left: 24px;
+}
 .md ol {
-  list-style: none;
-  padding: 0;
+  list-style: decimal;
+  padding-left: 24px;
 }
 .md li {
-  position: relative;
-  padding-left: 24px;
-  margin: 8px 0;
-}
-.md ul > li::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 12px;
-  width: 4px;
-  height: 4px;
-  background: var(--ink);
-}
-.md ol {
-  counter-reset: n;
-}
-.md ol > li {
-  counter-increment: n;
-  padding-left: 36px;
-}
-.md ol > li::before {
-  content: counter(n, decimal-leading-zero);
-  position: absolute;
-  left: 0;
-  top: 0;
-  font-family: var(--font-label);
-  font-size: 12px;
-  letter-spacing: 0.12em;
-  color: var(--ink-2);
+  margin: 4px 0;
 }
 .md li > ul,
 .md li > ol {
-  margin-top: 8px;
-}
-.md a {
-  text-decoration-color: var(--hair-strong);
+  margin-top: 4px;
 }
 .md strong {
   color: var(--ink);
 }
-.md em {
-  font-style: normal;
-  border-bottom: 1px dotted var(--ink-2);
-}
 .md :not(pre) > code {
-  background: var(--wash);
-  border: 1px solid var(--hair);
-  padding: 0 4px;
-  white-space: nowrap;
+  font-size: 14px;
+  color: #ab296a;
+  overflow-wrap: anywhere;
+}
+.dark .md :not(pre) > code {
+  color: #e685b5;
 }
 .md pre {
   background: var(--surface);
-  border: 1px solid var(--hair-strong);
-  clip-path: var(--notch);
-  padding: 16px 20px;
+  border: 1px solid var(--hair);
+  border-radius: var(--radius);
+  padding: 12px 16px;
   overflow-x: auto;
-  font-size: 16px;
-  line-height: 24px;
+  font-size: 14px;
+  line-height: 1.5;
   white-space: pre;
   tab-size: 4;
 }
 .md pre code {
-  background: none;
-  border: 0;
-  padding: 0;
+  color: var(--ink);
 }
 .md-table {
   overflow-x: auto;
@@ -806,29 +647,18 @@
 }
 .md th {
   text-align: left;
-  font-family: var(--font-label);
-  font-weight: 400;
-  font-size: 12px;
-  line-height: 20px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-  padding: 8px 20px 8px 0;
-  border-bottom: 2px solid var(--ink);
-  white-space: nowrap;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-bottom: 2px solid var(--hair-strong);
 }
 .md td {
-  padding: 12px 20px 12px 0;
+  padding: 8px 12px;
   vertical-align: top;
   border-bottom: 1px solid var(--hair);
 }
-.md td:last-child,
-.md th:last-child {
-  padding-right: 0;
-}
 .md blockquote {
-  border-left: 2px solid var(--hair-strong);
-  padding-left: 20px;
+  border-left: 4px solid var(--hair-strong);
+  padding-left: 16px;
   color: var(--ink-2);
 }
 .md .callout > * + * {
@@ -836,62 +666,38 @@
 }
 .md .diagram,
 .md .callout {
-  margin-top: 32px;
+  margin-top: 24px;
 }
-.md .diagram li {
-  padding-left: 0;
-  margin: 0;
-}
-.md .diagram li::before {
-  content: none;
-}
+.md .diagram ul,
 .md .diagram ol,
-.md .diagram ul {
-  margin: 0;
-}
-/* The steps block numbers itself in its frames; the prose counter and indent
-   would number it twice. */
-.md ol.steps > li {
+.md .check ul,
+.md .check ol,
+.md ol.steps {
+  list-style: none;
   padding-left: 0;
   margin: 0;
 }
-.md ol.steps > li::before {
-  content: none;
+.md .diagram li,
+.md .check li,
+.md ol.steps > li {
+  margin: 0;
 }
 
-/* a step scrubber in the pixel style */
 .viz-range {
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-}
-.viz-range::-webkit-slider-runnable-track {
-  height: 2px;
-  background: var(--hair-strong);
-}
-.viz-range::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 12px;
-  height: 16px;
-  margin-top: -7px;
-  background: var(--ink);
-  border: 0;
-}
-.viz-range:hover::-webkit-slider-thumb {
-  background: var(--accent);
+  accent-color: var(--fill);
 }
 
-/* ---- CodeMirror: the editor is a frame; the theme itself is in Editor.tsx -- */
+/* ---- CodeMirror: the theme itself is in Editor.tsx ------------------------ */
 .cm-editor {
   height: 100%;
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: 14px;
 }
 .cm-editor.cm-focused {
   outline: none;
 }
 .cm-scroller {
-  line-height: 24px;
+  line-height: 22px;
 }
 
 /* macOS: the hidden-inset title bar strip drags the window, like any Mac app. */

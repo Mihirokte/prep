@@ -1,0 +1,35 @@
+{
+  "label": "Security",
+  "drills": [
+    {
+      "id": "sec-001",
+      "title": "Threat Model a File Upload Service",
+      "topic": "threat-modeling",
+      "difficulty": "medium",
+      "prompt": "Threat model a multi-tenant file upload and sharing service. Identify trust boundaries, the highest-risk abuse cases, and concrete controls. Prioritize rather than reciting a checklist.",
+      "link": "",
+      "notes": "Start from assets, actors, entry points and trust boundaries; rank risks by impact and likelihood.",
+      "solution": "Assets include private files, sharing permissions, tenant identity and processing infrastructure. Boundaries exist at client-to-API, API-to-object-store, metadata database, asynchronous scanners and download links. High risks are authorization bypass across tenants, malicious file processing, unbounded upload denial of service, leaked presigned URLs and stored malware. Controls: authorize every object operation against tenant metadata; generate short-lived scoped URLs; quarantine uploads; validate type by content, not extension; scan in an isolated worker; cap size and rate; encrypt storage; log access without leaking content. Test the controls with cross-tenant ids, expired links, archive bombs and parser failures."
+    },
+    {
+      "id": "sec-002",
+      "title": "Delete User Data End to End",
+      "topic": "privacy",
+      "difficulty": "hard",
+      "prompt": "Design deletion for one user whose data exists in a primary database, replicas, caches, search indexes, object storage, analytics and backups. Define completion, retries, audit evidence and backup handling.",
+      "link": "",
+      "notes": "Deletion is a distributed workflow, not one SQL statement. Define the data inventory and verifiable terminal state.",
+      "solution": "Resolve the user to stable internal identifiers, create an idempotent deletion job, and mark the account unavailable immediately. Each system-specific worker deletes or anonymizes its records and reports a signed result to an audit record that stores identifiers and timestamps, not the deleted payload. Use retries and a dead-letter path; completion requires every required sink to acknowledge. Purge caches and search indexes explicitly. For immutable backups, prevent normal restoration of deleted data by maintaining a deletion ledger that is replayed after restore, and let backups expire under the documented retention policy. Expose job status and alert on stuck sinks."
+    },
+    {
+      "id": "sec-003",
+      "title": "Secure a Multi Tenant API",
+      "topic": "authorization",
+      "difficulty": "medium",
+      "prompt": "An authenticated user can request /documents/{id}. Explain why authentication is insufficient, design tenant-safe authorization, and describe tests that catch object-level authorization failures.",
+      "link": "",
+      "notes": "The dangerous query fetches by object id first and checks ownership later or not at all.",
+      "solution": "Scope every lookup by both tenant and object id, for example WHERE tenant_id = caller.tenant_id AND id = ?. Derive tenant identity from the verified session, never a client-supplied header. Centralize the policy so list, read, update, delete and download paths cannot diverge. Use opaque ids as defense in depth, not as authorization. Tests create two tenants and attempt every operation from one tenant against the other's ids, including bulk endpoints, exports, presigned URLs and asynchronous jobs. Log denials with safe metadata and rate-limit enumeration attempts."
+    }
+  ]
+}

@@ -92,6 +92,9 @@ export function runAgy(
   ]
   if (opts.model) args.push('--model', opts.model)
   if (opts.effort) args.push('--effort', opts.effort)
+  // The prompt travels as one argument; macOS caps all arguments at 1 MB.
+  const bytes = Buffer.byteLength(prompt)
+  if (bytes > 900_000) return Promise.reject(new Error(`The prompt is too large for agy (${Math.round(bytes / 1024)} KB).`))
 
   return new Promise((resolve, reject) => {
     const child = execFile(
@@ -101,7 +104,10 @@ export function runAgy(
         cwd: opts.cwd,
         env: childEnv(),
         maxBuffer: 32 * 1024 * 1024,
+        // agy does not always honour --print-timeout or SIGTERM (seen: one call
+        // still running after 38 minutes), so the hard limit kills outright.
         timeout: (opts.timeoutSec + 30) * 1000,
+        killSignal: 'SIGKILL',
       },
       (err, stdout, stderr) => {
         const out = parseOutput(String(stdout))

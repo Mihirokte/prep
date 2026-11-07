@@ -1,0 +1,35 @@
+{
+  "label": "Low-Level Design",
+  "drills": [
+    {
+      "id": "lld-019",
+      "title": "Test a Task Scheduler",
+      "topic": "Machine coding, invariants, boundary tests",
+      "difficulty": "medium",
+      "prompt": "You implemented an in-memory task scheduler ordered by priority and creation time. Before showing the design, produce a compact test plan and write the highest-value tests. Cover ordering, mutation, failure, and one concurrency boundary. Explain what each test proves rather than listing inputs.",
+      "link": "",
+      "notes": "A strong answer identifies invariants first, separates unit tests from integration tests, and does not confuse line coverage with behavioral confidence.",
+      "solution": "Start from invariants: the next task is always the highest-priority live task; equal priorities preserve creation order; an id identifies at most one live task; a removed task never executes. Test one fact per case. Include empty execution, equal-priority stability, modify-to-higher-priority, remove-before-execute, duplicate-id policy, and a task whose callback throws. For concurrency, use a barrier so two workers attempt to claim one task at the same instant, then assert exactly one execution. Avoid sleep-based tests because they are nondeterministic. Keep the clock and id generator injectable so ordering tests use fixed values. The integration test should exercise the public API, while heap or tree details remain private."
+    },
+    {
+      "id": "lld-020",
+      "title": "Make a Rate Limiter Thread Safe",
+      "topic": "Concurrency, atomicity, testability",
+      "difficulty": "hard",
+      "prompt": "A token-bucket limiter works in a single thread but occasionally admits more than the limit under load. Identify the race, redesign the critical section, and describe a deterministic concurrency test. Keep the API usable with both a real and fake clock.",
+      "link": "",
+      "notes": "The key invariant is that refill calculation and token consumption are one atomic state transition.",
+      "solution": "The race is a read-modify-write split: two threads read the same token count, both decide a token exists, then both decrement. Guard lastRefillTime and tokenCount with one lock, or represent them in one immutable state updated by compare-and-set. Do not lock only the decrement because refill and consume share an invariant. Inject a monotonic Clock and advance a FakeClock explicitly in tests. Use a barrier to release N workers at once against a bucket containing K tokens, collect results, and assert exactly K successes. Also test that time moving forward refills only to capacity and that failed requests do not make the count negative."
+    },
+    {
+      "id": "lld-021",
+      "title": "Diagnose an Event Loop Stall",
+      "topic": "Runtime model, async I/O, backpressure",
+      "difficulty": "medium",
+      "prompt": "A Node-style API uses async handlers but p99 latency jumps whenever it parses a large payload. Explain why async syntax did not prevent the stall, show two fixes, and state how you would prove the event loop is healthy afterward.",
+      "link": "",
+      "notes": "Async I/O avoids waiting on the main thread; CPU work still occupies it.",
+      "solution": "Parsing is CPU work and runs on the event-loop thread even inside an async function. While it runs, completed I/O callbacks cannot execute. First bound payload size and stream when the format allows it. For unavoidable heavy parsing, move work to a worker thread or a separate service and cap the queue so overload creates backpressure instead of unbounded memory. Measure event-loop lag, queue depth, throughput, and p99 under a controlled load. A good fix lowers lag without merely shifting the bottleneck to an unbounded worker queue."
+    }
+  ]
+}

@@ -32,6 +32,14 @@ att -> out : weighted values
 
 Without the cache, generating the t-th token would recompute attention over all t previous tokens from scratch every step, turning generation into an O(n cubed) disaster. The cache turns it into roughly O(n squared) total.
 
+```check
+Q: A chat already holds 10,000 tokens and the model has a KV cache. What does the next decode step compute?
+- Keys and values again for all 10,000 earlier tokens
+* The new token K and V, then attention over the cache
+- Attention over only the last few hundred tokens
+Why: The cache stores the keys and values of every earlier token, so one decode step computes them only for the new token and then attends over all the cached ones. Recomputing all 10,000 is exactly the work the cache removes. Standard attention still reads every cached token, so each step must stream the whole cache from memory, which is why decode is memory-bandwidth bound.
+```
+
 ## KV cache size, with a worked example
 
 The cache stores one key and one value vector per token, per layer, per KV head. Size in elements is:

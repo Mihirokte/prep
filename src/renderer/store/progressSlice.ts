@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { mergeProgress } from '../progressFile'
 
 // Unified progress store. Lessons are read/unread (+ optional bookmark);
 // problems keep the richer attempted/solved/revisit + code + notes model.
@@ -80,12 +81,9 @@ export const progressSlice = createSlice({
       const cur = state.problems[action.payload.id] ?? { status: 'none', updatedAt: '' }
       state.problems[action.payload.id] = { ...cur, code: action.payload.code, updatedAt: now() }
     },
-    importAll(_state, action: PayloadAction<ProgressState>) {
-      return {
-        lessons: { ...action.payload.lessons },
-        problems: { ...action.payload.problems },
-        recall: { ...(action.payload.recall ?? {}) },
-      }
+    /** Import merges into current progress; see mergeProgress. */
+    importAll(state, action: PayloadAction<ProgressState>) {
+      return mergeProgress(state, action.payload)
     },
     resetAll() {
       return initialState

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { validator, type JudgeState, type ValidateOutcome } from '../judge'
 import { useModel } from '../model/context'
 import { useAppDispatch, useAppSelector } from '../store'
-import { addProblemTime, setProblemCode } from '../store/progressSlice'
+import { addProblemTime, setProblemCode, setProblemStatus } from '../store/progressSlice'
 import Editor from '../components/Editor'
 import Markdown from '../components/Markdown'
 import VizPlayer from '../viz/VizPlayer'
@@ -18,6 +18,8 @@ import { pixelText } from '../components/pixelText'
 import { cn } from '../lib/utils'
 import type { Drill, Problem } from '../types'
 import type { Pattern } from '../../shared/types'
+import type { TutorVerifyResult } from '../../shared/api'
+import { Feedback, useTutorLine } from '../components/Feedback'
 
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
@@ -156,7 +158,7 @@ function ApproachTab({ problem, patterns }: { problem: Problem; patterns: Patter
         <section>
           <p className="label mb-3">Reference solution</p>
           {reveal ? (
-            <pre className="notch rise overflow-x-auto border-2 border-ink bg-surface p-4 text-[16px] leading-6">{problem.reference_solution}</pre>
+            <pre className="notch rise overflow-x-auto border border-hair-strong bg-surface p-4 text-[16px] leading-6">{problem.reference_solution}</pre>
           ) : (
             <Button variant="outline" onClick={() => setReveal(true)}>
               Reveal solution
@@ -204,10 +206,17 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
   const m = useModel()
   const dispatch = useAppDispatch()
   const savedCode = useAppSelector((s) => s.progress.problems[problem.id]?.code)
+  const savedStatus = useAppSelector((s) => s.progress.problems[problem.id]?.status ?? 'none')
   const [code, setCode] = useState(() => savedCode ?? problem.starter_code)
+  const [edited, setEdited] = useState(false)
+  const [editorVersion, setEditorVersion] = useState(0)
   const [state, setState] = useState<JudgeState>(validator.state)
   const [outcome, setOutcome] = useState<ValidateOutcome | null>(null)
   const [busy, setBusy] = useState(false)
+  const [reviewing, setReviewing] = useState(false)
+  const [review, setReview] = useState<TutorVerifyResult | null>(null)
+  const [tab, setTab] = useState('description')
+  const tutorLine = useTutorLine()
   const [picker, setPicker] = useState(false)
   const [split, setSplit] = useState(() => Number(localStorage.getItem('prep.split')) || 46)
   const timer = useStopwatch(problem.id)
@@ -221,33 +230,58 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
   const patterns = m.patternsForProblem(drill.id)
   const similar = m.relatedProblems(drill.id, 8)
 
+  const hasTests = Boolean(problem.tests?.length)
+  // Pyodide only matters for packs with authored local tests.
   useEffect(() => {
+    if (!hasTests) return
     validator.onState = setState
     validator.start()
     setState(validator.state)
-  }, [])
+  }, [hasTests])
+
+  // Keep work when the learner navigates away without pressing Check. Delay
+  // the write so typing does not serialize the entire progress store per key.
+  useEffect(() => {
+    if (!edited) return
+    const timer = window.setTimeout(() => dispatch(setProblemCode({ id: problem.id, code })), 500)
+    return () => window.clearTimeout(timer)
+  }, [code, dispatch, edited, problem.id])
 
   const check = useCallback(async () => {
     setBusy(true)
     setOutcome(null)
     dispatch(setProblemCode({ id: problem.id, code }))
-    setOutcome(await validator.validate(code, problem.signature?.name))
+    if (savedStatus === 'none') dispatch(setProblemStatus({ id: problem.id, status: 'attempted' }))
+    setOutcome(await validator.validate(code, problem))
     setBusy(false)
-  }, [code, dispatch, problem.id, problem.signature?.name])
+  }, [code, dispatch, problem, savedStatus])
+
+  // Verify: the tutor graph reviews the code; the result opens in Feedback.
+  const verify = useCallback(async () => {
+    setReviewing(true)
+    setReview(null)
+    setTab('feedback')
+    dispatch(setProblemCode({ id: problem.id, code }))
+    if (savedStatus === 'none') dispatch(setProblemStatus({ id: problem.id, status: 'attempted' }))
+    setReview(await window.prep.tutor.verify(problem.id, code))
+    setReviewing(false)
+  }, [code, dispatch, problem.id, savedStatus])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && state === 'ready' && !busy) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !reviewing) {
         e.preventDefault()
-        void check()
+        void verify()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [check, state, busy])
+  }, [verify, reviewing])
 
   const reset = () => {
     setCode(problem.starter_code)
+    setEdited(false)
+    setEditorVersion((v) => v + 1)
     setOutcome(null)
     dispatch(setProblemCode({ id: problem.id, code: problem.starter_code }))
   }
@@ -311,7 +345,7 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
       <div ref={host} className="flex min-h-0 flex-1 max-lg:flex-col">
         <div className="relative min-h-0 overflow-y-auto px-6 pb-16 pt-6 max-lg:max-h-[55%]" style={{ width: `${split}%` }}>
           <header className="border-b border-hair pb-6">
-            <h1 className="!text-[24px] !leading-[1.15]">{pixelText(drill.title)}</h1>
+            <h1 className="!text-[20px] !leading-snug">{pixelText(drill.title)}</h1>
             <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3">
               <span className="label num">No. {idx + 1}</span>
               <Difficulty value={drill.difficulty} />
@@ -320,11 +354,13 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
               <ProblemStatusBar id={problem.id} />
             </div>
           </header>
-          <Tabs defaultValue="description" className="mt-2">
-            <TabsList>
+          <Tabs value={tab} onValueChange={setTab} className="mt-4">
+            {/* five tabs share a narrow pane: tighter padding keeps them on one line */}
+            <TabsList className="flex-nowrap [&>[role=tab]]:px-2">
               <TabsTrigger value="description">Description</TabsTrigger>
               <TabsTrigger value="approach">Approach</TabsTrigger>
-              <TabsTrigger value="similar">Similar {similar.length > 0 && <span className="num">{similar.length}</span>}</TabsTrigger>
+              <TabsTrigger value="feedback">Feedback</TabsTrigger>
+              <TabsTrigger value="similar">Similar</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
             </TabsList>
             <TabsContent value="description" className="pt-2">
@@ -339,6 +375,16 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
             </TabsContent>
             <TabsContent value="approach">
               <ApproachTab problem={problem} patterns={patterns} />
+            </TabsContent>
+            <TabsContent value="feedback" className="pt-4">
+              <Feedback
+                busy={reviewing}
+                line={tutorLine}
+                result={review}
+                patternName={(k) => m.findPattern(k)?.name ?? k}
+                onSolved={() => dispatch(setProblemStatus({ id: problem.id, status: 'solved' }))}
+                solved={savedStatus === 'solved'}
+              />
             </TabsContent>
             <TabsContent value="similar" className="pt-4">
               <div className="list">
@@ -367,31 +413,51 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
           }}
           className="group relative hidden w-3 shrink-0 cursor-col-resize lg:block"
         >
-          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-hair-strong group-hover:w-[3px] group-hover:bg-brand" />
+          <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-hair-strong group-hover:w-[3px] group-hover:bg-[var(--fill-hover)]" />
         </div>
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-hair pt-0 lg:border-l-0">
           <div className="flex h-11 shrink-0 items-center gap-3 border-b border-hair px-4">
-            <span className="label text-ink">Python 3</span>
+            <span className="label text-ink">Pseudocode or Python</span>
             <span className="flex-1" />
             <Button variant="ghost" size="sm" onClick={reset}>
               Reset
             </Button>
-            <Button size="sm" onClick={check} disabled={busy || state !== 'ready'}>
-              {busy ? 'Checking' : state === 'booting' ? 'Loading Python' : state === 'failed' ? 'Python failed' : 'Check syntax'}
-            </Button>
+            {hasTests && (
+              <Button variant="outline" aria-label="Run local Python validation" size="sm" onClick={check} disabled={busy || state !== 'ready'}>
+                {busy ? 'Running' : state === 'booting' ? 'Loading Python' : state === 'failed' ? 'Python failed' : `Run ${problem.tests!.length} tests`}
+              </Button>
+            )}
+            {reviewing ? (
+              <Button size="sm" variant="outline" onClick={() => void window.prep.tutor.cancel()}>
+                Cancel
+              </Button>
+            ) : (
+              <Button size="sm" onClick={() => void verify()} aria-label="Verify with the tutor" title="Verify (Cmd Enter)">
+                Verify
+              </Button>
+            )}
           </div>
           <div className="min-h-0 flex-1">
-            <Editor key={problem.id} initial={code} onChange={setCode} />
+            <Editor
+              key={`${problem.id}-${editorVersion}`}
+              initial={code}
+              onChange={(value) => {
+                setCode(value)
+                setEdited(true)
+              }}
+            />
           </div>
-          <div className="h-36 shrink-0 overflow-y-auto border-t-2 border-ink px-5 py-3" aria-live="polite">
-            <p className="label mb-1 text-ink">Console</p>
+          <div className="h-28 shrink-0 overflow-y-auto border-t border-hair-strong px-5 py-3" aria-live="polite">
             {outcome ? (
-              <p className={cn(outcome.status === 'ok' ? 'text-ink' : 'text-brand')}>
+              <p className={cn(outcome.status === 'ok' ? 'text-ink' : 'text-danger')}>
                 {outcome.status === 'ok' ? outcome.message : outcome.status === 'timeout' ? 'Timed out. The runtime restarted.' : outcome.message}
               </p>
             ) : (
-              <p className="text-ink-2">Check syntax runs your code through Python's parser (CMD + Enter). Judge correctness on LeetCode.</p>
+              <p className="text-ink-2">
+                Write your approach, then press Verify (Cmd Enter). The tutor reviews it, and the result opens in Feedback.
+                {hasTests ? ` Run ${problem.tests!.length} tests checks Python code against local cases.` : ''}
+              </p>
             )}
           </div>
         </div>
@@ -423,7 +489,7 @@ function DrillView({ drill }: { drill: Drill }) {
   }, [m.courses, drill.id])
   return (
     <div className="prose-col flex flex-col gap-10 pt-2">
-      <p className="notch whitespace-pre-wrap border-2 border-ink bg-surface px-7 py-6 text-[16px] leading-7">{pixelText(drill.prompt)}</p>
+      <p className="notch whitespace-pre-wrap border border-hair-strong bg-surface px-7 py-6 text-[16px] leading-7">{pixelText(drill.prompt)}</p>
       <ProblemStatusBar id={drill.id} />
       {prep.length > 0 && (
         <section>

@@ -53,9 +53,13 @@
         "sd-indexing",
         "sd-connection-replicas",
         "sd-locking",
-        "sd-latency-multiregion"
+        "sd-transactions-isolation",
+        "sd-schema-migrations"
       ],
-      "problemIds": []
+      "problemIds": [
+        "sd-026",
+        "sd-027"
+      ]
     },
     {
       "id": "sd-building-blocks",
@@ -64,8 +68,7 @@
       "lessons": [
         "sd-id-generation",
         "sd-fanout",
-        "sd-realtime",
-        "sd-vector-db"
+        "sd-realtime"
       ],
       "problemIds": [
         "sd-024",

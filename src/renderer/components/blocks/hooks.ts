@@ -40,17 +40,12 @@ export function useInView<T extends HTMLElement>(once = true): [React.RefObject<
 export const prefersReducedMotion = (): boolean =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** Re-render once the pixel faces are loaded, so measured text widths are real. */
+/** Re-render once fonts are ready, so measured text widths are real. */
 export function useFontsReady(): boolean {
   const [ready, setReady] = useState(false)
   useEffect(() => {
     let live = true
-    Promise.all([
-      document.fonts.load('16px "Pixel Operator"'),
-      document.fonts.load('12px "Determination"'),
-      document.fonts.load('24px "Pixelta"'),
-    ])
-      .then(() => document.fonts.ready)
+    document.fonts.ready
       .then(() => live && setReady(true))
       .catch(() => live && setReady(true))
     return () => {
@@ -62,8 +57,9 @@ export function useFontsReady(): boolean {
 
 let ctx: CanvasRenderingContext2D | null = null
 const cache = new Map<string, number>()
-export const BODY_FONT = '16px "Pixel Operator"'
-export const LABEL_FONT = '12px "Determination"'
+const SYSTEM = "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+export const BODY_FONT = `16px ${SYSTEM}`
+export const LABEL_FONT = `12px ${SYSTEM}`
 
 export function textWidth(text: string, font = BODY_FONT, tracking = 0): number {
   const key = `${font}|${tracking}|${text}`

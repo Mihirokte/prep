@@ -13,7 +13,7 @@ function Progress({ className, value, ...props }: React.ComponentProps<typeof Pr
     >
       <ProgressPrimitive.Indicator
         data-slot="progress-indicator"
-        className="h-full bg-ink transition-[width] duration-500 ease-[var(--ease)]"
+        className="h-full bg-fill transition-[width] duration-500 ease-[var(--ease)]"
         style={{ width: `${value || 0}%` }}
       />
     </ProgressPrimitive.Root>

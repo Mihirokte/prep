@@ -28,6 +28,29 @@ const api: PrepApi = {
     discard: (id) => ipcRenderer.invoke('agent:discard', id),
     undo: () => ipcRenderer.invoke('agent:undo'),
     status: () => ipcRenderer.invoke('agent:status'),
+    memory: () => ipcRenderer.invoke('agent:memory'),
+    forget: (id) => ipcRenderer.invoke('agent:forget', id),
+    onProgress: (cb) => {
+      const handler = (_e: IpcRendererEvent, text: string) => cb(text)
+      ipcRenderer.on('agent:progress', handler)
+      return () => {
+        ipcRenderer.removeListener('agent:progress', handler)
+      }
+    },
+  },
+  tutor: {
+    questions: (lessonId) => ipcRenderer.invoke('tutor:questions', lessonId),
+    generate: (lessonId) => ipcRenderer.invoke('tutor:generate', lessonId),
+    clearQuestions: (lessonId) => ipcRenderer.invoke('tutor:clear', lessonId),
+    verify: (problemId, code) => ipcRenderer.invoke('tutor:verify', problemId, code),
+    cancel: () => ipcRenderer.invoke('tutor:cancel'),
+    onProgress: (cb) => {
+      const handler = (_e: IpcRendererEvent, text: string) => cb(text)
+      ipcRenderer.on('tutor:progress', handler)
+      return () => {
+        ipcRenderer.removeListener('tutor:progress', handler)
+      }
+    },
   },
   onMenu: (cb) => {
     const handler = (_e: IpcRendererEvent, event: MenuEvent) => cb(event)

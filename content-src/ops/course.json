@@ -23,9 +23,13 @@
         "ops-health-probes",
         "ops-autoscaling",
         "ops-serverless-coldstart",
-        "ops-migrations-cron"
+        "ops-migrations-cron",
+        "ops-safe-migrations"
       ],
-      "problemIds": []
+      "problemIds": [
+        "ops-003",
+        "ops-005"
+      ]
     },
     {
       "id": "ops-observability",
@@ -36,9 +40,14 @@
         "ops-tracing",
         "ops-alerting",
         "ops-slo-sli",
-        "ops-latency-tail"
+        "ops-latency-tail",
+        "ops-debugging-production",
+        "ops-capacity-load"
       ],
-      "problemIds": []
+      "problemIds": [
+        "ops-001",
+        "ops-002"
+      ]
     },
     {
       "id": "ops-resilience",
@@ -50,7 +59,9 @@
         "ops-cost",
         "ops-incidents"
       ],
-      "problemIds": []
+      "problemIds": [
+        "ops-004"
+      ]
     }
   ]
 }

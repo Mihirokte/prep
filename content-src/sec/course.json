@@ -20,20 +20,55 @@
       "lessons": [
         "sec-tls",
         "sec-encryption",
-        "sec-waf-ddos"
+        "sec-waf-ddos",
+        "sec-data-lifecycle"
       ],
-      "problemIds": []
+      "problemIds": [
+        "sec-002"
+      ]
     },
     {
       "id": "sec-webvuln",
       "title": "Web & app vulnerabilities",
       "summary": "The application-layer attacks from the OWASP Top 10 — for each, what it is, a concrete example, and the standard mitigation.",
       "lessons": [
+        "sec-threat-modeling",
         "sec-cors-csrf",
         "sec-injection",
         "sec-ssrf"
       ],
+      "problemIds": [
+        "sec-001",
+        "sec-003"
+      ]
+    },
+    {
+      "id": "sec-reverse-engineering",
+      "title": "Reverse engineering",
+      "summary": "Reading compiled programs: binary formats, disassembly, decompilation, and proving what a binary does.",
+      "lessons": [
+        "scratch-13-32-program-anatomy-elf-from-scratch",
+        "scratch-13-33-disassembly-and-control-flow",
+        "scratch-13-34-lifting-to-pseudocode",
+        "scratch-13-35-evidence-confidence-and-unknowns",
+        "scratch-13-36-rebuild-and-prove-equal",
+        "scratch-13-37-the-reverse-engineering-landscape",
+        "scratch-13-38-calling-conventions-and-stack-frames",
+        "scratch-13-39-compiler-idioms-and-optimization",
+        "scratch-13-40-linking-loading-and-stripped-binaries",
+        "scratch-13-41-recovering-data-and-types",
+        "scratch-13-42-dynamic-analysis-of-your-own-program",
+        "scratch-13-43-bytecode-and-managed-formats",
+        "scratch-13-44-binary-diffing-and-symbolic-execution",
+        "scratch-13-45-ai-assisted-reverse-engineering"
+      ],
       "problemIds": []
+    }
+  ],
+  "references": [
+    {
+      "label": "AI Engineering from Scratch on GitHub (MIT), imported at 3f9715c",
+      "url": "https://github.com/rohitg00/ai-engineering-from-scratch"
     }
   ]
 }

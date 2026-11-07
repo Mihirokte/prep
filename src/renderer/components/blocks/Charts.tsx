@@ -51,7 +51,7 @@ export function StackChart({ chart }: { chart: Chart }) {
   return (
     <figure ref={ref} className="diagram my-8 px-5 py-5">
       {chart.title && <figcaption className="label mb-4 text-ink">{chart.title}</figcaption>}
-      <div className="flex h-10 w-full border-2 border-ink" role="img" aria-label={`${chart.title ?? 'Breakdown'}: ${chart.rows.map((r) => `${r.label} ${fmt(r.value)}`).join(', ')}`}>
+      <div className="flex h-10 w-full border border-hair-strong" role="img" aria-label={`${chart.title ?? 'Breakdown'}: ${chart.rows.map((r) => `${r.label} ${fmt(r.value)}`).join(', ')}`}>
         {chart.rows.map((r, i) => (
           <div
             key={r.label}
@@ -102,7 +102,7 @@ export function BarChart({ chart }: { chart: Chart }) {
             </span>
             <div className="h-5 border border-hair-strong max-[640px]:col-span-2 max-[640px]:row-start-2">
               <div
-                className="h-full bg-ink"
+                className="h-full bg-fill"
                 style={{ width: seen ? `${(r.value / max) * 100}%` : '0%', transition: `width .7s var(--ease) ${i * 90}ms` }}
               />
             </div>

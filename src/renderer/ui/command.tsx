@@ -24,7 +24,7 @@ function CommandDialog({
       <DialogContent top className={cn('p-0', className)} showCloseButton={showCloseButton}>
         <Command
           className={cn(
-            '[&_[cmdk-group-heading]]:px-7 [&_[cmdk-group-heading]]:pt-4 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:font-label [&_[cmdk-group-heading]]:text-[12px] [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.12em] [&_[cmdk-group-heading]]:text-ink-2',
+            '[&_[cmdk-group-heading]]:px-7 [&_[cmdk-group-heading]]:pt-4 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]: [&_[cmdk-group-heading]]:text-[14px] [&_[cmdk-group-heading]]: [&_[cmdk-group-heading]]: [&_[cmdk-group-heading]]:text-ink-2',
           )}
         >
           {children}
@@ -71,7 +71,7 @@ function CommandItem({ className, ...props }: React.ComponentProps<typeof Comman
   )
 }
 function CommandShortcut({ className, ...props }: React.ComponentProps<'span'>) {
-  return <span data-slot="command-shortcut" className={cn('ml-auto font-label text-[12px] tracking-[0.12em] text-ink-2', className)} {...props} />
+  return <span data-slot="command-shortcut" className={cn('ml-auto text-[14px] text-ink-2', className)} {...props} />
 }
 
 export { Command, CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut, CommandSeparator }

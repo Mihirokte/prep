@@ -6,8 +6,11 @@ import Markdown, { slug } from '../components/Markdown'
 import { LessonNotes } from '../components/ui'
 import { NotFound, BackLink } from '../components/nav'
 import { Button } from '../ui/button'
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../ui/accordion'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { pixelText } from '../components/pixelText'
+import { LessonQuestions } from '../components/Questions'
+import { lessonResources } from '../components/resources'
+import { stripQuestions } from '../../shared/tutor'
 import { cn } from '../lib/utils'
 
 /** The `##` sections of a lesson, outside code fences. */
@@ -24,13 +27,21 @@ function outline(body: string): { id: string; text: string }[] {
 }
 
 export function LessonPage({ courseKey, lessonId }: { courseKey: string; lessonId: string }) {
-  const found = useModel().findLesson(courseKey, lessonId)
+  const m = useModel()
+  const found = m.findLesson(courseKey, lessonId)
   const dispatch = useAppDispatch()
   const entry = useAppSelector((s) => s.progress.lessons[lessonId])
   const root = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState('')
   const [pct, setPct] = useState(0)
-  const sections = useMemo(() => (found ? outline(found.lesson.body) : []), [found])
+  const [tab, setTab] = useState('read')
+  const sections = useMemo(() => (found && tab === 'read' ? outline(found.lesson.body) : []), [found, tab])
+  const resources = useMemo(() => (found ? lessonResources(found.lesson, found.course) : []), [found])
+  const practice = useMemo(
+    () => (found?.chapter.problemIds ?? []).map((id) => m.drillById(id)).filter((d): d is NonNullable<typeof d> => Boolean(d)),
+    [found, m],
+  )
+  useEffect(() => setTab('read'), [lessonId])
 
   // Reading progress and the current section follow the content pane's scroll.
   useEffect(() => {
@@ -64,9 +75,11 @@ export function LessonPage({ courseKey, lessonId }: { courseKey: string; lessonI
   return (
     // Balance: the 640px reading column and its 200px outline are centered as
     // one unit; without the outline the column is centered on its own.
-    <div ref={root} className={cn('mx-auto grid max-w-[640px] gap-x-16 pt-2', sections.length > 1 && 'xl:w-fit xl:max-w-none xl:grid-cols-[640px_200px]')}>
+    // The rail sits beside the column only when the pane (not the window) has
+    // room: with the assistant open the pane is 420px narrower.
+    <div ref={root} className={cn('mx-auto grid max-w-[640px] gap-x-16 pt-2', sections.length > 1 && '@min-[904px]:w-fit @min-[904px]:max-w-none @min-[904px]:grid-cols-[640px_200px]')}>
       <div aria-hidden="true" className="pointer-events-none sticky top-0 z-20 col-span-full -mt-2 mb-4 h-[2px]">
-        <div className="h-full bg-ink transition-[width] duration-150" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-fill transition-[width] duration-150" style={{ width: `${pct}%` }} />
       </div>
       <article className="min-w-0">
         <BackLink href={`#/study/${course.key}`}>
@@ -77,20 +90,60 @@ export function LessonPage({ courseKey, lessonId }: { courseKey: string; lessonI
           {lesson.minutes} min
           {lesson.deeper ? ', with a deeper dive' : ''}
         </p>
-        <div className="mt-10">
-          <Markdown body={lesson.body} scope={lessonId} />
-        </div>
-
-        {lesson.deeper && (
-          <Accordion type="single" collapsible className="mt-14 border-y-2 border-ink">
-            <AccordionItem value="deeper" className="border-b-0">
-              <AccordionTrigger>Go deeper</AccordionTrigger>
-              <AccordionContent className="pt-4">
-                <Markdown body={lesson.deeper} scope={lessonId} />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        )}
+        {/* One topic, three parts: read it, read around it, test yourself. */}
+        <Tabs value={tab} onValueChange={setTab} className="mt-8">
+          <TabsList>
+            <TabsTrigger value="read">Read</TabsTrigger>
+            <TabsTrigger value="resources">Resources{resources.length + practice.length > 0 && ` (${resources.length + practice.length})`}</TabsTrigger>
+            <TabsTrigger value="questions">Questions</TabsTrigger>
+          </TabsList>
+          <TabsContent value="read" forceMount className="data-[state=inactive]:hidden">
+            <Markdown body={stripQuestions(lesson.body)} scope={lessonId} />
+            {lesson.deeper && (
+              <section className="mt-12 border-t border-hair pt-8">
+                <h2 className="mb-4">Go deeper</h2>
+                <Markdown body={stripQuestions(lesson.deeper)} scope={lessonId} />
+              </section>
+            )}
+          </TabsContent>
+          <TabsContent value="resources">
+            {resources.length === 0 && practice.length === 0 ? (
+              <p className="text-ink-2">No extra reading for this topic yet.</p>
+            ) : (
+              <div className="flex flex-col gap-8">
+                {resources.length > 0 && (
+                  <section>
+                    <h2 className="mb-3">Further reading</h2>
+                    <div className="list">
+                      {resources.map((r) => (
+                        <a key={r.url} href={r.url} target="_blank" rel="noopener" className="row flex-col !items-start !gap-0">
+                          <span className="text-brand">{r.label}</span>
+                          <span className="label truncate">{r.url.replace(/^https?:\/\//, '')}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {practice.length > 0 && (
+                  <section>
+                    <h2 className="mb-3">Practice</h2>
+                    <div className="list">
+                      {practice.map((d) => (
+                        <a key={d.id} href={`#/drill/${d.id}`} className="row">
+                          <span className="min-w-0 flex-1 truncate">{d.title}</span>
+                          <span className="label">{d.difficulty}</span>
+                        </a>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+          </TabsContent>
+          <TabsContent value="questions">
+            <LessonQuestions lesson={lesson} />
+          </TabsContent>
+        </Tabs>
 
         <div className="mt-14">
           <p className="label mb-2">Notes</p>
@@ -119,7 +172,7 @@ export function LessonPage({ courseKey, lessonId }: { courseKey: string; lessonI
       </article>
 
       {sections.length > 1 && (
-        <aside className="sticky top-6 hidden h-fit xl:block" aria-label="In this lesson">
+        <aside className="sticky top-6 hidden h-fit @min-[904px]:block" aria-label="In this lesson">
           <p className="label mb-3">On this page</p>
           <ol className="border-l border-hair">
             {sections.map((s) => (

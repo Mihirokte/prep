@@ -13,7 +13,7 @@ A model processes a prompt in two phases. Prefill reads all input tokens and bui
 Two provider styles, verified against vendor docs (as of 2026, re-check):
 
 - OpenAI caches automatically on prompts over 1024 tokens, matching the longest previously computed prefix in 128-token increments, with no code change and no extra fee. It advertises up to 80 percent time-to-first-token reduction and up to 90 percent input-token cost reduction on hits (OpenAI, Prompt Caching in the API).
-- Anthropic is explicit opt-in: you mark a `cache_control` breakpoint at the end of a cacheable prefix. A 5-minute cache write costs 1.25x the base input price, a 1-hour write costs 2x, and a read costs 0.1x (Anthropic pricing docs).
+- Anthropic is explicit opt-in: you mark a `cache_control` breakpoint at the end of a cacheable prefix. A 5-minute cache write costs 1.25x the base input price, a 1-hour write costs 2x, and a read costs 0.1x on most models (Anthropic pricing docs). Some of the newest models price reads lower still, so check the current pricing page before you quote a number. This lesson uses 0.1x for the arithmetic.
 
 ```flow
 dir: LR
@@ -26,6 +26,14 @@ prefix -> cache : lookup
 cache -> llm : reuse state
 llm -> req : output
 prefix --> llm : miss recompute
+```
+
+```check
+Q: Each call sends a timestamp line, then the system text, then the tool schemas, then the user message. Cache hits stay near zero. Why?
+- The tool schemas are too long for the cache to hold
+* The timestamp changes each call, so no prefix ever matches
+- The user message changes each call, so the cache resets
+Why: A prompt cache matches from the first token forward and stops at the first difference. A timestamp at the top differs on every call, so nothing after it can match. A changing user message is normal: it sits at the end, after the cached prefix. Move the timestamp, and anything else that varies, after the stable parts.
 ```
 
 ## A worked cost model

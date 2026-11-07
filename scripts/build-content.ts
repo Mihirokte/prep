@@ -11,7 +11,8 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import type { Chapter, Content, Lesson } from '../src/shared/types'
+import type { Chapter, Content, Drill, Lesson } from '../src/shared/types'
+import { lintBlocks } from '../src/shared/blocks'
 import { validateContent } from '../src/shared/validate'
 
 const root = process.cwd()
@@ -30,8 +31,18 @@ interface ChapterDef {
 }
 interface CourseDef {
   course: string
+  /** Set for a course the seed does not have yet: the build creates it. */
+  label?: string
   blurb?: string
+  references?: { label: string; url: string }[]
+  /** Place a new course after this one (defaults to the end). */
+  after?: string
   chapters: ChapterDef[]
+}
+
+interface DrillDef {
+  label?: string
+  drills: Drill[]
 }
 
 if (process.argv.includes('--extract')) {
@@ -74,52 +85,10 @@ const words = (md: string) =>
     .split(/\s+/)
     .filter(Boolean).length
 
-function fences(md: string): { lang: string; text: string }[] {
-  return [...md.matchAll(/```(\w*)\n([\s\S]*?)```/g)].map((m) => ({ lang: m[1], text: m[2] }))
-}
-
 function checkBlocks(id: string, md: string, where: string) {
-  for (const { lang, text } of fences(md)) {
-    const at = `${id} (${where}, ${lang})`
-    if (lang === 'flow') {
-      const nodes = new Set<string>()
-      let edges = 0
-      for (const raw of text.split('\n')) {
-        const line = raw.trim()
-        if (!line || line.startsWith('#') || /^dir\s*:/i.test(line)) continue
-        const e = /^([\w-]+)\s*(-->|->)\s*([\w-]+)(?:\s*:\s*(.+))?$/.exec(line)
-        if (e) {
-          edges++
-          for (const n of [e[1], e[3]]) if (!nodes.has(n)) errors.push(`${at}: edge uses undeclared node "${n}"`)
-          if (e[4] && e[4].length > 24) warnings.push(`${at}: edge label over 24 chars: "${e[4]}"`)
-          continue
-        }
-        const n = /^([\w-]+)\s*:\s*(.+?)(?:\s*\|\s*(\w+))?$/.exec(line)
-        if (n) {
-          nodes.add(n[1])
-          if (n[2].length > 28) warnings.push(`${at}: node label over 28 chars: "${n[2]}"`)
-          if (n[3] && !['step', 'actor', 'model', 'store', 'tool', 'gate'].includes(n[3].toLowerCase())) errors.push(`${at}: unknown node kind "${n[3]}"`)
-        } else errors.push(`${at}: unparseable line "${line}"`)
-      }
-      if (nodes.size > 12) warnings.push(`${at}: ${nodes.size} nodes (max 12)`)
-      if (edges === 0) errors.push(`${at}: no edges`)
-    } else if (lang === 'stack' || lang === 'bars') {
-      const rows = text.split('\n').filter((l) => l.includes('|') && !/^(title|unit):/i.test(l.trim()))
-      if (rows.length < 2 || rows.length > 8) errors.push(`${at}: needs 2 to 8 rows, has ${rows.length}`)
-      for (const r of rows) if (!Number.isFinite(Number(r.split('|')[1]?.trim().replace(/,/g, '')))) errors.push(`${at}: non-numeric value in "${r}"`)
-    } else if (lang === 'steps') {
-      const rows = text.split('\n').filter((l) => l.trim())
-      if (rows.length < 3 || rows.length > 8) warnings.push(`${at}: ${rows.length} steps (3 to 8)`)
-    } else if (lang === 'recall') {
-      const q = (text.match(/^Q:/gm) ?? []).length
-      const a = (text.match(/^A:/gm) ?? []).length
-      if (q !== a || q < 2) errors.push(`${at}: ${q} questions, ${a} answers`)
-    } else if (lang === 'mermaid') {
-      const parts = (text.match(/^\s*participant\s/gm) ?? []).length
-      if (parts > 6) warnings.push(`${at}: ${parts} participants (max 6)`)
-      if (!/sequenceDiagram/.test(text)) errors.push(`${at}: not a sequenceDiagram`)
-    }
-  }
+  const lint = lintBlocks(md, `${id} (${where})`)
+  errors.push(...lint.errors)
+  warnings.push(...lint.warnings)
 }
 
 function checkProse(id: string, md: string) {
@@ -137,8 +106,34 @@ function checkProse(id: string, md: string) {
 
 const seedFile = path.join(root, 'seed', 'content.json')
 const seed = JSON.parse(readFileSync(seedFile, 'utf8')) as Content
-const course = seed.courses.find((c) => c.key === def.course)
-if (!course) throw new Error(`seed has no course "${def.course}"`)
+let course = seed.courses.find((c) => c.key === def.course)
+if (!course) {
+  if (!def.label) throw new Error(`seed has no course "${def.course}" and course.json gives no label to create it`)
+  course = { key: def.course, label: def.label, blurb: def.blurb ?? '', chapters: [] }
+  const at = def.after ? seed.courses.findIndex((c) => c.key === def.after) : -1
+  seed.courses.splice(at < 0 ? seed.courses.length : at + 1, 0, course)
+}
+if (def.label) course.label = def.label
+if (def.references) course.references = def.references
+
+// Optional authored practice for non-DSA courses. The file is additive: it
+// replaces drills with matching ids and preserves unrelated drills already in
+// the seed. This lets a course own its interview exercises without forcing the
+// large DSA pack through this lesson builder.
+const drillFile = path.join(srcDir, 'drills.json')
+if (existsSync(drillFile)) {
+  const authored = JSON.parse(readFileSync(drillFile, 'utf8')) as DrillDef
+  let area = seed.areas.find((a) => a.key === def.course)
+  if (!area) {
+    area = { key: def.course, label: authored.label ?? course.label, drills: [] }
+    seed.areas.push(area)
+  }
+  if (authored.label) area.label = authored.label
+  const byId = new Map(area.drills.map((d) => [d.id, d]))
+  for (const drill of authored.drills) byId.set(drill.id, drill)
+  area.drills = [...byId.values()]
+  course.problemAreaKey = def.course
+}
 
 const allIds = def.chapters.flatMap((c) => c.lessons)
 const dup = allIds.filter((id, i) => allIds.indexOf(id) !== i)
@@ -150,32 +145,23 @@ for (const ch of def.chapters) {
   const lessons: Lesson[] = []
   for (const id of ch.lessons) {
     const file = path.join(srcDir, 'lessons', `${id}.md`)
-    const fallback = path.join(srcDir, 'existing', `${id}.md`)
-    const usedFallback = !existsSync(file)
-    const parsed = usedFallback && !existsSync(fallback) ? null : parseFile(usedFallback ? fallback : file)
+    const parsed = existsSync(file) ? parseFile(file) : null
     if (!parsed) {
-      errors.push(`${id}: no lesson file (and no original to fall back to)`)
+      errors.push(`${id}: no lesson file, or its front matter is malformed`)
       continue
     }
-    if (usedFallback) warnings.push(`${id}: not written yet, keeping the original lesson`)
     const { meta, body, deeper } = parsed
     if (meta.id !== id) errors.push(`${id}: front matter id is "${meta.id}"`)
     if (!meta.title) errors.push(`${id}: missing title`)
-    if (!usedFallback) {
-      if (meta.chapter !== ch.id) errors.push(`${id}: front matter chapter "${meta.chapter}" but course.json puts it in ${ch.id}`)
-      checkBlocks(id, body, 'body')
-      if (deeper) checkBlocks(id, deeper, 'deeper')
-      checkProse(id, body)
-      const wb = words(body)
-      const wd = deeper ? words(deeper) : 0
-      if (courseKey === 'ai') {
-        if (wb < 450 || wb > 1500) warnings.push(`${id}: body is ${wb} words`)
-        if (!deeper) warnings.push(`${id}: no deeper section`)
-      }
-      if (!/```recall/.test(body)) warnings.push(`${id}: no recall block in the body`)
-      if (!/```(flow|mermaid|stack|bars|steps)/.test(body)) warnings.push(`${id}: no diagram in the body`)
-      totalWords += wb + wd
-    }
+    if (meta.chapter !== ch.id) errors.push(`${id}: front matter chapter "${meta.chapter}" but course.json puts it in ${ch.id}`)
+    checkBlocks(id, body, 'body')
+    if (deeper) checkBlocks(id, deeper, 'deeper')
+    checkProse(id, body)
+    const wb = words(body)
+    const wd = deeper ? words(deeper) : 0
+    if (!/```recall/.test(body)) warnings.push(`${id}: no recall block in the body`)
+    if (!/```(flow|mermaid|stack|bars|steps)/.test(body)) warnings.push(`${id}: no diagram in the body`)
+    totalWords += wb + wd
     const minutes = Math.max(2, Math.round((words(body) + (deeper ? words(deeper) : 0)) / 180))
     lessons.push({ id, title: meta.title, minutes, body, ...(deeper ? { deeper } : {}) })
   }
