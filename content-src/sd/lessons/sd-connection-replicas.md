@@ -25,6 +25,15 @@ primary --> r1 : stream changes
 primary --> r2 : stream changes
 ```
 
+```check
+Q: A user updates their display name in a web app, but upon immediate page reload, their old name still displays. Refreshing again several seconds later shows the correct updated name. If read replicas are in use, how should the architecture be adjusted to fix this issue?
+- Direct all database read and write traffic exclusively to read replicas to balance load.
+* Route the user's profile read queries to the primary database temporarily immediately following an update.
+- Increase the connection pool limit on the read replicas so writes propagate instantly.
+- Add a secondary composite index on the user profile table in each replica.
+Why: Replication lag causes read replicas to temporarily serve stale data directly after an update, causing a read-your-writes violation. Routing immediate post-update reads to the primary ensures the user sees their own recent write while keeping the replicas for ordinary read traffic. Directing all reads to the primary or adjusting connection pools does not address the replication stream latency between primary and replicas.
+```
+
 ```recall
 Q: What breaks without a connection pool under a traffic spike?
 A: Each request opens a fresh connection, which is expensive (TCP, auth, session setup) and the database caps concurrent connections. A spike opens thousands at once and the database falls over.

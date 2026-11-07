@@ -28,6 +28,15 @@ What that unlocks:
 
 The discipline flags demand: they are **temporary debt**. Every flag is a branch in your code and a state to test. Remove a flag once its feature is fully rolled out and stable, or you accumulate a maze of dead conditionals and combinatorial test paths that nobody dares delete.
 
+```check
+Q: Engineering finishes building an experimental checkout flow, but product managers want to test it with 5% of users first and retain the ability to shut it off in seconds without redeploying. How should this be implemented?
+* Deploy the code to production with the feature flag set to off, and enable it selectively for a small percentage of users at runtime
+- Keep the feature code on a long-lived branch and merge only after the marketing team gives the launch date
+- Deploy the code directly to production and initiate an emergency container rollback if customers encounter bugs
+- Hardcode the new payment gateway in the codebase and rely on scheduled redeployments to activate it
+Why: Feature flags decouple deployment from release, enabling runtime progressive rollouts and providing an instant kill switch without redeploying. Relying on an emergency container rollback is tempting for safety, but rollbacks require redeployments and are slower and riskier under pressure.
+```
+
 ```recall
 Q: What is the core thing a feature flag decouples, and why does it matter?
 A: It decouples deployment from release. Code can ship to production turned off, so deploy is a low-risk technical event while turning the feature on becomes a business decision made when ready.

@@ -25,6 +25,15 @@ classes -> extend : seams to extend
 
 At SDE2 / ~3 YoE the bar is bounded: correct entity decomposition without prompting, SOLID applied *without over-applying it*, one or two extensions handled cleanly, and comfort with at least one concurrency wrinkle if the role touches backend. Heavy pattern-stacking and distributed variants are senior-only — don't over-prepare defensively at the cost of fluency on the basics.
 
+```check
+Q: During an SDE2 interview for an elevator or parking system, you want to score well on the extensibility axis of the rubric. Which strategy should you adopt?
+- Preemptively build an event-driven plugin architecture with distributed workers to handle any prospective business requirement.
+- Inherit from a deeply nested hierarchy of base classes so every hypothetical vehicle type can reuse existing logic.
+* Design a clean interface or seam, such as a fee calculation strategy, allowing an alternate pricing rule to be added without rewriting existing code.
+- Stack multiple structural and creational design patterns defensively across all classes to showcase senior-level pattern knowledge.
+Why: The extensibility rubric rewards having a clean seam to absorb one realistic extension without a rewrite. Candidates often make the mistake of over-engineering or defensive pattern-stacking to anticipate every hypothetical future, which wastes time and violates simplicity.
+```
+
 ```recall
 Q: Which rubric axis compounds into the others if you get it wrong, and why?
 A: Class design. Weak responsibilities, signatures, and ownership boundaries propagate downstream into poor code quality and brittle extensibility, so a shaky decomposition drags every later axis down with it.

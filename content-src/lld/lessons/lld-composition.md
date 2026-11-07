@@ -25,6 +25,15 @@ hasa -> compose
 
 The exception that proves the rule: **Chess pieces**. `Pawn`, `Rook`, `Bishop` each override `getValidMoves(board, position)`. That *is* correct inheritance — the variation is tied to the piece's permanent identity and every subtype is substitutable (satisfies LSP), so it's not a Strategy you swap at runtime. Use inheritance when the difference is *what a thing is*; use composition when the difference is *what a thing does right now*.
 
+```check
+Q: You are designing an e-commerce platform where a customer's discount calculation changes dynamically based on promotional campaigns and loyalty points. Following the principle of composition over inheritance, how should this be modeled?
+- Subclass Customer into RegularCustomer, SilverCustomer, GoldCustomer, and VIPCustomer, each overriding discount calculations.
+- Create deep inheritance chains like PercentageDiscountCustomer extending TieredCustomer.
+* Have Customer hold a reference to a DiscountStrategy that can be swapped when customer tiers change.
+- Avoid interfaces and implement all discount calculations with conditional branching inside Customer.
+Why: Discount calculation is a behavior that can change at runtime rather than a customer's permanent identity, making Strategy (composition) the appropriate pattern. Subclassing Customer based on discounts locks behavior at compile time and creates rigid inheritance hierarchies. Using a single class with complex branching avoids composition and becomes difficult to maintain.
+```
+
 ```recall
 Q: What is the decision rule for composition over inheritance?
 A: Use composition (has-a) when the thing that varies is behavior you may swap at runtime; use inheritance (is-a) when the variation is tied to the object's permanent identity and every subtype is substitutable everywhere the base is used.

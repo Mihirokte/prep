@@ -6,6 +6,15 @@ minutes: 3
 ---
 A schema migration is a distributed compatibility problem because old code, new code, primary data, replicas, caches, and background jobs overlap. The reliable pattern is expand, migrate, contract. Each phase is reversible until the destructive step is deliberately accepted.
 
+```check
+Q: Your team needs to rename a user column from old_name to full_name on a high-traffic production table without causing downtime or breaking active application replicas. What is the correct sequence of steps?
+- Perform a single atomic deployment that alters the table to drop old_name and creates full_name
+* Expand by adding full_name, dual-write to both, backfill historical rows, validate equivalence, switch reads to full_name, and contract by dropping old_name
+- Immediately switch all application reads to full_name and run a background script to rename the column in place
+- Backfill all historical rows into full_name in a single large UPDATE query during peak hours to finish quickly
+Why: Following expand-migrate-contract allows old and new application versions to coexist and maintain rollback safety throughout the transition before any destructive change. Doing the migration in a single deployment or dropping the column prematurely breaks older running binaries or prevents safe rollback. Backfilling in one giant update causes locks and replica lag rather than throttled, resumable batches.
+```
+
 ## Expand before switching
 
 Add the new column, table, index, or event field without removing the old representation. Prefer additive changes that both application versions can tolerate. Deploy code that understands both formats. If dual writes are required, define which representation is authoritative and how divergence is measured.

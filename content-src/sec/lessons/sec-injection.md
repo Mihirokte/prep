@@ -37,6 +37,15 @@ page -> encode : escape for context
 encode -> victim : renders as text
 ```
 
+```check
+Q: A developer is building a user profile lookup endpoint that queries a SQL database based on a username provided in a web form. Which implementation directly prevents SQL injection attacks?
+- Sanitize the user input by escaping single quote and semicolon characters before concatenating it into the query.
+* Pass the user input separately as a bound parameter to a prepared statement.
+- Restrict database account permissions so the application runs with least-privilege access.
+- Validate that the user input matches an alphanumeric pattern before string concatenation.
+Why: Using parameterized queries ensures the query structure is fixed and sent separately from untrusted values so input is never parsed as SQL code. While input sanitization via manual escaping or pattern validation seems intuitive, the lesson notes that string escaping by hand is not the fix and can miss cases. Account least-privilege serves only as defense in depth rather than preventing query manipulation.
+```
+
 ```recall
 Q: Why do parameterized queries stop SQL injection where manual escaping does not?
 A: The query structure is fixed and sent separately from the values, so input can never be parsed as SQL. Hand-escaping is error-prone and misses cases.

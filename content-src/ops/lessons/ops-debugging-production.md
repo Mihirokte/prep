@@ -19,6 +19,15 @@ Test | Change one suspected cause or reproduce it safely
 Verify | Require recovery in both technical and business signals
 ```
 
+```check
+Q: Following a canary release of a new checkout feature, user checkout errors spike immediately in the canary region while the baseline region remains healthy. What is the recommended first action for the on-call engineer to take?
+- Immediately restart the container fleet across all regions to clear corrupted process state.
+* Roll back the feature deployment or safely disable the toggle for the affected cohort.
+- Turn on verbose debug logging across all production clusters to capture internal stack traces.
+- Analyze cross-region infrastructure utilization graphs to determine if hardware is failing.
+Why: The primary priority is to stabilize the system and protect customers using the safest reversible mitigation, such as rolling back or disabling the feature. Restarting instances or turning on verbose debug logging can hide root causes or overload a struggling system while keeping users broken.
+```
+
 ## Work differentially
 
 Compare what is slow with what is not. If only the new version fails, inspect code and configuration differences. If one region fails across versions, inspect regional dependencies and capacity. If p50 is stable but p99 grows, look for contention, queueing, retries, pauses, or a slow downstream cohort rather than general compute shortage.

@@ -35,6 +35,15 @@ Jitter | Add randomness to the delay so clients do not retry in the same instant
 Bound | Stop after max attempts and surface the failure instead of looping forever
 ```
 
+```check
+Q: A payment service receives transient 503 Service Unavailable errors from an external gateway when submitting credit card charges. How should the client implement retries safely?
+- Retry failed charge requests immediately in a tight loop up to 10 times to catch transient network flickers.
+- Retry all requests at a fixed 2-second interval so clients retry in an orderly, predictable cadence.
+* Ensure the charge request includes an idempotency key, back off exponentially, add randomized jitter, and cap maximum attempts.
+- Retry indefinitely with exponential backoff until the payment gateway returns an HTTP 200 OK.
+Why: Credit card charges are non-idempotent operations, meaning retrying without an idempotency key risks charging the customer multiple times; backoff, jitter, and bounded attempts prevent retry storms and infinite looping. Fixed interval retries without jitter cause synchronized retry storms where all clients hit the gateway at the same moment. Retrying indefinitely wastes resources against a dead dependency and never surfaces terminal failures.
+```
+
 ```recall
 Q: What is a retry storm and how does jitter prevent it?
 A: Synchronised clients all retry at the same instant and knock a recovering dependency back over; jitter randomises each client's delay so retries spread out instead of landing together.

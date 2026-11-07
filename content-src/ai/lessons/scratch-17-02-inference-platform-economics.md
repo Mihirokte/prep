@@ -4,6 +4,8 @@ chapter: ai-infrastructure-and-production
 title: Inference Platform Economics: Fireworks, Together, Baseten, Modal, Replicate, Anyscale
 minutes: 0
 ---
+> **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
+
 > The 2026 inference market is no longer GPU time rental. It bifurcates into custom silicon (Groq, Cerebras, SambaNova), GPU platforms (Baseten, Together, Fireworks, Modal), and API-first marketplaces (Replicate, DeepInfra). Fireworks raised price $1/hr per GPU on May 1, 2026, and $4B valuation on 10T+ tokens/day tells you the volume-driven model works. Baseten closed $300M Series E at $5B in January 2026. The competitive positioning rule is simple: Fireworks optimizes latency, Together optimizes catalog breadth, Baseten optimizes enterprise polish, Modal optimizes Python-native DX, Replicate optimizes multimodal reach, Anyscale optimizes distributed Python. This lesson gives you a matrix you can hand a founder.
 
 **Prerequisites:** [Managed LLM Platforms: Bedrock, Vertex AI, Azure OpenAI](#/study/ai/scratch-17-01-managed-llm-platforms), [Serving models](#/study/ai/ai-inference-serving)

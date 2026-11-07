@@ -33,6 +33,15 @@ bucket -> reject : no tokens
 
 Two design points that score: make the per-client counter update **atomic** (lock or CAS), and keep per-client state **independent** — keyed `Map<ClientId, BucketState>`, never one global counter, so one client's traffic can't eat another's quota. State usually lives in a shared store (Redis) because a per-server limit behind a load balancer isn't a real limit.
 
+```check
+Q: You are designing an API rate limiter deployed across several load-balanced application instances. You want to enforce a sustained request limit while allowing short, controlled traffic bursts for each client. Which architectural design best meets these requirements?
+- A single global token bucket counter shared across all clients on each instance
+- Sliding window log tracking individual request timestamps per client in local memory
+* A token bucket keyed by client identifier stored in a shared Redis instance
+- A fixed-window counter maintained in local memory on each application server
+Why: Token bucket allows controlled bursts while maintaining sustained limits, and per-client state must be keyed and stored in a shared store like Redis so load-balanced instances enforce the true aggregate limit. Learners frequently maintain local in-memory counters or use a single global bucket, which respectively fail behind load balancers and cause cross-client quota starvation.
+```
+
 ```recall
 Q: Why is the rate limiter the canonical LLD concurrency problem?
 A: Correctness and Scarcity apply at once: concurrent requests from one client update a shared counter or bucket that must be updated atomically, and the whole purpose is bounding a scarce resource. It forces both an atomicity decision and a resource-cap design.

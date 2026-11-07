@@ -24,6 +24,15 @@ sequenceDiagram
 
 The result is a waterfall view: you see each span's duration and can point at the exact service and call that dominated the latency or threw the error. This is the pillar that answers **"where"** in a microservice system, and it's why teams standardize on a propagation format (OpenTelemetry) — a trace is only as good as its weakest, un-instrumented hop.
 
+```check
+Q: During a checkout request involving five microservices, an engineer views a distributed trace but notices that after the notification service is reached, all subsequent downstream database and logging calls are missing from the timeline. What is the most likely cause of this gap?
+- The system administrator forgot to configure network routes between the payment service and the database.
+* The notification service received the request but did not propagate the trace id to downstream calls, breaking the timeline.
+- The notification service ran on a slower machine, which artificially inflated the duration of the entire trace.
+- The database failed to record the start time of its query span, causing the trace id to be reassigned.
+Why: If a service touches a request but fails to pass along the trace id in its calls, downstream spans cannot be linked to the parent timeline. A missing network route would typically cause an explicit connection error rather than silent omission of downstream spans in the trace viewer.
+```
+
 ```recall
 Q: What is the role of the trace id versus a span?
 A: The trace id identifies one request across the whole system; each service records a span for its own slice of work tagged with that trace id and its parent span, so the spans can be stitched into one timeline.

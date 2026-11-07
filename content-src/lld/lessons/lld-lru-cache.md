@@ -29,6 +29,15 @@ tail -> map : evict removes key
 
 **LFU variant** (harder follow-up): evict least-*frequently*-used, which needs a frequency count per key plus a map of frequency → doubly-linked list of keys at that frequency, so ties break by recency within a bucket.
 
+```check
+Q: You need to make an existing single-threaded LRU cache implementation thread-safe so multiple threads can call get() and put() concurrently. How should concurrency be managed?
+- Replace the doubly linked list with a singly linked list to conserve memory.
+* Place a single lock around both the hash map and the doubly linked list.
+- Use atomic compare-and-swap operations on the hash map bucket and list node pointers.
+- Assign one lock guarding the hash map and a separate lock guarding the doubly linked list.
+Why: Operations like get() and put() must update both the lookup map and the recency list together to maintain consistency, requiring a single lock across both structures. Learners often attempt fine-grained locking with separate locks for the map and list or try to use atomics, which leads to race conditions or deadlocks during simultaneous updates.
+```
+
 ```recall
 Q: Why does an LRU cache need both a hash map and a doubly linked list?
 A: The map gives O(1) lookup by key; the doubly linked list keeps entries ordered by recency and supports O(1) unlink and move-to-head. Neither alone is O(1) on both get and put, so the two compose.

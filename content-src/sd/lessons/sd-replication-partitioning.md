@@ -37,6 +37,15 @@ router -> p2
 router -> p3 : skewed key
 ```
 
+```check
+Q: An analytics application running on a single database server is running out of disk space and cannot keep up with high write throughput. Which architecture change directly addresses both limitations?
+- Add asynchronous replicas to distribute writes across replica nodes.
+* Partition the database across nodes so different data is split across machines.
+- Add read replicas to reduce storage requirements on the primary node.
+- Shard the database by country to guarantee an even distribution of storage and write load.
+Why: Partitioning splits different data across nodes, providing storage beyond one machine and enabling write scaling. A common mistake is adding read replicas, but replication only creates copies of the existing data to aid availability and read scaling rather than write throughput or storage capacity. Sharding by country is also risky because uneven traffic distribution across regions can create hot partitions.
+```
+
 ```recall
 Q: Replication and partitioning both use multiple nodes. What is the difference in what they buy?
 A: Replication keeps copies of the same data, buying availability and read scaling. Partitioning splits different data across nodes, buying write scaling and storage beyond one machine.

@@ -27,6 +27,15 @@ sequenceDiagram
 
 Principles that make it work: keep the pipeline **fast** (developers won't wait 40 minutes), keep it **trustworthy** (a red build must mean a real problem, or people start ignoring it), and make every build produce **one immutable, versioned artifact** that is promoted unchanged through environments — you test the exact thing you ship.
 
+```check
+Q: A team wants to align their deployment pipeline with core CI/CD principles. Which practice correctly reflects these principles?
+- Rebuilding separate binary packages inside the staging and production environments to match their specific target OS libraries.
+* Building and testing a container image once in CI, then promoting that exact image unchanged through staging to production.
+- Running automated unit tests only when pushing code directly to the production branch.
+- Allowing builds with intermittent test failures to proceed directly to deployment so long as the developer manual check passes.
+Why: Producing a single immutable, versioned artifact in CI and promoting it unchanged ensures that what was tested is identical to what runs in production. Rebuilding per environment introduces environmental discrepancies, and ignoring test failures or testing only on prod undermines pipeline trustworthiness and early integration checks.
+```
+
 ```recall
 Q: Why is catching integration problems within minutes the point of CI?
 A: The change is still small and fresh in the author's head, so it is cheap to fix. Catching it weeks later forces a painful merge after many changes have piled on top.

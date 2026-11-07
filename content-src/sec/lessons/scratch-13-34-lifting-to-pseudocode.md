@@ -193,6 +193,15 @@ Now Ghidra's `param_3` has an explanation. `idivl` writes `%rdx`, and the psABI 
 
 On the zero path, `xorl %eax, %eax` writes only `%eax`. Ghidra read `%rdx` there as an input of the function, and that input became `param_3`. The instructions are right. The signature is a guess about the parts the instructions leave open.
 
+```check
+Q: A decompiler analyzes a 16-byte compiled C function that originally took two int parameters and returned an int, but outputs pseudocode with three parameters and a 16-byte struct return value. Assuming all machine instructions were decoded accurately, what explains this difference?
+- The decompiler identified a vulnerability or compiler bug where extra memory is allocated on the stack.
+* The instructions are correct, but the decompiler guessed the signature because idivl writes %rdx with no caller information to constrain the return width.
+- The decompiler encountered corrupted bytecode or an invalid opcode in the relocatable object file.
+- The compiler emitted code adhering to a 128-bit integer calling convention where all arithmetic functions require three arguments.
+Why: Machine code lacks explicit type signatures; because idivl writes both %rax (quotient) and %rdx (remainder), the decompiler guessed a 16-byte return across %rax:%rdx and inferred a third parameter on paths where %rdx was uninitialized. Assuming the decompiler found a compiler bug or stack corruption fails to recognize that pseudocode signatures are unconstrained inferences when analyzing isolated object files without callers.
+```
+
 ## Stage 5: SSA, One Name per Definition
 
 After lifting, `grade` writes `rax` four times and `rcx` three times. Cytron, Ferrante, Rosen, Wegman, and Zadeck (1991) define static single assignment form. Each variable is assigned exactly once, and phi functions at join points select among the definitions that reach them. Their construction has two steps. Section 5.1 places phi functions using dominance frontiers, and section 5.2 renames every definition and use with a walk over the dominator tree. `insert_phis()` and `rename()` follow those two sections.

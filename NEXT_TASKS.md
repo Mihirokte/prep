@@ -22,7 +22,7 @@ Updated: 2026-11-06
 - Updated README counts and behaviour descriptions.
 - Fixed the verifier to find the dynamic local-validation button by accessible label. The previous timeout was caused by verification waiting for the old literal `Check syntax` text after the button became `Run 6 tests`, not by evidence of a Pyodide boot failure.
 
-Current seed totals: 7 learning areas, 7 courses, 46 chapters, 689 lessons, 254 drills, and 29 DSA patterns. Of 148 runnable DSA packs, only 5 currently have authored local correctness cases.
+Current seed totals (revision 9): 6 courses, 46 chapters, 562 lessons, 254 drills, and 29 DSA patterns. 109 of 148 DSA packs have local correctness cases; 99 lessons have a mid-lesson `check`.
 
 ## Verification already completed
 
@@ -41,9 +41,9 @@ Current seed totals: 7 learning areas, 7 courses, 46 chapters, 689 lessons, 254 
 
 ## Next tasks, in order
 
-3. Expand authored local tests from the current 5 DSA packs in deliberate batches. Start with high-frequency array/hash, two-pointer, sliding-window, binary-search, stack, tree, graph, and DP problems. Use traceable examples plus meaningful edge cases; do not generate a large quantity of weak cases. Keep LeetCode as the stated full judge.
-4. Audit the older non-AI lessons for active-recall depth. Add `check` prompts where a lesson currently reads like notes only, prioritising LLD, system design, operations, and security. Preserve the existing course rather than creating another track.
-5. Done (seed revision 7): the AI from Scratch course is gone. 407 of its lessons are chapters of AI Engineering, 14 reverse-engineering lessons are a Security chapter, and 121 lessons that repeated a topic were removed, as were 6 duplicates between the original courses. Source "Phase X · YY" and "Lesson NN" references are now Prep links (seed revision 8). Remaining: fact-check the imported lessons, starting with Infrastructure & Production (prices and vendor details); 123 lessons have no questions until Generate is pressed.
+3. Done (revision 9): `scripts/author-tests.ts` gave 104 more packs local cases (109 of 148). agy proposes inputs only; python3 runs the reference solution, a pack is kept only if the reference reproduces every statement example, and edge expectations are the reference's output. Remaining 39: linked-list, tree, in-place and class packs (the worker passes plain values only), problems with several valid answers (Course Schedule II), and packs whose statement has no example. They need a custom checker in the worker.
+4. Done (revision 9): `scripts/author-checks.ts` added a `check` to 93 sd/lld/arch/ops/sec lessons, each grounded on a verbatim quote from the lesson. Skipped: 8 core lessons and 10 reverse-engineering lessons where no grounded question passed.
+5. Done (seed revision 7): the AI from Scratch course is gone. 407 of its lessons are chapters of AI Engineering, 14 reverse-engineering lessons are a Security chapter, and 121 lessons that repeated a topic were removed, as were 6 duplicates between the original courses. Source "Phase X · YY" and "Lesson NN" references are now Prep links (seed revision 8). Infrastructure & Production lessons now open with a note that their prices and latencies are 2025-26 snapshots. Remaining: a line-by-line fact check of the imported lessons; 123 lessons have no questions until Generate is pressed.
 6. Add validation and actionable error reporting around progress import/export, then test migration from older seed revisions without overwriting learner-authored state.
 7. Continue expanding operations and security only where the SDE-2 curriculum audit shows a concrete gap; keep lessons concise and scenario-driven.
 

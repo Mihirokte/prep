@@ -23,6 +23,15 @@ email -> iface : implements
 sms -> iface : implements
 ```
 
+```check
+Q: A codebase contains a base class Bird with a method fly(). When adding Penguin, the developer overrides fly() to raise NotImplementedError. Which SOLID principle does this directly violate?
+- Violates Single Responsibility Principle because Bird handles both flying and walking.
+* Violates Liskov Substitution Principle because Penguin cannot be safely substituted where Bird is expected without breaking caller assumptions.
+- Violates Interface Segregation Principle because callers are forced to depend on methods they do not use.
+- Violates Dependency Inversion Principle because Bird depends on concrete flight implementations.
+Why: Liskov Substitution Principle requires that subtypes be substitutable for their base types without breaking caller expectations. Having a Penguin subclass throw an exception on fly() breaks code expecting any Bird to successfully fly. While splitting capabilities into interfaces relates to design, raising NotImplementedError in an inherited method is a textbook LSP violation.
+```
+
 ```recall
 Q: Why does over-applying SOLID read as weak judgment rather than strength?
 A: SOLID came from inheritance-heavy design; applying it maximally adds ceremony (needless interfaces, split classes) that modern composition-first code avoids. Naming when a principle does not yet pay off signals you weigh cost against benefit instead of following rules by rote.

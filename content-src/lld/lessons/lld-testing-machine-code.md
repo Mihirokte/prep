@@ -43,6 +43,15 @@ Never make a test wait for real minutes. Inject a clock and advance a fake clock
 
 Concurrency tests need coordination, not `sleep`. Use a barrier to release workers at the same instant, then assert an invariant such as exactly one successful seat reservation. Run the test repeatedly, but do not mistake repetition for proof. The design should make the atomic boundary visible: a lock, transaction, or compare-and-set protects the whole state transition.
 
+```check
+Q: In a machine-coding round, you need to verify that your cinema booking system correctly handles concurrent attempts to reserve the same seat. How should you write this test?
+- Wrap the booking function in an arbitrary sleep to give parallel threads enough time to execute before checking seat count.
+- Verify that private helper methods and internal collection pointers are updated during a transaction.
+* Synchronize competing operations with a barrier or latch and assert that only one booking succeeds while invariant rules hold.
+- Rely purely on repeated sequential unit test runs to reach a high code coverage percentage.
+Why: Using coordination primitives like barriers or latches ensures competing workers execute concurrently without arbitrary sleeps, which cause flakiness and slowness. Testing internal private structures couples tests to implementation details rather than verifying public invariants, and simply running sequential tests repeatedly provides no guarantee of concurrency safety.
+```
+
 ## Finish the round
 
 Before declaring done, run a compact table: empty state, smallest valid input, repeated operation, invalid input, normal path, failure halfway through, and the main race. State what remains untested and why. That honesty is stronger than pretending a rushed demo has production confidence.

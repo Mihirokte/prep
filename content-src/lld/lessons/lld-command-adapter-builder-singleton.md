@@ -24,6 +24,15 @@ hist -> cmd : pop -> undo()
 - **Singleton** — exactly one instance system-wide. The honest take: mostly *don't*. It hides dependencies and makes testing harder (you can't substitute a double for `getInstance()`). Prefer injecting the shared object. When it genuinely earns its place — a parking-lot registry, a global ID generator, a connection pool — thread-safe lazy init is a detail interviewers do *not* expect you to code live.
 - **Template Method** — a fixed skeleton in a base class, subclasses override steps. Simpler than Strategy when the *sequence itself* is the shared contract: a game framework's `setup() → play() → end()`, a report pipeline's `fetch() → transform() → write()`.
 
+```check
+Q: You are designing software for a robotic drawing arm that needs to support stepping backward to undo previous strokes and queuing up a sequence of movements. Which design pattern best addresses this requirement?
+- Adapter pattern, by translating the robot's hardware interface into standard editor method calls.
+* Command pattern, by encapsulating each drawing motion into an object with execute() and undo() methods pushed onto a history stack.
+- Builder pattern, by assembling drawing instructions in a multi-step configuration sequence before sending them to the arm.
+- Singleton pattern, by ensuring only one global instance of the robotic arm exists across all software threads.
+Why: Encapsulating drawing actions into Command objects carrying both execute() and undo() methods naturally enables undo/redo and deferred execution via a history stack. While Builder configures objects with many optional fields, it does not manage action history, execution queues, or reversibility. Adapter bridges incompatible interfaces but provides no mechanism for rolling back state transitions.
+```
+
 ```recall
 Q: What signal tells you a problem wants the Command pattern?
 A: Undo/redo, an action history, or deferred/queued execution. Encapsulating a request as an object with execute() and undo() lets you push it on a history stack or a queue and reverse it later, which a plain method call cannot.

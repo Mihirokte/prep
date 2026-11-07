@@ -24,6 +24,15 @@ Sequence | 12 | per-ms counter on that node
 
 The winning move is usually Snowflake, and the reason to say is "time-sortable + no coordination," which is what makes it fit feeds and logs. The bit split above is Twitter's original layout (per the Snowflake ID spec: 41-bit timestamp, 10-bit machine id, 12-bit sequence).
 
+```check
+Q: You are building a high-volume social feed that stores posts across dozens of database shards. You need 64-bit compact IDs that allow posts to be retrieved roughly sorted by creation time without coordinating across shards on every write. What ID generation strategy should you choose?
+* Twitter Snowflake IDs generated locally on each shard node
+- Auto-incrementing integer IDs allocated locally by each MySQL shard independently
+- Random 128-bit UUIDs generated on the application servers
+- A single central ticket server database allocating every sequential integer on demand
+Why: Snowflake generates 64-bit, time-sortable IDs using local machine IDs and timestamps without requiring inter-node coordination, making it ideal for distributed sharded feeds. Plain auto-increment fails because separate shards generate duplicate IDs without cross-shard coordination. Random UUIDs are bulky (128 bits) and random, which hurts index locality and does not provide time sortability.
+```
+
 ```recall
 Q: Why does plain auto-increment break once you shard?
 A: Each shard allocates ids independently, so two shards both hand out the same value, for example 1001. There is no coordination across shards, so uniqueness is lost.

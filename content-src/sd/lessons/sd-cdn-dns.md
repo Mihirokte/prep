@@ -23,6 +23,15 @@ pop --> origin : miss, fetch
 
 **DNS** is the internet's lookup layer: it turns a name (`api.example.com`) into an IP. It matters in system design for two reasons: it's the *first* hop of every request (a slow or failed DNS resolution stalls everything), and it's a coarse routing tool — **geo-DNS** can return different IPs by region to send users to the nearest data centre, and DNS-level failover can redirect traffic away from a dead region. TTLs on DNS records trade propagation speed against lookup load.
 
+```check
+Q: A frontend team deploys an updated JavaScript bundle to their origin server, but users report seeing an outdated version of the application because intermediate CDN edge nodes are still serving cached content. How should the team solve this invalidation problem?
+- Reduce DNS record TTLs to zero so user browsers bypass local caches and fetch new asset links directly from the origin.
+* Incorporate content hashes into static asset filenames (such as bundle.8f2c.js) during the build process so updates use unique URLs.
+- Configure origin web servers to serve static assets directly and bypass the CDN entirely for all returning users.
+- Rely on geo-DNS routing to route users to the nearest data center whenever an asset changes on the origin.
+Why: Content-hashed filenames turn updated files into completely new URLs, causing the CDN to fetch the new version immediately rather than serving the stale copy until its TTL expires. Geo-DNS routes traffic by geographic region and does not invalidate edge caches. Setting DNS TTL to zero only impacts domain name resolution, not cached HTTP resources at CDN edge PoPs.
+```
+
 ```recall
 Q: What two things does serving assets from a CDN buy you?
 A: Lower latency because users are served from a point of presence physically near them with fewer, shorter hops, and offloading large read traffic from your origin servers. The edge absorbs reads your origin would otherwise handle.

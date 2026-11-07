@@ -29,6 +29,15 @@ Rotate on schedule | The manager issues a new credential and hands it to the app
 Rotate on compromise | On any suspected leak, rotate immediately rather than deleting a line
 ```
 
+```check
+Q: An engineer discovers that a third-party production API key was committed to a public Git repository three days ago. Which action should the team take to resolve this?
+- Delete the file containing the API key in a new git commit and push the change to the repository.
+* Immediately rotate the compromised API key and configure the service to fetch credentials at runtime from a secrets manager.
+- Add the file to .gitignore so subsequent git status checks ignore future edits to the hardcoded key.
+- Revert the commit in git and keep the existing key since the commit is no longer at the HEAD of the branch.
+Why: Once committed, a secret persists permanently in the repository history, meaning deleting the line or reverting the commit is insufficient and the key must be rotated immediately. A tempting mistake is simply removing the secret in a new commit or adding the file to .gitignore, which leaves the exposed key active and recoverable from git history.
+```
+
 ```recall
 Q: Why does deleting a hardcoded key from source not make it safe again?
 A: Once committed, the key stays in git history forever and can be recovered. The only safe response is to rotate the key.

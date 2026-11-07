@@ -35,6 +35,15 @@ Agree session key | Use the authenticated public key material to derive a shared
 Switch to symmetric | Encrypt all application data with the fast session key
 ```
 
+```check
+Q: A medical platform uses HTTPS (TLS 1.3) for all web traffic between patients and its backend API. Once the payload reaches the API server, it is stored in plaintext in an unencrypted database. What protection did TLS provide in this architecture?
+- TLS encrypts the payload so that it remains protected at rest inside the database.
+* TLS guarantees confidentiality, integrity, and server authentication while the data is in transit across the network.
+- TLS eliminates the need for database access controls and secrets managers.
+- TLS uses asymmetric cryptography to encrypt the entire transmission of user records end to end.
+Why: TLS secures communications in transit by providing confidentiality, integrity, and server authentication between client and server, but provides no protection for data at rest once received. A common misconception is assuming TLS end-to-end encryption extends to the database or protects stored records.
+```
+
 ```recall
 Q: Why does TLS use asymmetric crypto only briefly and then switch to symmetric?
 A: Public-key crypto is expensive, so it is used just to authenticate the server and agree on a key. Fast symmetric crypto then encrypts the bulk data.

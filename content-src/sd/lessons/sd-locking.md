@@ -38,6 +38,15 @@ contend -> pess : frequent
 contend -> opt : rare
 ```
 
+```check
+Q: You are designing the user profile update feature where users occasionally update their own display name and bio from a web browser or phone. Which concurrency control approach fits this scenario best?
+- Use a distributed Redis lock with a short TTL across the application servers before each update
+* Use optimistic locking with a version number column and retry on version mismatch
+- Use pessimistic locking with SELECT FOR UPDATE to serialize writes on the user's profile row
+- Remove database concurrency control entirely and rely on caching to handle update collisions
+Why: Because a user rarely updates their profile concurrently from multiple devices, conflicts are rare, making optimistic locking ideal since it avoids locking overhead in the common case. Pessimistic locking works but unnecessarily acquires exclusive row locks and hurts throughput when contention is virtually nonexistent. Distributed locks add unnecessary operational complexity across machines when a simple database row check suffices.
+```
+
 ```recall
 Q: When do you choose optimistic over pessimistic locking?
 A: Optimistic when conflicts are rare, like editing a profile, because you pay nothing in the common case. Pessimistic when a hot row is contended, like last-item inventory, where optimistic retries would storm.

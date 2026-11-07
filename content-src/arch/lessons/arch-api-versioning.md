@@ -28,6 +28,15 @@ Strategies, with a practical split:
 
 **Deprecation:** announce with real dates, use a `Sunset` HTTP header where applicable, and give clients a genuine migration window rather than a silent cutover.
 
+```check
+Q: An engineering team maintains a public REST API and wants to avoid cutting a new version unless strictly necessary. Which proposed change represents a breaking change that requires cutting a new version?
+- Add an optional filter field to an existing GET endpoint.
+- Add a new endpoint /orders/summary alongside /orders.
+* Add a new required currency field to the existing POST /orders request body.
+- Return an existing response field formatted in ISO-8601 string format instead of a custom string format with the same schema type.
+Why: Adding a required field to a request body breaks existing clients because their existing payloads will fail validation. In contrast, adding optional fields or adding new endpoints represents backward-compatible additive evolution that does not break existing clients.
+```
+
 ```recall
 Q: Why is adding a new required field a breaking change even though it looks additive?
 A: Existing clients do not send the field, so requests that worked before now fail validation; "additive" only means safe when old clients keep working unchanged.

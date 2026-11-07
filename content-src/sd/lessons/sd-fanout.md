@@ -38,6 +38,15 @@ cel -> merge
 merge -> out : sorted result
 ```
 
+```check
+Q: You are designing the feed delivery system for a microblogging platform where most accounts have fewer than 200 followers, but a few hundred accounts have tens of millions of followers. Which design avoids write fan-out storms while keeping timeline reads fast?
+- Push to all followers for every user, scaling write queues horizontally to handle peak traffic
+- Pull for all users so that posting requires zero fan-out background work
+* Push posts into follower inboxes for regular users, but pull posts at read time for high-follower celebrities and merge the streams
+- Store all posts only in Redis caches and purge follower feeds on every new post
+Why: A hybrid push-pull architecture prevents the hot-key fan-out storm caused by celebrities with millions of followers while maintaining fast, precomputed reads for regular users. Pure push breaks when a celebrity posts because a single post triggers tens of millions of writes. Pure pull avoids write storms but makes timeline reads expensive for every follower, which degrades read-heavy performance.
+```
+
 ```recall
 Q: What does fan-out on write buy, and where does it break?
 A: It precomputes each follower's feed so reads are a single cheap list fetch, ideal for read-heavy timelines. It breaks when a celebrity with millions of followers posts, since one post becomes millions of writes, the fan-out storm.

@@ -4,6 +4,8 @@ chapter: ai-infrastructure-and-production
 title: Cold Start Mitigation for Serverless LLMs
 minutes: 0
 ---
+> **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
+
 > A large model takes minutes to go from cold to serving: a 70B model on a fresh node needs roughly 3-8 minutes before the first token. In a true serverless world, that is not a warm-up — it is an outage. Mitigations operate at five layers: pre-seeded node images (Bottlerocket on AWS, dual-volume arch), model streaming (NVIDIA Run:ai Model Streamer, native in vLLM), GPU memory snapshots (Modal checkpoints, up to 10x faster restart), warm pools (`min_workers=1`), tiered loading (ServerlessLLM's NVMe→DRAM→HBM pipeline, 10-200x latency reduction), plus a bonus sixth pattern, live migration that moves input tokens (KB) rather than KV cache (GB). Modal publishes 2-4s cold starts as a floor; Baseten 5-10s default, sub-second with pre-warming. This lesson teaches you to measure, budget, and stack the five layers.
 
 **Prerequisites:** [Inference Platform Economics: Fireworks, Together, Baseten, Modal, Replicate, Anyscale](#/study/ai/scratch-17-02-inference-platform-economics), [GPU Autoscaling on Kubernetes: Karpenter, KAI Scheduler, Gang Scheduling](#/study/ai/scratch-17-03-gpu-autoscaling-kubernetes)

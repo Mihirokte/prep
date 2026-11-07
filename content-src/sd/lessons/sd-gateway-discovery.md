@@ -37,6 +37,15 @@ sequenceDiagram
 
 Kubernetes bundles this in: a Service name resolves via cluster DNS to healthy pods, so app code just calls `http://orders`.
 
+```check
+Q: A team is migrating an e-commerce platform from a monolith to microservices (Orders, Users, Payments). They want to enforce API-key validation and global rate limiting without duplicating security logic in every service. Which architectural pattern should they implement?
+- Place a load balancer in front of each service to enforce authentication and parse API keys across service boundaries.
+- Have each internal service implement custom rate limiting and JWT validation middleware to eliminate single points of failure.
+* Deploy an API gateway in front of the services to authenticate requests, enforce rate limits, and route paths to the appropriate internal services.
+- Use service discovery registry lookups directly from public web clients to discover the IP address of each internal service.
+Why: An API gateway acts as the centralized front door that handles cross-cutting concerns such as auth, rate limiting, and request routing across distinct microservices. A load balancer alone does not enforce these policies across different services, but rather distributes traffic across copies of one service. Exposing service discovery directly to public clients breaks encapsulation and does not handle policy enforcement.
+```
+
 ```recall
 Q: Why not put auth and rate limiting inside every service instead of at a gateway?
 A: Those are cross-cutting concerns. Centralizing them at the gateway avoids duplicating and drifting the same logic across every service, and gives one place to enforce policy at the front door.

@@ -33,6 +33,15 @@ Two things people conflate with encryption but shouldn't:
 
 The full posture is data encrypted in transit *and* at rest, keys managed in a KMS with rotation, and passwords hashed with a purpose-built slow function.
 
+```check
+Q: An engineering team stores millions of sensitive customer profile records in a cloud database. They must support regular key rotation without decrypting and re-encrypting every customer record on disk each time. Which design properly implements envelope encryption for this scenario?
+- Generate a single AES data key to encrypt all user records, and store that key directly inside the KMS without local wrapping.
+* Encrypt user records with a local data key, encrypt that data key using a KMS master key, and store only the wrapped data key alongside the ciphertext.
+- Use a fast hash like SHA-256 to encrypt the data keys and KMS master keys so they can be rotated instantly without decrypting data.
+- Encrypt incoming traffic at the load balancer with TLS, but transfer plaintext to internal microservices to avoid key rotation overhead.
+Why: Envelope encryption encrypts bulk data with a data key and protects that data key with a KMS master key, allowing rotation of the master key simply by re-wrapping the data keys. Storing a single unwrapped key in KMS or using fast hashing conflates encryption with hashing and fails to solve bulk re-encryption needs.
+```
+
 ```recall
 Q: Why does envelope encryption let you rotate the master key cheaply?
 A: Only the small data keys are encrypted by the master key, so rotating it re-wraps those keys without re-encrypting the bulk data.

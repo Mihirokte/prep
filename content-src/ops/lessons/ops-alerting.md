@@ -30,6 +30,15 @@ actionable -> ticket : act later
 actionable -> page : act now
 ```
 
+```check
+Q: A platform team is redesigning their alerting rules to reduce alert fatigue. Which of the following alerting rules should be configured to immediately page the on-call engineer at night?
+- Page the on-call engineer whenever an internal database instance reaches 92% CPU utilization for two minutes.
+- Page the on-call engineer whenever an automated nightly backup fails to complete.
+* Page the on-call engineer when user-facing checkout error rates breach the service level objective.
+- Page the on-call engineer whenever a background job discovers that a customer invoice PDF cannot be generated until business hours.
+Why: Alerts that wake someone up should focus on symptoms affecting users that require immediate human action, such as user error rates breaching an SLO. High CPU is a cause metric that often causes alert fatigue without hurting users, while non-urgent background tasks should be routed as tickets.
+```
+
 ```recall
 Q: Why alert on symptoms rather than causes?
 A: Symptoms like a served-error rate above the SLO reflect real user pain, while causes like 90% CPU may be harmless. Cause-based alerts fire constantly and often do not correspond to anyone being hurt.

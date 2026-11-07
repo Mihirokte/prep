@@ -45,6 +45,15 @@ sequenceDiagram
 
 Common footguns to call out: never accept `alg: none`, never confuse "readable" with "safe to store secrets in" (the payload is not encrypted), and validate `exp`, `iss`, and `aud` on every request.
 
+```check
+Q: A microservice receives an incoming HTTP request containing a JWT in the authorization header. How should the microservice verify that the token is valid and untampered?
+- The resource server must decrypt the payload using its private key before checking the claims.
+- The resource server needs to make an API call to the authorization server to confirm the token is valid.
+* The resource server can verify the signature locally using the known secret or public key without contacting an auth server or database.
+- The resource server checks the database to verify the user session exists and matches the token ID.
+Why: Because a JWT is self-contained and cryptographically signed, the receiving server validates the signature and claims locally using a pre-shared key or public key. A common misconception is that the server must call back to the auth server or query a central session database to validate it.
+```
+
 ```recall
 Q: Why can a JWT be verified without a database lookup?
 A: It is self-contained and signed, so the resource server checks the signature with the known key locally. No call back to the auth server is needed.

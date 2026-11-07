@@ -20,6 +20,15 @@ Team / Conway | Make sure one real coherent team can own the boundary end to end
 Change cadence | Split parts that change for different reasons on different timelines; keep together parts that always change at once
 ```
 
+```check
+Q: A team is refactoring a monolithic e-commerce application into services. According to boundary heuristics, which approach to drawing service boundaries is recommended?
+- Split orders and inventory into separate services because 'Order' and 'InventoryItem' are different database tables.
+* Keep order capture and order cancellation together in the same service because they are tightly linked and handled by the same team, while separating fulfillment tracking which changes under distinct logistics requirements.
+- Create a shared database service so all application services query their data through a single consistent persistence layer.
+- Divide the service boundary directly down the middle between the frontend team and backend team so each owns half of the business logic.
+Why: Keeping components that share ownership and change cadence together avoids unnecessary cross-service coordination, while separating parts with distinct stakeholders and timelines creates clean capability boundaries. Splitting by database tables or entities falls into the trap of drawing lines around nouns in the code rather than independent capabilities. A shared database service creates an anti-pattern technical layer, and splitting across team halves violates Conway's law.
+```
+
 ```recall
 Q: Why is "a database service" a boundary anti-pattern?
 A: Boundaries should align with business capabilities, not technical layers; a database service splits a horizontal layer, so every capability must cross it to do anything, which couples everyone to it.

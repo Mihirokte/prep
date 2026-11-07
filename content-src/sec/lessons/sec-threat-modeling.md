@@ -6,6 +6,15 @@ minutes: 3
 ---
 Threat modeling turns a design into a prioritized security argument. It asks what must be protected, who can attack it, where trust changes, and which failures matter most. Starting with a catalog of controls produces expensive defenses without proving they address the real risk.
 
+```check
+Q: A development team is designing a new multi-tenant file sharing service and wants to ensure security investments target the highest risks effectively. How should they begin threat modeling before implementing controls?
+- Purchase and deploy a comprehensive catalog of vendor security products prior to analyzing application architecture.
+* Map assets, trust boundaries, and data flows first, then formulate concrete attack stories to evaluate where controls and tests are needed.
+- Focus exclusively on theoretical administrator privilege escalation paths, as public-facing authorization bypasses pose lower organizational risk.
+- Catalog threats strictly by generic categories without specifying actors, preconditions, or impacted assets.
+Why: Effective threat modeling starts by mapping assets, entry points, and trust boundaries to construct specific attack stories that drive targeted controls and tests. Beginning with an expensive catalog of security controls or prioritizing exotic admin attacks over accessible public entry points results in misplaced defenses that may not address actual risk.
+```
+
 ## Map the system
 
 List assets such as credentials, private data, money, availability, and administrative authority. Identify actors, entry points, data stores, external dependencies, and trust boundaries. A boundary is where identity, privilege, or control changes: browser to API, API to worker, tenant to shared database, or service to third party.

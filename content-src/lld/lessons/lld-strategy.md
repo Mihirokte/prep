@@ -37,6 +37,15 @@ card -> iface : implements
 upi -> iface : implements
 ```
 
+```check
+Q: You are designing an expense-sharing application like Splitwise that must calculate how expenses are divided among participants using equal shares, exact dollar amounts, or percentages. How should this be structured?
+* Define an ExpenseSplit interface with EqualSplit, ExactSplit, and PercentSplit implementations, delegating split calculations to the selected strategy.
+- Create an ExpenseSplit base class and check isinstance inside the context to handle split math for each type.
+- Use the State pattern so the expense transitions between Split states as users enter amounts.
+- Store a split_type string and write an if/elif chain inside the expense class to calculate shares.
+Why: The different split calculations represent a family of interchangeable algorithms that should vary independently of the client context behind an ExpenseSplit interface. Branching with an if/elif chain or type-checking with isinstance collapses polymorphism and couples the context directly to concrete algorithms.
+```
+
 ```recall
 Q: What signal in a prompt tells you to reach for Strategy?
 A: A pile of if/elif or switch branching on a type or mode. Each branch is one algorithm, so lifting them behind one interface and holding a reference is exactly Strategy.

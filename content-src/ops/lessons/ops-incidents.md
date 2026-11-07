@@ -31,6 +31,15 @@ sequenceDiagram
 
 **Postmortems** are how you convert an outage into a permanent improvement. The non-negotiable principle is **blameless**: the goal is to fix the *system and process*, never to punish a person — because in a blameful culture people hide mistakes and the same failure recurs. A good postmortem records the timeline, the real (often multi-layered) root cause, the customer impact, and — most importantly — **action items with owners** that make this class of failure less likely or less severe. Human error is almost never the root cause; it's a symptom of a system that made the error easy to make and hard to catch.
 
+```check
+Q: During a peak shopping hour, a new deployment introduces an error spike affecting checkout completions. The on-call engineer and the Incident Commander join the bridge. What should be the team's immediate priority?
+- Inspect code diffs and database logs in production to diagnose the exact bug before touching the deployment.
+* Immediately roll back the deployment or toggle the relevant feature flag to restore service.
+- Have the Incident Commander begin modifying application code while the team alerts stakeholders.
+- Identify the developer who approved the pull request and reassign the ticket to them.
+Why: During an active incident, mitigating user impact through rollbacks or feature flags takes precedence over understanding why the failure occurred. A frequent mistake is spending critical minutes investigating the root cause while users continue to experience outages, delaying recovery.
+```
+
 ```recall
 Q: Why does the Incident Commander coordinate rather than fix?
 A: A single person deciding and directing prevents ten people debugging in ten directions. The IC runs the response while others investigate and mitigate, keeping the effort coherent.

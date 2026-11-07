@@ -26,6 +26,15 @@ Contract | Only now remove the old column, since no running code depends on it
 
 **Cron jobs / scheduled tasks.** Recurring work — nightly reports, cleanup, billing runs — needs three properties people forget: **idempotency** (a job that runs twice, because of a retry or overlap, must not double-charge or double-send), **monitoring** (a silent cron that stops firing is invisible until something downstream is missing — alert on *absence* of the expected run), and **overlap handling** (decide what happens if a run starts before the previous one finished).
 
+```check
+Q: You need to split an existing full_name column in a production relational database into first_name and last_name without incurring downtime or risking deployment rollback failures. Following safe database evolution practices, what should you do?
+- Drop the full_name column immediately and deploy the new code that writes to first_name and last_name in a single coordinated release.
+* Add first_name and last_name as new columns, deploy code that writes to both schemas, backfill historical records, and only then drop full_name after verifying stability.
+- Rename full_name to first_name in the database first, then run a background job to populate last_name.
+- Deploy new application code reading first_name and last_name before updating the database schema.
+Why: Safe schema evolution requires an expand-then-contract strategy: make additive changes first, dual-write and backfill, and contract only once the new code is fully stable everywhere. Dropping or renaming the column in a single step is a tempting shortcut, but it breaks running code during rollout or prevents safe rollbacks.
+```
+
 ```recall
 Q: Why does a one-step rename or drop break a zero-downtime deploy?
 A: During rollout old and new code run together, and a rollback may revert to the old code. A destructive change breaks whichever version still expects the removed column, so it must be split into expand then contract.

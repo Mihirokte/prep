@@ -28,6 +28,15 @@ waf -> cache : clean requests
 cache -> origin : only cache misses
 ```
 
+```check
+Q: A high-volume public web service is experiencing bot attacks attempting SQL injection and volumetric DDoS floods that saturate its bandwidth. Which architecture best mitigates these threats while protecting the origin servers?
+- Replace application-level input sanitization entirely with WAF rule sets like OWASP CRS, and route traffic directly to the origin.
+- Deploy origin instances on public IPs and rely strictly on origin CPU auto-scaling to absorb volumetric UDP floods.
+* Place a CDN and DDoS scrubbing service with a WAF in front, aggressively cache responses, and hide origin IPs from public access.
+- Use base64 encoding at the edge to convert incoming payloads before they hit origin database query endpoints.
+Why: Placing a CDN with DDoS scrubbing and a WAF at the edge absorbs volumetric attacks, filters common web exploit signatures, and keeps origin servers shielded from direct traffic. Relying solely on origin scaling or treating a WAF as a complete substitute for secure application code leaves systems vulnerable to bypass and resource exhaustion.
+```
+
 ```recall
 Q: Why is a WAF defense in depth rather than a substitute for fixing code?
 A: Signature rules can be crafted around by a determined attacker, so the app must still be safe on its own. The WAF reduces exposure and buys time.

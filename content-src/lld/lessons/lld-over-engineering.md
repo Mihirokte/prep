@@ -24,6 +24,15 @@ need -> pattern : yes, real need
 
 The tell that separates a senior response from a junior one is *saying the tradeoff out loud*: "I could abstract this now, but I'd be guessing at the shape of a requirement we don't have yet, so I'm keeping it simple until it's justified." Picking simple silently reads the same as not knowing the pattern; naming the choice reads as judgment.
 
+```check
+Q: You are implementing a Tic-Tac-Toe game where a Player only requires a name and a mark ('X' or 'O'). Which approach best avoids over-engineering according to the lesson?
+- Wrap the creation logic in a PlayerFactory to decouple client code from the concrete Player class.
+* Instantiate Player directly with a simple constructor call such as Player(name, mark).
+- Implement a PlayerBuilder with chained setters to construct Player instances safely.
+- Register Player as a Singleton so that only one player instance exists system-wide.
+Why: A simple 2-field object without complex validation order or growth signals should just use a direct constructor call. Introducing a Builder or Factory adds unnecessary boilerplate and indirection when a constructor is perfectly sufficient.
+```
+
 ```recall
 Q: When does a Factory earn its place, and when is it over-engineering?
 A: It earns its place when the prompt says "support multiple types of X" or a third type is clearly imminent. For two hardcoded types with no growth signal a plain constructor call is simpler and a Factory is ceremony.

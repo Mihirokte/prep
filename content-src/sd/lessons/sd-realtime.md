@@ -28,6 +28,15 @@ ps -> s2 : deliver
 s2 -> recv : push
 ```
 
+```check
+Q: You are building a live dashboard widget that displays real-time sports scores to users. Users only view the scores and never send messages or actions back through that connection. Which transport protocol fits this scenario best according to the lesson?
+- Set up WebSocket connections between clients and servers so users can publish and receive updates on the same bidirectional channel.
+* Use Server-Sent Events (SSE) since the feed only requires streaming updates from the server to clients over HTTP.
+- Implement short polling every few seconds to keep the implementation simple and request-shaped without maintaining open connections.
+- Use long polling to avoid stateful connections on the server while keeping update latency minimal.
+Why: Server-Sent Events (SSE) is the ideal choice because the widget only streams data one way from server to client over HTTP. WebSockets is a common and tempting pick for live updates, but it adds unnecessary bidirectional complexity when client-to-server traffic is not needed. Short polling is wasteful and laggy compared to persistent push options.
+```
+
 ```recall
 Q: Why is short polling wasteful compared to WebSockets for a chat app?
 A: Short polling fires a request every N seconds whether or not there is data, wasting requests and adding lag. A WebSocket holds one persistent connection and the server pushes only when there is something to send.

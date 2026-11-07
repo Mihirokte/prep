@@ -25,6 +25,15 @@ sales -> lead : models as
 support -> ticket : models as
 ```
 
+```check
+Q: In a financial platform, the marketing team defines an Account as a user acquisition funnel with lead sources and referral tracking, whereas the core banking team defines an Account as an interest-bearing ledger with balance and posting rules. How should domain-driven design be applied here?
+- Create a single unified Account class shared across all modules with fields for both marketing metrics and banking balances.
+- Force both teams to agree on a single canonical definition of Account so that the term means the same thing everywhere.
+* Define separate bounded contexts for marketing and core banking with distinct Account models and an explicit mapping between them.
+- Split the database immediately without defining boundaries, since different teams must never share any domain concepts.
+Why: The term Account is a polyseme that represents genuinely different concepts with different rules in marketing versus banking. DDD resolves this by giving each context its own internal model rather than forcing an awkward single canonical class. The tempting mistake of creating a single shared class violates bounded context boundaries and leads to conflicting domain logic.
+```
+
 ```recall
 Q: Why does DDD refuse to force one canonical definition of a polyseme like "meter"?
 A: Because the term genuinely means different concepts in different parts of the org; a single canonical model would be wrong somewhere, so each context gets its own precise model with explicit mappings between them.

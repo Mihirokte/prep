@@ -4,6 +4,8 @@ chapter: ai-infrastructure-and-production
 title: Hardware-Specialized Inference Compilation: FP8 and NVFP4 on Blackwell
 minutes: 0
 ---
+> **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
+
 > Hardware-specialized inference compilation trades portability for throughput, and TensorRT-LLM — NVIDIA-only, tuned for Blackwell — is the clearest example of the trade paying off. On GB200 NVL72 with Dynamo orchestration, SemiAnalysis InferenceX measured $0.012 per million tokens on a 120B model in Q1-Q2 2026, against $0.09/M on H100 + vLLM — a 7x economic gap. The stack compounds two floating-point formats with two serving techniques: FP8 stays critical for KV cache and attention kernels because it has the dynamic range they need; NVFP4 (4-bit microscaling) handles weights and activations; multi-token prediction (MTP) and disaggregated prefill/decode add another 2-3x on top. Day-0 model support loads FP4 weights directly without post-training conversion. The catch for 2026 engineering teams: TRT-LLM is open-source but NVIDIA-specific — CUDA- and Blackwell-specialized — so adopting it trades portability for throughput. Run the math on your mix of models and hardware before committing.
 
 **Prerequisites:** [Serving models](#/study/ai/ai-inference-serving), [Building a Complete LLM Pipeline](#/study/ai/scratch-10-13-building-complete-llm-pipeline)

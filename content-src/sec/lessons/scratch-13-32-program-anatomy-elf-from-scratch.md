@@ -144,6 +144,15 @@ code = elf.data[file_offset : file_offset + symbol.st_size]
 ```
 For `percent_change` that is `0x40 + 0`, and the 16 bytes are `85 ff 74 09 29 fe 6b c6 64 99 f7 ff c3 31 c0 c3`. The sizes matter as much as the starts. `grade` ends at `.text` offset `0x3e`. The two bytes `66 90` that follow are a `nop` the compiler added so that `total` starts at `0x40`, a 16-byte boundary. Those two bytes belong to no symbol. [Disassembly and Control Flow: From Bytes to a Graph You Can Check](#/study/sec/scratch-13-33-disassembly-and-control-flow) uses `st_size` as the stop condition for a disassembler, and lesson 36 masks them out before it compares a rebuild.
 
+```check
+Q: You are analyzing a relocatable ELF object file (ET_REL) where sh_addr is 0 for all sections. A symbol table entry for labels.rel has st_shndx pointing to section .rodata, st_value equal to 0x0, and st_size equal to 20. How should your reader locate the exact 20 bytes of labels.rel in the file?
+- Read 20 bytes starting directly at file offset 0x00000000.
+* Look up the section header for .rodata to find its sh_offset, then read 20 bytes starting at sh_offset + 0x0.
+- Map the virtual address 0x0 through the PT_LOAD program header to find the target file offset.
+- Inspect the symbol table (.symtab) to find the file offset recorded in the st_shndx field.
+Why: In an ELF relocatable object, st_value is an offset relative to the section's start, so the file offset must be calculated as sh_offset + st_value - sh_addr. Treating st_value directly as an offset from the start of the file (0x00) is a common failure mode that points to the beginning of the ELF header instead of the section data. Relocatable objects do not have PT_LOAD program headers, and st_shndx stores a section index rather than a file offset.
+```
+
 ## Relocations: What the Zero Bytes Mean
 
 An `Elf64_Rela` is 24 bytes (gABI Figure 4-23): `r_offset`, `r_info`, and a signed `r_addend`, format `<QQq`. The gABI splits `r_info` with two macros: `ELF64_R_SYM(i)` is `i >> 32` and `ELF64_R_TYPE(i)` is `i & 0xffffffff`. In a relocatable file `r_offset` is an offset inside the section named by the table's `sh_info`. The type names and formulas come from the x86-64 psABI, Table 4.9. There `S` is the symbol value, `A` the addend, `P` the place being patched, and `L` the PLT entry. `R_X86_64_64` is `S + A`, `R_X86_64_PC32` is `S + A - P`, and `R_X86_64_PLT32` is `L + A - P`.

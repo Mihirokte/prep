@@ -29,6 +29,15 @@ client -> strat : delegates behavior
 - **Factory vs Strategy** — Factory decides *which object to create*; Strategy decides *which behavior* an already-created object delegates to. They often appear together (a factory hands back a strategy).
 - **Decorator vs subclass** — Decorator is for *runtime-composable* behavior; a plain subclass is for a stable type distinction fixed at design time.
 
+```check
+Q: In an interview, you need to design a service that can dynamically stack optional logging features (such as runtime-configurable console output, file persistence, and network forwarding in various combinations). Which pattern fits this requirement without forcing inheritance?
+- Introduce an Adapter pattern to adapt the logger interface.
+- Create subclasses for every valid combination of destinations.
+* Apply the Decorator pattern to wrap the logger with composable destination behaviors.
+- Refactor the entire logging subsystem around a Singleton.
+Why: Decorator is specifically intended for stacking dynamic, runtime-composable behaviors in arbitrary combinations. Subclassing creates an exponential class explosion for combinations fixed at compile time, while an Adapter is only for translating mismatched interfaces.
+```
+
 ```recall
 Q: What is the single biggest mistake with design patterns in an interview?
 A: Forcing a pattern where plain code would do. Patterns should fall out of good design decisions, not drive them; reaching for three or more is a sign you are forcing them.

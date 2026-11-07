@@ -28,6 +28,15 @@ compare -> metrics : differences
 
 Shadow traffic is useful for read paths but must not duplicate writes. For writes, use a controlled dual-write, change-data-capture stream, or backfill plus incremental catch-up. Define one source of truth during every phase.
 
+```check
+Q: A team is preparing to migrate an order processing service to a redesigned microservice architecture. They want to validate behavioral parity between the old and new services under production traffic before cutting over. Which approach follows safe migration practices?
+- Mirror both read queries and write mutations directly to the new service so its database stays in sync.
+- Declare the migration complete as soon as total row counts match between the old and new databases.
+* Shadow read traffic to compare responses while designating the old service as the sole authoritative writer.
+- Reroute 100% of write traffic to the new service first, while keeping reads on the old service.
+Why: Shadowing is intended for read paths to compare behavior without risk, while writes must remain strictly isolated to a single authoritative source to prevent duplicate side effects. Shadowing write traffic is a tempting mistake, but duplicating write operations causes irreversible side effects like duplicate orders or double-billing.
+```
+
 ## Move in reversible steps
 
 Prepare capacity and dashboards before traffic. Start with internal or low-risk tenants, then increase exposure in small stages. Hold each stage long enough to cover ordinary and delayed workflows. Abort automatically when error, latency, data-difference, backlog, or downstream health crosses a declared threshold.

@@ -33,6 +33,15 @@ Payoff: swapping console input for a GUI touches only `InputHandler`; changing w
 
 Signature detail worth copying: prefer `makeMove(player, row, col) -> bool` over a generic `execute(command)` — a specific signature communicates the contract without documentation. And `getWinner() -> Player?` (nullable) beats returning a string.
 
+```check
+Q: You are extending the Tic Tac Toe design to support a GUI client instead of a console terminal. Following the lesson's separation of concerns, what is the cleanest way to make this change?
+- Update Game and Board to handle mouse click events directly.
+* Modify only InputHandler so it captures GUI clicks instead of console input.
+- Combine InputHandler and Display into a single View class that handles both rendering and clicks.
+- Change Game to accept execute(command) so any user interface can pass arbitrary commands.
+Why: Separating concerns ensures that swapping the user input mechanism from console to GUI only requires changes to InputHandler. Updating Game or Board couples core orchestration or board state to the presentation/input layer. Combining InputHandler and Display mixes two distinct concerns, and adopting a generic execute(command) hides the method contract without solving input separation.
+```
+
 ```recall
 Q: Why is Tic Tac Toe the framework's worked example rather than a harder problem?
 A: It is simple enough that you practice pacing (scope, entities, class design, one deep method) instead of fighting domain complexity. The skill being drilled is the process, not the game logic.

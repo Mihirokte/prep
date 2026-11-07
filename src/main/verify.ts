@@ -552,13 +552,14 @@ async function drillWorkspace(h: AppHandles, win: BrowserWindow) {
   )
 
   // A pack with no authored cases falls back to a syntax check and says so.
-  const plain = packs['dsa-002']
-  await visit(win, '#/drill/dsa-002')
+  const plain = Object.values(packs).find((p) => !p.tests?.length)!
+  const plainId = plain.id
+  await visit(win, `#/drill/${plainId}`)
   await waitFor(() => editorText(win), (t) => t.length > 0, 5000, 'the editor')
   const edited = `${plain.starter_code}\n# autosave probe\n`
   await typeCode(win, edited)
   await sleep(1200)
-  const saved = storedProblems()['dsa-002']?.code ?? ''
+  const saved = storedProblems()[plainId]?.code ?? ''
   check('editor autosaves without pressing Check', saved.includes('# autosave probe'), `stored ${saved.length} chars`)
   const controls = await js<{ verify: boolean; tests: boolean }>(
     win,
@@ -569,7 +570,7 @@ async function drillWorkspace(h: AppHandles, win: BrowserWindow) {
   await js(win, `[...document.querySelectorAll('button')].find((b) => b.textContent === 'Reset')?.click()`)
   await sleep(700)
   const shown = await editorText(win)
-  const after = storedProblems()['dsa-002']?.code ?? ''
+  const after = storedProblems()[plainId]?.code ?? ''
   check(
     'Reset restores the starter code in the editor and on disk',
     squash(shown) === squash(plain.starter_code) && after === plain.starter_code,

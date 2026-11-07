@@ -4,6 +4,8 @@ chapter: ai-infrastructure-and-production
 title: Model Demo Interfaces: From a Function to a Shareable App
 minutes: 0
 ---
+> **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
+
 > A model demo has one contract: an input, a model call, and an output. Put a limit on each part before you share the link.
 
 **Prerequisites:** [Building a Production LLM Application](#/study/ai/scratch-11-13-production-app), [Latency and streaming](#/study/ai/ai-latency), [Eval tools and gateways](#/study/ai/ai-eval-and-gateway-tools)

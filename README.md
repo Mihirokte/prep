@@ -9,7 +9,8 @@ Each topic has three tabs: Read, Resources (the links it cites, the course
 reading list, practice drills) and Questions (its own questions, or a set
 generated on demand). The 148 DSA problems are grouped by pattern; you write
 pseudocode or Python in the editor and press Verify for a review. 254 drills in
-total, local tests where authored; 29 pattern cards, each with a step-through
+total, local tests on 109 of the 148 problems
+(`scripts/author-tests.ts` authors them against the reference solutions); 29 pattern cards, each with a step-through
 walk-through of the real algorithm, mapped to every problem; a spaced-review
 deck built from the lessons' self-check cards; and company research with
 questions, answer sketches and variants. Progress is kept on disk. An

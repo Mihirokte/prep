@@ -19,6 +19,15 @@ Reads | 50000
 
 **When it hurts:** most systems should not use it. It is a targeted tool for a specific asymmetry, not a default architecture. It introduces eventual consistency between the write model and the read model that every caller and every UI now has to account for. If you can't name the read/write asymmetry that forces it, you don't need it.
 
+```check
+Q: An engineering team processes 300 normalized order updates per second while serving 60,000 requests per second for complex, denormalized reporting dashboards. Which assessment best applies CQRS principles to their situation?
+- Adopt CQRS across all entities so that all read and write models stay strictly synchronized and free from lag.
+* Evaluate CQRS because transactional order writes differ fundamentally in shape and scale from pre-joined analytics reads.
+- Avoid CQRS because it requires adopting event sourcing across the entire backend architecture.
+- Adopt CQRS primarily to guarantee immediate read-after-write consistency for dashboard users.
+Why: CQRS is justified when read and write workloads have genuinely different shapes or scale independently by orders of magnitude. The tempting idea of using CQRS to guarantee immediate consistency is incorrect because CQRS introduces eventual consistency between read and write models. Additionally, CQRS does not mandate event sourcing, nor should it be applied as an org-wide default.
+```
+
 ```recall
 Q: What specific asymmetry justifies CQRS?
 A: Read and write workloads with genuinely different shapes or scale, such as normalised transactional writes versus heavily denormalised dashboard reads, or reads outscaling writes by orders of magnitude.

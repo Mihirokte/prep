@@ -23,6 +23,15 @@ router -> c2 : subset B
 router -> c3 : subset C
 ```
 
+```check
+Q: An API gateway routes checkout traffic to both an essential payment gateway and a secondary fraud scoring API. When the fraud scoring API experiences high latency, the entire gateway becomes unresponsive to all checkout requests. How should this be resolved using the bulkhead pattern?
+- Combine all downstream external API calls into a single shared HTTP connection pool with a uniform 30-second timeout.
+- Apply cell-based partitioning by routing all requests to a single massive cluster sharing one global database.
+- Retry failed calls to the fraud provider indefinitely until the provider responds.
+* Assign separate, isolated thread and connection pools to each downstream dependency so slow fraud checks cannot deplete resources for payment processing.
+Why: Isolating connection or thread pools per dependency ensures that if the fraud service degrades, its queue or pool fills up without exhausting resources allocated to the payment gateway. Sharing a single connection pool across all services allows one slow downstream dependency to consume all connections and starve healthy dependencies. Sharing one global database fails to establish isolated cell boundaries, and retrying indefinitely worsens thread starvation.
+```
+
 ```recall
 Q: What resource exhaustion does a bulkhead prevent that a timeout alone does not?
 A: One flaky dependency's slow calls consuming the entire shared thread or connection pool and starving calls to healthy dependencies; isolating a pool per dependency contains that blast radius.

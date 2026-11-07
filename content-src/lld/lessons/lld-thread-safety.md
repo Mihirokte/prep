@@ -27,6 +27,15 @@ sequenceDiagram
 
 **Semaphores** — a counting lock with N permits, for Scarcity: at most 5 elevators moving, at most 10 concurrent downloads. Always release in a `finally`.
 
+```check
+Q: You are implementing a digital gift store where a user spends loyalty points to claim a voucher. The redemption must deduct 100 points from the user's balance and decrement the voucher stock count simultaneously. How should you ensure thread safety?
+- Use atomic variables for user balance and voucher count so both operations remain lock-free.
+* Acquire a lock around the entire operation updating both the user balance and voucher count.
+- Make the user balance and voucher count immutable objects so updates do not race.
+- Wrap each variable update in its own separate fine-grained lock.
+Why: A purchase changes two related fields that must remain consistent as a single transaction, requiring a single lock around both updates. Learners often mistakenly reach for atomics or separate locks per field, but atomics cannot coordinate multi-variable invariants across fields without racing.
+```
+
 ```recall
 Q: When is an atomic enough and when do you need a lock instead?
 A: An atomic is enough for a single variable (a counter, a flag) via compare-and-swap. The moment an invariant spans two or more related fields that must stay consistent, atomics do not compose, so you need a lock around the whole update.

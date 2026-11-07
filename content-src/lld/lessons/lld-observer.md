@@ -31,6 +31,15 @@ sequenceDiagram
 
 **Where it maps:** the **Logging** framework is the sharp one. Routing a message to *one* destination is Strategy (pick a `ConsoleAppender` or a `FileAppender`). But wanting console **and** file **and** network *simultaneously* is Observer/fan-out — the `Logger` notifies every attached appender. Recognising which shape the requirement actually calls for is the scored signal. Also: stock tickers, price alerts, an "order placed" event fanning out to inventory + notifications + analytics.
 
+```check
+Q: A system requirement states that whenever an event is logged, the log entry must be written to the console, appended to a local file, and sent over the network simultaneously. Which design best fits this requirement?
+- Use the Strategy pattern so the Logger delegates each message to a single selected appender.
+* Use the Observer pattern where the Logger acts as the subject notifying all attached destination appenders.
+- Use the Factory pattern to instantiate a combined MultiAppender object during initialization.
+- Use the Singleton pattern so all components write directly to a shared global console stream.
+Why: Fan-out to multiple destinations concurrently requires a one-to-many notification mechanism, which is the definition of the Observer pattern. Strategy is designed to select a single interchangeable algorithm or destination, not to broadcast to multiple listeners at once.
+```
+
 ```recall
 Q: What is the core of Observer, and what does the subject deliberately not know?
 A: A one-to-many dependency: when the subject changes state it notifies all its dependents automatically. It does not know the observers' concrete types, only that each honors an update interface, so new observers attach without changing the subject.

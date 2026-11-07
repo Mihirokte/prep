@@ -29,6 +29,15 @@ comp -> enc : delegates write
 enc -> file : delegates write
 ```
 
+```check
+Q: You are designing a point-of-sale system for a coffee shop where customers can select any arbitrary combination of toppings (e.g., milk and whip, but no sugar) on a base drink. How should you structure this behavior based on the lesson?
+- Subclass Beverage into MilkWhipBeverage, SugarBeverage, and all other combinations so each variant has a stable type at compile time.
+* Wrap the base Beverage object dynamically at runtime with only the requested MilkDecorator and WhipDecorator.
+- Create a single CoffeeManager class with boolean flags for milk, sugar, and whip inside its cost() calculation.
+- Use Template Method in Beverage to fix the recipe steps and let MilkBeverage override only the topping step.
+Why: Wrapping the base beverage dynamically at runtime allows composing only the toppings requested without a combinatorial explosion of subclasses. Subclassing every combination fails because topping selections are runtime-optional and combinable, which would lead to an unmanageable number of static classes like MilkWhipBeverage. Using boolean flags or fixed templates misses the core intent of composing independent, combinable add-on behaviors dynamically.
+```
+
 ```recall
 Q: What specific problem does Decorator solve that subclassing handles badly?
 A: Combinable, runtime-optional behavior. Subclassing every combination (LoggedEncryptedCompressed, EncryptedCompressed, ...) explodes into a class per mix, while decorators let you wrap in any order and only the combinations you actually use exist.

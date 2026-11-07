@@ -23,6 +23,15 @@ hook -> provider : 200 fast
 hook -> work : enqueue heavy work
 ```
 
+```check
+Q: An engineering team wants to optimize high-volume, low-latency communication strictly between internal microservices. They require strong typing, streaming support, and minimal serialization overhead. Which protocol approach fits these requirements best?
+* Migrate internal service calls to gRPC over HTTP/2 using Protocol Buffers.
+- Switch internal communications to fire-and-forget UDP packets to minimize latency.
+- Convert internal communication to incoming webhooks triggered by polling.
+- Keep public REST/JSON endpoints internally and disable transport compression.
+Why: gRPC uses HTTP/2 and Protocol Buffers to provide compact binary payloads, strong typing, and streaming support tailored for internal service communication. UDP drops reliability and ordering guarantees, which is unsuitable for general service-to-service calls needing complete message delivery. Webhooks are designed for asynchronous event notifications from external systems rather than synchronous RPC calls between internal services.
+```
+
 ```recall
 Q: When would you choose UDP over TCP?
 A: For real-time media, gaming, or DNS queries, where lower latency matters more than guaranteed delivery. You accept loss and no ordering because retransmits and the handshake would add delay you cannot afford.

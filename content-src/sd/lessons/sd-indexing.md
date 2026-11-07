@@ -25,6 +25,15 @@ sequenceDiagram
 
 Fix it with a **join** or a single batched `WHERE id IN (…)` — turning N+1 queries into 1 or 2. ORMs cause this silently; the fix is eager-loading.
 
+```check
+Q: An API endpoint displays a list of 50 blog posts alongside the profile details of each post's author. Profiling reveals that the backend executes 1 query to fetch the posts followed by 50 individual queries to fetch author records. How should the backend engineers resolve this performance bottleneck?
+- Create a composite index on (author_id, post_id) to optimize sorting.
+- Increase the database connection pool size to handle the extra round trips in parallel.
+* Eager-load authors using a SQL JOIN or a batched WHERE id IN (...) query.
+- Add a functional index on the post author foreign key.
+Why: The issue is a classic N+1 query problem, which should be resolved by eager-loading related author data using a SQL JOIN or a batched IN query in one or two round trips. Increasing the connection pool size masks the root issue rather than reducing excessive query round trips. Adding indexes alone does not prevent the application from firing 50 separate round trips to the database.
+```
+
 ```recall
 Q: Why not just index every column?
 A: Each index must be maintained on every insert and update and costs storage, so write-heavy tables slow down and bloat. You index the columns you filter, join, or sort on, not every column.

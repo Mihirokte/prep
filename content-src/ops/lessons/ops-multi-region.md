@@ -28,6 +28,15 @@ r2 --> conflict : concurrent writes
 
 The physics you can't escape: the speed of light makes a synchronous, strongly-consistent write across continents slow (a round trip of ~100 ms+). So multi-region systems usually accept **eventual consistency** for most data and reserve synchronous cross-region coordination for the few things that truly need it. Data residency and regulatory rules (where user data is legally allowed to live) often drive the design as much as performance does.
 
+```check
+Q: A retail company deploys an active-active multi-region architecture across North America and Europe to reduce browsing latency. However, customer product reviews and inventory updates are experiencing cross-region replication lag. How should the team architect writes according to multi-region trade-offs?
+- Both regions should execute synchronous cross-region writes for every catalog update to guarantee immediate consistency.
+* The service should accept eventual consistency for reviews and reserve synchronous cross-region coordination for inventory decrementing.
+- The service should switch to an active-passive setup so that browsing latency improves across all continents.
+- All database writes should bypass local databases and write directly to a single centralized region without conflict handling.
+Why: Because physical distance and the speed of light make cross-region synchronous coordination slow, systems should default to eventual consistency for non-critical writes like product reviews, reserving strict coordination only for sensitive operations like inventory. A common misconception is trying to enforce synchronous strong consistency everywhere, which ruins performance and negates the latency benefits of multi-region deployment.
+```
+
 ```recall
 Q: What two benefits justify running in multiple regions?
 A: Lower latency by serving users from a nearby region, and disaster survival since an entire region can go down while you stay up.

@@ -24,6 +24,15 @@ sequenceDiagram
 
 The cleanest fix may be one conditional statement: decrement only where stock is greater than zero, then inspect the affected-row count. The database makes the condition and update atomic. For a multi-row invariant, lock the relevant rows with `SELECT FOR UPDATE`, use an optimistic version column, or run at serializable isolation and retry conflicts.
 
+```check
+Q: A flash sale service needs to ensure a single remaining item is not oversold when multiple concurrent requests arrive at the same time. What is the narrowest and cleanest mechanism to protect this invariant?
+- Upgrade the entire transaction to serializable isolation to block concurrent updates
+- Perform an idempotent retry without checking the row count or holding a transaction
+* Execute an atomic conditional update like UPDATE inventory SET stock = stock - 1 WHERE id = :id AND stock > 0 and verify the affected row count
+- Wrap a SELECT query and subsequent UPDATE inside a standard read committed transaction
+Why: An atomic conditional update evaluates the condition and applies the decrement in a single statement, protecting the invariant with minimal coordination overhead. Read committed alone is insufficient because two transactions can read stock as one and both overwrite it. While serializable isolation works, it is broader and heavier than necessary for a single-row invariant.
+```
+
 ## Know the isolation ladder
 
 Read committed prevents dirty reads but allows a later query in the same transaction to see a newer committed value. Repeatable read stabilizes rows already read, though exact phantom behavior depends on the database. Serializable aims to produce a result equivalent to transactions running one at a time, usually by blocking, aborting, or both.

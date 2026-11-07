@@ -27,6 +27,15 @@ check -> compute : yes, forces a decision
 check -> skip : no, just a number
 ```
 
+```check
+Q: During an interview for a service handling 100M active users, you consider whether to estimate storage for user profile attributes versus estimating size for a trending hashtags ranking cache. How should you decide when to do back-of-the-envelope math?
+- Spend 5 minutes upfront calculating the exact storage needed per username and profile bio to ensure completeness.
+* Skip calculating character storage upfront, but calculate the memory footprint of active hashtags later if deciding whether to shard an in-memory ranker.
+- Do back-of-the-envelope math for every entity schema in the core entities phase before drawing any architectural boxes.
+- Avoid performing any math calculations throughout the entire 45-minute interview under all circumstances.
+Why: Back-of-the-envelope estimation should only be used when a number directly forces an architectural decision, such as sharding memory for trending topics. Calculating minor data sizes like username bytes is a tempting ritual that burns valuable time without changing any design boxes.
+```
+
 ```recall
 Q: When should you do back-of-the-envelope math in a design round?
 A: Only when the result will change the design, and say that out loud. If a number does not move a box on the diagram, computing it wastes time you need elsewhere.

@@ -40,6 +40,15 @@ log -> c3 : offset C
 
 The properties to reason about: **delivery** (at-least-once is normal → your consumer must be **idempotent**), **ordering** (global ordering is expensive; per-key ordering via partitions is usually enough), and **backpressure** (what happens when producers outpace consumers — the queue absorbs the burst, which is the point).
 
+```check
+Q: A photo-sharing service experiences high latency and HTTP gateway timeouts during traffic spikes because profile images are resized directly inside the web request handler. How should this workflow be redesigned to keep the API responsive?
+* Enqueue a resizing task and immediately return an HTTP response to the client, processing the image asynchronously with background workers.
+- Keep the resizing work inside the request handler while increasing web server thread pools to handle incoming bursts.
+- Switch to an append-only log stream that forces the client to wait until every consumer reads the event.
+- Process image resizing synchronously over multiple parallel database connections to eliminate the need for idempotent workers.
+Why: A queue decouples the producer from the consumer so heavy or bursty tasks run asynchronously, allowing the API to return immediately to the user. Simply increasing server threads or timeouts in the request handler is a common mistake that still leaves worker threads blocked by slow operations during traffic surges. Asynchronous background processing absorbs the burst while keeping the user request path fast.
+```
+
 ```recall
 Q: What does a queue decouple, and why does that help the request path?
 A: It decouples a slow or bursty producer from the consumer, so heavy work runs asynchronously. The API can return immediately, for example 202 Accepted, instead of blocking the user while the work completes.

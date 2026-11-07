@@ -25,6 +25,15 @@ Single-process monolith | 10
 
 **Interview framing:** if asked "microservices or monolith," don't pick one. Name the actual forcing function — team count, deploy cadence, blast radius — and reason from there.
 
+```check
+Q: A fast-growing startup is experiencing code organization issues in their monolithic application and is debating whether to break it into microservices. According to the 2026 rule of thumb, what is the best approach?
+- Split the monolith into microservices immediately so that distributed tracing can isolate performance bottlenecks.
+- Separate the monolith into independent network-connected services that continue to share the existing single database and release pipeline.
+* Establish and enforce strict module boundaries within the single-process monolith, extracting to a separate service only if a distinct scaling or deployment bottleneck emerges.
+- Adopt a serverless microservices framework with cloud orchestration hops to reduce operational hosting costs.
+Why: The default recommendation is to build a modular monolith with strict internal boundaries first, deferring microservice extraction until an actual forcing function like independent deploy cadences or scaling bottlenecks demands it. Splitting into network services while sharing a database creates a distributed monolith with extra HTTP hops, which is strictly worse. Prematurely moving to distributed services or multi-hop serverless architectures often increases latency, orchestration overhead, and operational complexity without solving domain boundary issues.
+```
+
 ```recall
 Q: What is the default architecture for 2026, and when do you deviate from it?
 A: Default to a modular monolith; reach for microservices only when a specific already-felt pain forces it, such as independent team scaling, independent deploy cadences, or a real per-service scaling bottleneck.

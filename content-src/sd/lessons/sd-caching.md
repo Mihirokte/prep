@@ -42,6 +42,15 @@ Alternatives: **write-through** (write to cache and DB together — consistent, 
 
 Watch for the **thundering herd**: when a hot key expires, thousands of requests miss simultaneously and stampede the DB. Mitigate with a short lock on repopulation or slightly randomised TTLs.
 
+```check
+Q: Your team runs a product catalog using cache-aside. When a popular product's cache entry expires during a flash sale, thousands of concurrent requests hit the database directly, causing a database outage. How should you redesign the caching layer to prevent this?
+- Pre-warm every cache key asynchronously and disable TTLs to prevent expired reads entirely.
+- Use write-back caching to guarantee immediate consistency across cache and database on writes.
+* Use cache-aside with a TTL, adding slight jitter to the expiration times and a short lock on cache repopulation.
+- Rely solely on database buffer pools since application-tier caches always introduce stale data.
+Why: A stampede on database reads when a hot key expires is known as a thundering herd, mitigated by short repopulation locks or TTL jitter. Switching to write-back caching or completely removing TTLs is tempting but misdiagnoses the read stampede problem and risks data loss or permanent staleness.
+```
+
 ```recall
 Q: Why is cache-aside the default strategy?
 A: The app reads the cache, and on a miss loads from the DB and populates the cache, so only requested data is cached and the cache never blocks writes. It is simple and resilient: a cache outage just means more DB reads.

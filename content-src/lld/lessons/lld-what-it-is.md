@@ -29,6 +29,15 @@ name -> run
 
 The single most penalised failure mode is the same everywhere: jumping straight to code without scoping, then running out of time.
 
+```check
+Q: In a 45-minute US big-tech interview, you are given the prompt 'Design a parking lot'. How should you scope and approach your solution?
+- Produce a full system architecture diagram showing message queues, distributed caches, and database sharding.
+- Jump immediately into writing code to ensure all methods and classes are fully implemented before time runs out.
+* Clarify requirements and design the core classes, interfaces, and method signatures collaborating inside a single process.
+- Implement a comprehensive test harness with live unit tests before deciding on class responsibilities.
+Why: LLD focuses on the internal blueprint of a single process—defining classes, interfaces, and method interactions. Candidates frequently make the mistake of jumping straight into coding without scoping first, which leads to running out of time, or designing high-level distributed systems (queues, databases) instead of object-oriented design.
+```
+
 ```recall
 Q: Why is LLD not the same as system design?
 A: System design is architecture at scale (services, databases, queues) drawn as boxes with no code. LLD is the blueprint for one process: concrete classes, interfaces, state, and method signatures that collaborate inside a single box.

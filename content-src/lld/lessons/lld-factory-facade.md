@@ -22,6 +22,15 @@ Factory creates the right `NotificationChannel` by type; Strategy is each channe
 
 **Facade** — a unified interface over a subsystem. The honest take: you're already writing one in every LLD round without naming it. Your top-level orchestrator — `ParkingLot`, `ElevatorController`, `LibraryManagementSystem` — that coordinates several collaborators behind a clean public API *is* a facade. No need to announce the name unless it helps communicate the shape.
 
+```check
+Q: You are implementing a notification system required to support sending messages via email, SMS, and push notifications with plans to add more channels later. How should you structure the channel creation and dispatching?
+- Introduce a NotificationFactory only if you have at least ten notification channels planned in advance.
+- Hardcode EmailChannel directly in callers since Facade replaces the need for any channel creation mechanism.
+* Use a Factory to instantiate the specific NotificationChannel while letting each channel implement send() differently via Strategy.
+- Create separate subclasses of NotificationService for every channel type instead of delegating channel creation.
+Why: The notification system is a classic Factory + Strategy pairing: the prompt asks to support multiple types with growth signals, so a Factory instantiates the appropriate channel while each channel handles its own send logic. Skipping the factory or hardcoding channels in callers breaks clean decoupling when multiple growing types are supported. Subclassing NotificationService itself mixes service orchestration with channel-specific implementations.
+```
+
 ```recall
 Q: When does a Factory earn its place, and what is Simple Factory?
 A: It earns its place when the prompt says "support multiple types of X"; for two hardcoded types with no growth signal, skip it. Simple Factory is the single method that returns the right concrete class by input, which is what most interviews mean by "Factory".

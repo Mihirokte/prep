@@ -25,6 +25,15 @@ check -> allow : yes
 check -> deny : no
 ```
 
+```check
+Q: An API needs to allow clients to send occasional bursts of up to 50 requests after periods of inactivity, while restricting sustained traffic to no more than 10 requests per second. Which rate-limiting configuration achieves this behavior?
+- A token bucket with a capacity of 10 tokens and a refill rate of 50 tokens per second.
+- A fixed-window limiter that permits up to 50 requests per calendar minute.
+* A token bucket with a capacity of 50 tokens and a refill rate of 10 tokens per second.
+- Per-server counters that enforce a limit of 50 requests without sharing state in Redis.
+Why: In a token bucket algorithm, the token capacity governs burst tolerance while the refill rate enforces the sustained throughput limit. Inverting these parameters to a capacity of 10 and a refill rate of 50 is a common mistake that allows high continuous traffic rather than limiting it. A fixed window fails because it cannot properly smooth boundary traffic and risks double-limit bursts.
+```
+
 ```recall
 Q: Why does a fixed-window limiter allow a burst of twice the limit?
 A: A client can send the full limit at the end of one window and the full limit again at the start of the next, both within a short span across the boundary. Sliding window removes this by weighting the previous window.

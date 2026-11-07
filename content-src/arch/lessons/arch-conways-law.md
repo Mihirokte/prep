@@ -22,6 +22,15 @@ arch --> org : tension if mismatched
 
 **Interview framing:** Conway's Law is one of the highest-leverage things to raise unprompted when discussing boundaries. It reframes "how should I split this system" as inseparable from "how is my organisation structured, and can I change it." Reasoning about boundaries purely technically — data, traffic — while ignoring the org dimension is exactly the half senior interviewers listen for.
 
+```check
+Q: An engineering leadership team wants to migrate a monolithic backend into a decoupled, modular architecture. According to Conway's Law and the Inverse Conway Maneuver, what should they do first?
+- Have the single monolithic engineering team design microservice API contracts, trusting the software architecture will naturally modularize the team later.
+- Split the codebase into independent microservices first, then hire external consultants to audit and align team communication channels.
+* Reorganize engineering into dedicated stream-aligned teams around target functional areas before building out the decoupled services.
+- Merge all backend engineers into one large platform team so every engineer shares code ownership across all components.
+Why: The Inverse Conway Maneuver explicitly calls for restructuring the organization's teams into the desired architectural shape first, because architecture copies human communication structures. Designing microservices within an unaligned team structure causes tensions in the software structure because shared human communication creates coupling regardless of technical boundaries. Merging teams together increases coupling rather than promoting modularity.
+```
+
 ```recall
 Q: What is the mechanism behind Conway's Law, and why is it human rather than technical?
 A: Easy communication between authors builds shared understanding and shared assumptions, which couples their code; so coupling tracks the org's communication structure, not just its function calls.

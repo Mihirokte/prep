@@ -31,6 +31,15 @@ Two implementation styles:
 
 **The hard part:** compensations are not free rollbacks. "Refund the payment" is a different operation from "the charge never happened," with its own edge cases (what if the money was already spent downstream?). Choreographed sagas are notoriously hard to debug without strong distributed tracing.
 
+```check
+Q: A checkout process spans five microservices: payment, inventory, fraud check, shipping, and notification. The team needs to handle failures reliably and debug issues easily. Which pattern should they choose?
+* Orchestration, because having a central coordinator makes the state machine and failure compensations explicit and easier to reason about.
+- A distributed two-phase commit (2PC), because it scales better across independent microservices than a saga.
+- Choreography, because removing a central coordinator eliminates the need to run compensating transactions if a step fails.
+- Choreography, because it guarantees that intermediate states are never visible to concurrent transactions across services.
+Why: For multi-step flows spanning several services, orchestration provides a central coordinator that holds the state machine in one place, making it easier to reason about and debug. Choreography still requires compensations and becomes hard to trace across many services, while distributed 2PC does not scale in practice for cross-service workflows. Sagas also do not provide isolation regardless of orchestration or choreography.
+```
+
 ```recall
 Q: Why can a cross-service business transaction not use two-phase commit in practice?
 A: 2PC needs a blocking coordinator holding locks across every service for the whole transaction; it does not scale and stalls everything if the coordinator dies mid-commit, so sagas trade isolation for availability.

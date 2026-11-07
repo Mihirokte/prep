@@ -25,6 +25,15 @@ pain -> abstract : yes, pain is real
 
 The senior tell is holding DRY and KISS in tension out loud: "I'd keep this inline for now to avoid premature abstraction; if we see it duplicated three or four times, that's the trigger to extract."
 
+```check
+Q: You notice that ShippingAddressValidator and BillingAddressValidator contain identical regex checks for standard 5-digit zip codes. Following the guidance on KISS, DRY, and YAGNI, what should you do?
+- Deduplicate the logic immediately by extracting a shared PostalCodeValidator helper to uphold DRY.
+- Build a configurable RuleEngine that supports future regional postal formats to avoid code duplication.
+* Keep the validation logic separate in each class for now because they represent different domain concepts.
+- Extract an abstract AddressValidator base class that both classes inherit from.
+Why: DRY applies when duplication represents conceptually the same domain concept, not mere textual similarity. Forcing two distinct domain concepts (shipping vs. billing rules) into a shared validator creates tight coupling where changing one breaks the other. Building rule engines or abstract base classes over-engineers the solution and violates both KISS and YAGNI.
+```
+
 ```recall
 Q: Which principle is most commonly violated in LLD rounds, and how?
 A: KISS, not SOLID. Candidates over-engineer to show off pattern knowledge (factories, builders, decorators where a plain class and a conditional would do), and interviewers read that as over-engineering rather than sophistication.

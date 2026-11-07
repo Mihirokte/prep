@@ -18,6 +18,15 @@ Reuse warm | The environment is kept for a while, so later requests skip all of 
 
 The other reality is **limits**. Serverless functions are meant to be small and short: there are caps on execution time, memory, package size, and payload size, and each invocation is stateless (nothing persists between calls — state goes to a database or cache). Serverless shines for spiky, event-driven, bursty workloads; it fits long-running, stateful, or steady-high-throughput work far less well.
 
+```check
+Q: A development team is deploying a customer-facing API endpoint on a serverless platform. During traffic bursts, initial users report severe latency spikes caused by cold starts. Which implementation choice will best mitigate latency on subsequent requests to a new instance?
+- Move the database connection logic inside the request handler function so it reconnects on every request.
+- Switch to a heavier runtime environment with comprehensive bundled dependencies.
+* Initialize the database client and configuration outside the request handler function.
+- Rely solely on local in-memory storage to maintain state between different client invocations.
+Why: Placing expensive initialization outside the handler ensures it executes only once during environment creation and is reused across subsequent invocations on that warm instance. Moving connection logic inside the handler is a common mistake that actually worsens performance by forcing expensive reconnection on every single request.
+```
+
 ```recall
 Q: Why does a cold start hit only the first request to a new instance?
 A: The platform must build an execution environment (download code, start the runtime, initialize) only when none is warm. Once warm, it is reused for subsequent requests, so they skip that work.

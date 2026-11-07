@@ -34,6 +34,15 @@ Observe recovery | Verify scaling backpressure and queue drain behavior
 Record the envelope | Publish safe throughput and the first limiting resource
 ```
 
+```check
+Q: An engineering team is designing a load test to verify if their e-commerce checkout service can handle upcoming Black Friday traffic. Which testing approach best follows sound capacity planning principles?
+- Rely on an in-memory test cache so the load generator can hit the target RPS without throttling.
+* Include realistic database query distributions and cache misses to reflect downstream stress.
+- Scale the load until the web tier crashes completely to find the absolute maximum RPS.
+- Mock all external dependencies with zero-latency responses to isolate service logic.
+Why: Representative testing requires realistic cache-hit ratios and request distributions, because warm caches conceal the downstream database load that real traffic creates. A tempting mistake is maximizing request rate by artificially keeping caches warm or isolating tiers with zero-latency stubs, but that fails to reveal real bottlenecks and overstates safe capacity.
+```
+
 ## Find the knee safely
 
 As load rises, throughput initially grows with arrivals. Near saturation, latency bends upward, queues grow, and throughput stops increasing. That knee is more useful than the final crash point. Stop at safety guardrails and protect shared environments from test traffic.

@@ -27,6 +27,15 @@ cpu --> loop : result
 
 Async does not mean parallel. An async handler that parses a huge document still occupies the event-loop thread until it yields. During that time, completed network calls cannot run their callbacks. Move sustained CPU work to worker threads or processes, and bound the queue feeding them.
 
+```check
+Q: A developer writes an asynchronous event-loop service that handles incoming webhooks and performs heavy CPU-bound image decompression inside the async request handler. What issue will this service encounter under load?
+- Async functions execute callbacks concurrently on separate threads, so the image processing will run in parallel with network I/O.
+- The event loop will automatically yield control back to network tasks whenever a loop iteration takes longer than a few milliseconds.
+* The CPU-intensive parsing occupies the single event-loop thread until completion, preventing incoming network callbacks from executing during that time.
+- Async I/O naturally applies backpressure, causing network clients to wait without consuming memory or queue capacity.
+Why: Event loops run callbacks on a single main thread, so sustained CPU-heavy work blocks the loop and stalls all other waiting callbacks from running until it finishes. A common misconception is that async automatically achieves multi-core parallelism or preemptively yields during heavy computations. To prevent this, CPU-intensive workloads must be offloaded to worker threads or processes rather than running inline on the event loop.
+```
+
 ## Shared state creates races
 
 A race is not two threads running at once; it is an outcome that depends on their interleaving. `if stock > 0: stock -= 1` is unsafe because the read and write are separate. Two workers can both observe one unit and both sell it.

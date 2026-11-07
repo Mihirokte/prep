@@ -23,6 +23,15 @@ Two habits that matter in practice:
 - **Small images**: start from a slim base, copy only what you need, and use multi-stage builds so compilers and build tools don't ship to production.
 - **Immutable and stateless**: treat a container as disposable. State (files, sessions) belongs in a database or object store, not inside the container's writable layer — because the next deploy throws that container away.
 
+```check
+Q: A developer is containerizing a microservice for production using Docker. Which architectural choice aligns with recommended Docker practices?
+- Use a heavy base OS image that includes compilers so runtime debugging tools are available inside production containers.
+- Write customer uploaded session files directly into the container's local filesystem to avoid external network calls.
+- Run each container as a full guest OS with its own dedicated hardware virtualization kernel.
+* Use multi-stage builds to strip build tools from the final image and store user session data in an external database.
+Why: Multi-stage builds exclude build dependencies to keep images lean, and storing state externally ensures data persists when disposable containers are replaced during deploys. Retaining build tools enlarges images and attack surface, saving state to the writable layer leads to data loss, and containers share the host kernel rather than running hardware-virtualized guest operating systems.
+```
+
 ```recall
 Q: How does a container differ from a virtual machine?
 A: A VM ships a whole guest OS and boots in seconds to minutes. A container shares the host kernel and uses namespaces and cgroups for isolation, starting in milliseconds, so many pack onto one host.

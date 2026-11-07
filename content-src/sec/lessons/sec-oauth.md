@@ -31,6 +31,15 @@ Why the extra code-for-token step instead of returning the token directly? The c
 
 Other grant types, briefly: **client credentials** (machine-to-machine, no user involved), and the legacy **implicit** and **password** grants, both now discouraged. **Scopes** limit what the token can do; keep them narrow — this is least privilege applied to tokens.
 
+```check
+Q: A developer is building a server-rendered web application that integrates "Log in with Google" using OAuth 2.0. Why does the application have the user's browser receive a one-time authorization code first, rather than receiving the access token directly?
+- The browser handles authentication so the user does not have to log in on the client app.
+* The code passes through the browser, but the token exchange happens server-to-server so the browser never sees the access token.
+- The authorization server does not have permission to issue tokens directly to third parties.
+- The resource server requires a client_secret to validate any incoming API request.
+Why: The authorization code flow protects credentials by confining the token exchange to a backend server-to-server call away from browser history and URLs. A tempting mistake is thinking this is done simply because the browser handles authentication or because the resource server inspects client secrets.
+```
+
 ```recall
 Q: Why is OAuth 2.0 not an authentication protocol on its own?
 A: OAuth delegates authorization (what an app may access) and does not define who the user is. OpenID Connect adds the identity layer on top.

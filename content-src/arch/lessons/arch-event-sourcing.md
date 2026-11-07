@@ -25,6 +25,15 @@ Two independent sources say the same thing. Fowler: "Event Sourcing ensures that
 
 **When it hurts:** most systems don't need it, and the long-term cost people underestimate is **schema versioning** — replaying events written years ago, in an old shape, forever. Once an event is in the log it is history; you can't migrate it the way you'd ALTER a table.
 
+```check
+Q: A team is designing an internal inventory tracker that only needs to display current stock counts. They are deciding between standard relational storage and event sourcing. What is the most appropriate architectural choice based on event sourcing trade-offs?
+- Standard relational storage, because event sourcing makes audit trails and temporal queries impossible.
+- Event sourcing, because future changes to the event payload schema can be handled with standard database ALTER statements.
+* Standard relational storage, because the system does not need auditability or temporal queries, and event replay would introduce long-term schema versioning costs.
+- Event sourcing, because it simplifies data maintenance by ensuring old events never need to be supported once replaced.
+Why: Event sourcing adds significant complexity, especially around schema versioning since immutable past events cannot be modified with an ALTER table. Because this application only needs current state and does not require auditability or temporal queries, traditional data management is sufficient. The tempting option of choosing event sourcing overlooks that events cannot simply be altered or dropped over time.
+```
+
 ```recall
 Q: Why is schema versioning the cost people underestimate with event sourcing?
 A: Events are immutable history, so you cannot ALTER old ones; the fold logic and consumers must handle every past event shape forever, typically via upcasters that transform old versions on read.

@@ -35,6 +35,15 @@ run -> store : save result
 store -> replay : return result
 ```
 
+```check
+Q: A mobile app client experiences network timeouts when submitting order payments, prompting users to tap Pay again. How should the backend ensure retried payments do not double-charge customers?
+- Add a mutex lock around the billing provider API call to prevent other threads from charging at that moment.
+* Have the mobile client attach a unique UUID to the charge request and return the stored charge response if that UUID was already processed.
+- Change the HTTP endpoint method from POST to PUT so the framework handles retry deduplication automatically.
+- Re-run the charge logic upon detecting a duplicate key, updating the stored timestamp before returning the new charge receipt.
+Why: Using a client-generated UUID idempotency key allows the server to detect duplicate attempts and replay the original result without re-running side effects like charging the card. A lock only prevents concurrent threads from executing simultaneously and cannot prevent a retried request that arrives seconds later. Changing POST to PUT does not automatically make non-idempotent server side effects safe, and re-running the charge defeats the purpose of idempotency.
+```
+
 ```recall
 Q: What problem does an idempotency key solve, and how does the server use it?
 A: It makes a retried operation take effect at most once. The client sends a stable UUID per logical action with every retry; the server records key -> result and, on seeing a completed key again, replays the stored result instead of re-running the side effect.

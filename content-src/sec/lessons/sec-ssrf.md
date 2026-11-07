@@ -36,6 +36,15 @@ Constrain redirects | Do not follow redirects that jump from an allowed host to 
 Harden metadata | Require IMDSv2 so a plain GET cannot harvest credentials
 ```
 
+```check
+Q: A web application lets users provide an image URL that the backend server fetches and converts into a profile avatar. Which design most effectively protects the backend server from SSRF attacks targeting cloud infrastructure?
+- Maintain a blocklist containing known dangerous hostnames and private IP addresses like 127.0.0.1 and 169.254.169.254.
+- Check that the supplied URL starts with https:// before fetching the remote image.
+* Enforce an allowlist of permitted image domains, resolve the domain, and reject private, loopback, or link-local IP addresses.
+- Strip internal port numbers from the supplied URL before executing the request on the server.
+Why: Allowlisting permitted domains and verifying that resolved IPs do not hit internal or link-local ranges like 169.254.0.0/16 prevents attackers from accessing cloud metadata or internal services. Blocklists are easily bypassed via redirects, DNS rebinding, or alternative encodings. Simply checking the https scheme or removing port numbers does not prevent access to internal IPs or cloud metadata endpoints.
+```
+
 ```recall
 Q: Why is an allowlist better than a blocklist for SSRF defense?
 A: Blocklists of bad IPs are bypassed with redirects, DNS tricks, and alternate IP encodings. An allowlist permits only known-good destinations, so novel bypasses still fail.

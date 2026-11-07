@@ -36,6 +36,15 @@ hascoin -> nocoin : sold out
 dispense -> nocoin : item dropped
 ```
 
+```check
+Q: You are designing the order lifecycle for a food delivery service (Placed, Confirmed, Preparing, OutForDelivery, Delivered, Cancelled) and must ensure that delivering a cancelled order is structurally rejected. Which design achieves this best?
+- Use a status string field on Order and check if status == 'DELIVERED' before allowing any update.
+- Implement an OrderStatus enum and manage all lifecycle transitions via a switch statement inside Order.
+* Define concrete State classes for each phase where illegal actions like delivering a cancelled order are rejected by the active state.
+- Apply the Strategy pattern by passing a DeliveryStrategy into the Order on each status update.
+Why: Per-state classes enforce transition rules directly within each state, making illegal transitions structurally impossible rather than relying on conditionals. A status enum with switch checks or string comparisons leaves transition verification scattered across methods where validation steps can easily be omitted.
+```
+
 ```recall
 Q: What does the State pattern make structurally impossible that a status-field conditional only checks?
 A: An illegal transition such as dispensing before paying. Each state class only implements the events legal in it (rejecting the rest), so the machine can never reach the illegal action, versus a status string you must remember to check everywhere.

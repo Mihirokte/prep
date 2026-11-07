@@ -25,6 +25,15 @@ mem -> port : implements
 
 **When it hurts:** it is overkill for a thin-logic CRUD app. You pay real ceremony — interfaces everywhere, DTO mapping at every boundary — for flexibility you never use. And nothing enforces the boundary except discipline and code review, so teams new to it build the skeleton correctly and then leak infra concerns into the "core" anyway.
 
+```check
+Q: You are designing a core order-processing domain using hexagonal architecture and want to run fast unit tests without relying on a real database or framework mocking. How should you structure your tests?
+- Create an in-memory repository adapter implementing the port interface and inject it into the core domain logic during tests.
+* Use a mocking library to intercept database driver calls at the framework layer.
+- Write automated tests against the Postgres adapter by connecting to a live staging database.
+- Add test-specific helper methods directly inside the core domain entities to bypass persistence validation.
+Why: Hexagonal architecture defines domain boundaries using ports (interfaces), enabling test suites to supply fast in-memory adapters that implement those ports without needing database infrastructure or framework mocking. Using a mocking framework on database drivers binds tests to infrastructure details rather than exercising the domain in isolation. Testing against a live staging database or modifying domain entities undermines fast unit testing and pollutes the core domain model.
+```
+
 ```recall
 Q: What does the dependency rule actually forbid?
 A: The core importing the framework or infrastructure; dependencies point only inward, so domain logic defines ports as interfaces and adapters on the outside implement them, never the reverse.

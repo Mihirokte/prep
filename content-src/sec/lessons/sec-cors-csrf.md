@@ -37,6 +37,15 @@ Reject on mismatch | Fail the request when the token or origin check does not pa
 
 The neat contrast: CSRF abuses that the browser *automatically sends cookies*; the defenses make the request either unforgeable (token) or cookie-less across sites (SameSite).
 
+```check
+Q: An authenticated web application allows users to transfer funds via a POST request to /transfer. Attackers could trick logged-in users into visiting a malicious site that auto-submits this transfer form. Which configuration effectively protects against this attack?
+* Configure session cookies with SameSite=Lax (or Strict) and require unpredictable anti-CSRF tokens on state-changing requests.
+- Set the Access-Control-Allow-Origin header to * so the API blocks untrusted browser requests at the server network layer.
+- Rely solely on CORS headers on backend endpoints to prevent external web pages from submitting unauthorized POST forms.
+- Encode incoming form parameters using base64 so foreign origins cannot alter submitted parameter values.
+Why: CSRF exploits the browser's automatic inclusion of session cookies on cross-site requests, which is prevented by using SameSite cookie attributes alongside anti-CSRF tokens. Believing CORS headers protect backend APIs from receiving malicious form submissions is a fundamental misunderstanding, as CORS only controls whether a browser's JavaScript can read the response.
+```
+
 ```recall
 Q: Why is CORS not a defense that protects your server from attack?
 A: CORS only tells the browser who may read a response; the request still reaches your API, and non-browser clients ignore it entirely. It gates reading, not access.

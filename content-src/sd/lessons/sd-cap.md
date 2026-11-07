@@ -24,6 +24,15 @@ choose -> cp : wrong answer is worse
 choose -> ap : downtime is worse
 ```
 
+```check
+Q: A banking platform suffers a network partition between its database nodes while processing account transfers. According to the CAP theorem, how should the platform handle transfer requests during this partition?
+- Keep accepting transfers on any reachable node and reconcile conflicting balances later to preserve availability.
+* Block or refuse transfer requests that cannot be made consistent across nodes.
+- Switch the balance update path to AP so that users never encounter transfer failures.
+- Route balance writes to local storage to eliminate latency without choosing between consistency and availability.
+Why: Account balance updates require a CP approach because an incorrect or conflicting balance is worse than temporarily refusing a request. The most tempting mistake is choosing AP to keep the service available, but accepting conflicting writes across separated nodes causes data discrepancies that violate consistency. During a network partition, the system cannot maintain both consistency and availability simultaneously.
+```
+
 ```recall
 Q: Does CAP force a consistency-vs-availability choice all the time?
 A: No. CAP only applies during a network partition, which is rare. In normal operation PACELC takes over, where you still trade latency against consistency on every request.

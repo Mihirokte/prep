@@ -30,6 +30,15 @@ Where the waste usually hides:
 
 The discipline that makes it stick is **visibility**: tag resources by team/service so cost is attributable, and put spend on a dashboard people actually look at. You can't optimize a bill you can't attribute. The trade-off is always cost *versus* performance and resilience — cheaper is a valid choice only when you've named what reliability you're giving up.
 
+```check
+Q: A media platform runs an asynchronous video transcoding pipeline where jobs are queued and can easily be restarted if interrupted. The workload varies heavily throughout the day. Which purchasing model best optimizes costs for this workload?
+- Run the queue workers exclusively on on-demand instances to prevent worker terminations.
+- Purchase three-year reserved instances sized to handle the absolute peak backlog volume.
+* Utilize spot or preemptible instances that autoscale with the queue length, falling back to on-demand if needed.
+- Deploy all workers into high-performance, multi-region configurations to accelerate video chunk rendering.
+Why: Spot or preemptible instances provide deep discounts and are ideal for interruptible, fault-tolerant batch work like restartable queue processing. A tempting mistake is buying reserved instances for peak capacity, which leads to massive waste during idle troughs since reserved instances are intended for steady baseline load.
+```
+
 ```recall
 Q: Which purchasing model fits steady baseline load, and why?
 A: Reserved or committed-use pricing. You trade a usage commitment for a large discount, which pays off precisely because the baseline load is predictable and always present.

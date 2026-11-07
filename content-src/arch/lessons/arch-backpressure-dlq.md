@@ -38,6 +38,15 @@ sequenceDiagram
 
 The DLQ turns "a bad message silently wedges the pipeline" into "a bad message is set aside for a human to inspect and replay" — which is why it's a standard part of any serious queue design. Pair it with idempotent consumers, since at-least-once delivery means the same message can arrive twice.
 
+```check
+Q: A message queue consumer encounters malformed payloads and occasional downstream outages, causing message processing to stall and queue depth to build up. Which design addresses both backpressure and failing messages properly?
+* Configure the consumer to retry up to 3 times before moving the unprocessable message to a dead letter queue, and autoscale consumers based on queue depth.
+- Increase queue storage capacity to allow the queue to buffer all unprocessable messages indefinitely until a fix is deployed.
+- Have consumers retry unprocessable messages continuously with no limit until downstream availability recovers.
+- Configure consumers to immediately drop any message that returns a 500 error from downstream to prevent backlog buildup.
+Why: Moving repeatedly failing messages to a DLQ after N attempts prevents poison messages from wedging the queue, while autoscaling on depth handles backpressure. Retrying endlessly blocks processing capacity, while buffering indefinitely without consumer scaling or dropping messages silently loses data or exhausts memory/disk.
+```
+
 ```recall
 Q: Why is "the queue will buffer it" an unsafe answer to backpressure?
 A: Buffering absorbs bursts, but unbounded growth raises latency and eventually exhausts memory or disk; you must scale consumers on depth and, for synchronous sources, shed load rather than treat the queue as infinite.

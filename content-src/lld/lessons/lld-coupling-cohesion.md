@@ -23,6 +23,15 @@ member -> copy : borrows one
 copy -> book : available if any free
 ```
 
+```check
+Q: A library system needs to support tracking five physical copies of 'Design Patterns' and checking whether a patron can borrow one. How should the entities be modeled to avoid common coupling and cohesion pitfalls?
+- Add an isAvailable boolean flag directly on the Book class.
+- Have UI controllers traverse catalog.getBooks().get(id).getCopies().stream().filter(...) to check copies directly.
+* Model Book as the catalog entry and BookCopy as individual lending units, querying whether any copy is free.
+- Merge Book and Member into a LoanTransaction entity so availability is calculated from borrowing history alone.
+Why: Separating the catalog metadata (Book) from individual lending items (BookCopy) correctly models physical ownership and multi-copy availability. A single boolean on Book cannot represent having some copies checked out while others remain available. Having external callers reach through nested getters violates the Law of Demeter and increases coupling.
+```
+
 ```recall
 Q: What is the difference between coupling and cohesion, and which direction do you want each?
 A: Cohesion is how tightly a class's own responsibilities belong together (you want it high, which is SRP satisfied). Coupling is how much one class leans on another's internals (you want it low, achieved by talking through narrow stable interfaces).

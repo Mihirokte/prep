@@ -27,6 +27,15 @@ A listing answers one question only: which bytes form which instruction. It does
 
 rea 6.5.0 has no disassembler of its own. For deep analysis, its README asks you to bring Ghidra, Hopper, or IDA. For offline inspection, rea can also call a GNU objdump or a Rizin that you install. Its call graph stops at unresolved targets: "Callers/callees contain only resolved functions.... Targetless computed flow remains unknown.". This lesson builds the part that produces those facts, so you can judge them when a tool reports them.
 
+```check
+Q: An engineer runs llvm-objdump -d on an object file. The output cleanly lists valid x86-64 mnemonics for every byte range in the section, ending with a retq. Why is this listing insufficient to guarantee correct instruction boundaries and control flow?
+- The listing is completely verified because modern disassemblers flag invalid opcodes whenever data is mixed with code.
+- The listing proves the CFG will have no unresolved indirect transfers or dead blocks.
+* The linear sweep may have decoded inline data bytes or padding as instructions and cannot prove reachability.
+- The tool performed a recursive descent from the function entry point and verified that all paths terminate in retq.
+Why: A linear sweep simply decodes bytes consecutively from the start of the section and can decode embedded data or alignment padding as valid instructions while missing actual branch targets. Agreeing on real mnemonics does not prove that those instructions ever execute or that the boundaries match execution. Determining reachable blocks and real control transfers requires following control flow rather than relying on a linear sweep.
+```
+
 ## The Instruction Format Has One Rule Per Field
 
 Intel SDM Volume 2, Figure 2-1 gives the byte order of every instruction. First come optional prefixes, then one to three opcode bytes, then an optional ModRM byte and an optional SIB byte. A displacement of 0, 1, 2, or 4 bytes follows, then an immediate of 0, 1, 2, or 4 bytes. The whole instruction is at most 15 bytes (SDM 2.3.11). AMD APM Volume 3, Chapter 1, Sections 1.1 to 1.7 describe the same format in fewer pages and are a good cross-check.

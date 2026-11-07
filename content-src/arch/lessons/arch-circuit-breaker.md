@@ -29,6 +29,15 @@ sequenceDiagram
 
 **One recency note:** Netflix's Hystrix popularised this pattern but has been in maintenance mode since 2018 and was dropped from Spring Cloud. The current reference implementation is resilience4j (JVM), Polly (.NET), or opossum (Node). Citing Hystrix as your *current* tool in 2026 is a stale-knowledge signal.
 
+```check
+Q: A product page service experiences thread exhaustion and crashes because an external recommendation service becomes sluggish during a flash sale. Which pattern configuration best solves this problem?
+* Wrap the recommendations client with a circuit breaker configured to trip open on high latency and return popular items from local cache as a fallback.
+- Increase HTTP request timeouts and let threads wait longer to ensure recommendation calls eventually succeed.
+- Implement an immediate retry loop that attempts the call up to five times before throwing a 500 error to the user.
+- Configure the recommendation client to fail fast and return an HTTP 500 error immediately to callers whenever an error occurs.
+Why: Tripping the breaker prevents slow downstream calls from exhausting the caller's thread pool, while pairing it with a cached fallback prevents relocating the outage directly to end users. Increasing timeouts exacerbates thread exhaustion by holding worker threads even longer. Retrying immediately against an overloaded dependency worsens latency and can cause cascading failures, and failing fast without a fallback still breaks the calling service's user experience.
+```
+
 ```recall
 Q: What does the open state do, and why is that the point of the breaker?
 A: It fails fast without calling the dependency after failures cross a threshold, so the caller stops wasting threads and connections on a dependency that is already down and cannot cascade its failure upward.

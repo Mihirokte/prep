@@ -27,6 +27,15 @@ sequenceDiagram
 
 **Garbage collection** itself: the runtime periodically reclaims unreachable objects. You rarely design around it in an LLD round, but know the one operational cost — a GC pause can add **tail latency** — which is why the truly latency-sensitive path minimises allocations. That connects to the p99/tail-latency point in System Design.
 
+```check
+Q: A service in a garbage-collected language caches user profiles in a global HashMap. Over time, the service suffers from severe memory exhaustion and crashes even though the code contains no manual memory management bugs. What practical fix resolves this issue?
+- Decrease the garbage collector interval to aggressively reclaim expired cache entries.
+- Wrap cache entry additions in a mutex to prevent race conditions during insertion.
+* Enforce a strict maximum capacity with an eviction policy like an LRU cache.
+- Hold multiple resource locks simultaneously instead of using timeouts.
+Why: In garbage-collected environments, memory leaks occur when objects stay reachable through long-lived collections like unbounded maps, preventing garbage collection. A learner might intuitively look for missing locks or blame GC timing, but the fix is bounding the retained set using a capped cache.
+```
+
 ```recall
 Q: A deadlock needs four conditions to occur. Which fix do you actually name in an LLD round, and why?
 A: Lock ordering: always acquire multiple locks in the same global order (lower seat-id first). It breaks the circular-wait condition, and breaking any one of the four conditions makes deadlock impossible, so this is the practical one to state.

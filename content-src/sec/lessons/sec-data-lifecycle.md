@@ -44,6 +44,15 @@ Audit | Store request time scope result and errors without deleted payload
 
 Use a dead-letter path and alert for stuck sinks. Completion is not the absence of an exception; it is positive evidence from every required system.
 
+```check
+Q: An online platform receives a verified account deletion request for a customer whose data exists in primary databases, search indexes, caches, and analytics sinks. What approach ensures complete and reliable fulfillment of this deletion request?
+- Execute a single DELETE statement in the primary transactional database and log an informational message when no SQL error is returned.
+- Directly edit the immutable backup archives to remove the user's historical records before the next scheduled backup runs.
+* Run an idempotent deletion workflow that dispatches cleanup across primary databases, derivatives, and caches, requiring positive acknowledgement from every mandatory sink.
+- Disable access to the user account in the primary database while leaving analytics and search replicas intact for compliance auditing.
+Why: A deletion request is a distributed workflow across every derived copy, requiring an idempotent job that purges primary records and derivative sinks and verifies positive completion from each. Relying on a single primary database delete or assuming deletion from immutable backups without a replay ledger fails to clean up distributed copies or handle failures.
+```
+
 ## Handle backups honestly
 
 Immutable backups may not support selective deletion. Limit retention and access, and maintain a deletion ledger that is replayed immediately after any restore before the system returns to service. This does not make the backup magically edited; it defines how deleted data is prevented from reappearing in normal operation.

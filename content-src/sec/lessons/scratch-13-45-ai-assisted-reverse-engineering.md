@@ -132,6 +132,15 @@ Three rules for the harness follow. Coverage is a list of functions with record 
 
 The `names` field has a fourth status because exact match is the wrong bar for a name. A claim whose return type, arity, and parameter types all match, and whose names differ, is `partial`, with the error rate in the evidence. A claim whose signature differs in a type or in arity is `fail`.
 
+```check
+Q: An automated decompilation agent reconstructs function f1 from a stripped binary. The reconstructed C source compiles to machine code that matches f1 byte-for-byte and agrees across all grid and fuzz tests. However, the agent's accompanying report summary asserts that f1 delegates error handling to an internal helper named safe_div at address 0x40, which is neither a symbol nor a relocation target in the binary. How does the six-field scorecard evaluate this candidate reconstruction?
+- The scorecard aggregate status evaluates to pass because the generated C function faithfully reproduces the byte-level machine instructions and passes all tests.
+* The scorecard aggregate status evaluates to fail because the report cites a callee and address that do not resolve against the binary.
+- The scorecard aggregate status evaluates to partial because the parameter and function names differ from the developer's original names in DWARF.
+- The scorecard aggregate status evaluates to unknown because helper functions require running differential execution tests against dynamically linked libraries.
+Why: Even though the compiled code matches the binary bytes and behavioral tests completely, the citations field fails because safe_div and address 0x40 do not exist as symbols or targets in the object. Because the aggregate scoring rule is fail-closed, a failure in citations results in an overall fail verdict for the candidate. An answer of pass incorrectly assumes byte equivalence overrides false citations, overlooking that the harness evaluates code and report citations as independent checks.
+```
+
 ## Ground Truth From DWARF, by Hand
 
 The target has no debug information, by design. The ground truth is `ledger-x86_64-O1-g.o`, the same source compiled with the same flags plus `-g`. Its `.text` is byte for byte the target's, so a DWARF address in one is an address in the other. Clang 17 writes DWARF 5, and reading it by hand once shows what the reader does.

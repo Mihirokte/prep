@@ -22,6 +22,15 @@ Record state | Terraform updates the locked remote state so it knows the delta n
 
 Two disciplines separate mature IaC from a mess: prefer **immutable infrastructure** (replace servers rather than mutating them in place, so drift can't accumulate) and never make **out-of-band manual changes** — a console edit that Terraform doesn't know about causes confusing "drift" the next plan tries to undo.
 
+```check
+Q: An engineer needs to update firewall rules and resize an existing database using Terraform. Before executing the change against production, which practice should they follow to verify the blast radius?
+- Apply the configuration changes directly to production, relying on Terraform state locking to automatically catch syntax errors
+* Run terraform plan to inspect the exact create, update, and delete diff before applying changes to infrastructure
+- Make the changes directly in the cloud web console first to test them, then update the local configuration files
+- Store the state file on a local laptop so other engineers cannot interfere with the running deploy
+Why: Running terraform plan shows the exact create, update, and delete actions before execution, allowing changes to be reviewed like code. Editing settings directly in the cloud console is an out-of-band manual change that causes configuration drift, which Terraform will attempt to undo.
+```
+
 ```recall
 Q: Why is terraform plan called the single most valuable habit?
 A: It shows exactly what will create, update, or delete before anything happens, turning "hope this works" into a reviewable diff you can approve like code.

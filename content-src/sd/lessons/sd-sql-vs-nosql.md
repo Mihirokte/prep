@@ -33,6 +33,15 @@ known -> nosql : key or doc by id
 known -> rethink : wants joins later
 ```
 
+```check
+Q: You are designing an e-commerce checkout and inventory management service where order items link to inventory stock, query patterns evolve across promotions, and strict ACID guarantees are required across payments. Which datastore choice and justification is most appropriate?
+- Choose MongoDB because document stores naturally handle ACID transactions and cross-table joins better at scale.
+* Choose PostgreSQL, utilizing indexes, read replicas, and partitioning to manage scale while supporting relational queries and ACID guarantees.
+- Choose DynamoDB because NoSQL inherently scales better than relational databases for growing consumer applications.
+- Store order rows in Cassandra and build application-layer locks to coordinate multi-row financial transactions and joins.
+Why: Relational databases like PostgreSQL provide native support for ACID transactions, relational integrity, and unpredictable query patterns. Reaching for NoSQL simply because 'it scales better' is a common anti-pattern that leads to writing complex, error-prone transaction and join logic in application code.
+```
+
 ```recall
 Q: Why is "NoSQL scales better" a weak interview answer?
 A: It names a property, not a reason tied to this system. The strong answer ties the choice to the access pattern, for example get-cart-by-user-id with heavy writes and no joins, which is what actually makes NoSQL fit.

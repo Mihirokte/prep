@@ -31,6 +31,15 @@ t1 -> book : books it
 t2 -> book : double-books
 ```
 
+```check
+Q: In a package locker system, two users concurrently attempt to reserve the last available locker compartment. To prevent double-booking, how should the reservation logic be implemented?
+- Acquire a lock to read if the locker is free, release it, and then acquire another lock to reserve it if it was free.
+* Enclose both checking locker availability and updating its reservation state within a single atomic lock boundary.
+- Replace locks entirely with a Semaphore initialized to the total count of all lockers in the system.
+- Store the locker status in an immutable data structure so readers never block writers.
+Why: The check-and-act must be executed as a single atomic operation under one lock so that another thread cannot interleave between checking availability and reserving the compartment. Using two separate locked operations is the classic check-then-act mistake where both threads can pass the check before either reserves. A raw semaphore tracks count rather than preventing races over the specific compartment's state.
+```
+
 ```recall
 Q: What are the three kinds of LLD concurrency problem, and the primitive each points to?
 A: Correctness (shared state corrupted by concurrent read-modify-write) -> locks, atomics, or immutability. Coordination (threads must hand off or wait) -> blocking queues or condition variables. Scarcity (a limited resource is contended) -> semaphores or resource pools.

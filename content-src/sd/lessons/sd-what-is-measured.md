@@ -27,6 +27,15 @@ proact -> bar
 
 The most common way mid-level candidates fail is not a knowledge gap — it is **structure**: going too deep too early and running out of time.
 
+```check
+Q: You are in an SDE2 system design interview designing a URL shortener service with an expected scale of 2,000 QPS. How should you approach the round to meet the level expectations?
+- Drop in a distributed service mesh and discuss global active-active replication to show deep architectural maturity.
+* Drive the functional requirements, API, and high-level design yourself, keeping components simple enough that you can explain each one.
+- Wait for the interviewer to specify the exact schema, API contracts, and technology stack before proposing any boxes.
+- Focus the first 25 minutes on hardware cost optimization and multi-region failover strategies.
+Why: At SDE2, candidates are evaluated on proactiveness to drive the initial stages while keeping the scope bounded to components they can explain. Over-engineering with global active-active replication or cost optimization is tempting to show senior-level knowledge, but mid-level candidates are not expected or penalized for omitting multi-region designs unless they bring them up themselves.
+```
+
 ```recall
 Q: You name an API gateway in your design. What should you expect next, and what does that imply?
 A: Expect "what does that actually do?" Breadth is judged shallow but real, so only draw boxes you can explain. Name-dropping a component you cannot explain hurts more than omitting it.

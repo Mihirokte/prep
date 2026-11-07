@@ -23,6 +23,15 @@ order --> pay : by id, eventual
 
 This is the same instinct as boundary-drawing one level down: keep together only what must change together atomically.
 
+```check
+Q: A design review discovers that a User aggregate contains both basic profile settings and a collection of thousands of financial transactions. Modifying a profile setting frequently fails due to write contention with incoming transaction records. How should the team fix this sizing mistake?
+- Keep all data in a single User aggregate to guarantee that every profile edit immediately locks the user's entire transaction history.
+* Split User and Transaction into separate aggregates referenced by ID, since they do not need immediate atomic consistency together.
+- Combine User and Transaction into one aggregate because external services must directly reference individual Transaction items.
+- Avoid aggregate roots entirely so any background job can directly mutate inner collections without restrictions.
+Why: Aggregates should be kept as small as possible while enforcing invariants within a single transaction boundary. Profiling settings and historical transactions do not need to change together atomically, so separating them and referencing by ID eliminates write contention. Combining them into one large aggregate is the classic sizing mistake, and aggregate roots cannot be bypassed by external code.
+```
+
 ```recall
 Q: Why is an aggregate that is too large a problem?
 A: It forces unrelated data to be loaded and locked together for any change, creating contention (two edits cannot proceed at once) and a transaction boundary far wider than the invariant actually needs.
