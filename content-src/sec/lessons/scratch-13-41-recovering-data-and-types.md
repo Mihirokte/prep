@@ -187,6 +187,15 @@ At `-O2` clang vectorises `sum_balances`. The loop body from `0x50` to `0xaa` re
 
 The figure has a button that turns folding off. With it off, the `-O2` build shows seven fields past byte 32 and no size. That state is what a reader sees who trusts the displacement without the loop.
 
+```check
+Q: In an optimized loop scanning through an array, an x86-64 function loads 4-byte values at base offsets 4, 36, 68, 100, 132, 164, 196, and 228, and adds 256 to the base pointer at the end of each iteration. What should a type-recovery pass infer from these memory accesses?
+- The struct contains 8 distinct 4-byte fields spanning an overall struct size of at least 256 bytes.
+- The loop unrolling factor must be discarded as compiler noise, so only an 8-byte field at offset 228 is retained.
+* The loop represents an 8-times unrolled loop accessing a single 4-byte field at offset 4 of an array of structs with a stride of 32 bytes.
+- The accesses prove an array of scalar 32-bit integers whose starting base address shifts by 32 bytes on each pass.
+Why: The step of 256 equals 8 times the constant delta of 32 between consecutive offsets, matching exactly 8 distinct accesses; hence, unroll-folding consolidates them into a single 4-byte field at offset 4 with a struct element stride of 32 bytes. The common failure mode is taking all 8 displacements literally and incorrectly reporting eight separate struct fields spanning over 232 bytes.
+```
+
 ## DWARF 5 From the Bytes
 
 The `-g` build of `account.c` carries eight debug sections. `.debug_info` is 493 bytes, `.debug_abbrev` 179, `.debug_str` 230, `.debug_str_offsets` 124, `.debug_addr` 112, `.debug_line` 312, `.debug_line_str` 12, and `.debug_frame` 264. The introduction of the DWARF 5 standard lists `.debug_str_offsets`, `.debug_addr`, and `.debug_line_str` as new in Version 5. The reader in `code/main.py` needs the first five.

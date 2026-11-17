@@ -16,6 +16,15 @@ Extensibility (~5 min) | The interviewer proposes a twist; show which seam absor
 
 Compressed: **scope it → ground it in entities → commit to a class structure → go deep on the interesting method without breaking down.** Write class outlines as `state` + `behavior` lists, not UML diagrams.
 
+```check
+Q: You are four minutes into an LLD round and have a requirements list. According to the framework, what should come next?
+- Write full method bodies for the most complex class.
+- Draw a formal UML class diagram with every attribute and method.
+* Pull the nouns out of the requirements into entities and sketch who owns what with boxes and arrows.
+- Ask the interviewer for a design twist to test extensibility.
+Why: Entities and relationships come before class design and take only about three minutes. Formal UML is not expected, and the extensibility twist comes last, after implementation.
+```
+
 ```recall
 Q: What two opposite failures does a time-boxed framework prevent?
 A: Diving into code before the interviewer follows your structure, and over-polishing the setup until time runs out. The time box forces you to commit to a class structure and still leave room to go deep.

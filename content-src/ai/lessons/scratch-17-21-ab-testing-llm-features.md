@@ -6,7 +6,7 @@ minutes: 0
 ---
 > **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
 
-> Traditional A/B testing was not built for non-deterministic LLMs. The critical distinction: evals answer "can the model do the job?" A/B tests answer "do users care?" Both are required; shipping on vibe checks is over. What to test in 2026: prompt engineering (wording), model selection (GPT-4 vs GPT-3.5 vs OSS; accuracy vs cost vs latency), generation parameters (temperature, top-p). Real cases: a chatbot reward-model variant delivered +70% conversation length and +30% retention; Nextdoor AI subject-line experiments delivered +1% CTR after reward-function refinement; Khan Academy Khanmigo iterated on a latency-vs-math-accuracy axis. Platform split: **Statsig** (acquired by OpenAI for $1.1B in September 2025) — sequential testing, CUPED, all-in-one. **GrowthBook** — open-source, warehouse-native, Bayesian + Frequentist + Sequential engines, CUPED, SRM checks, Benjamini-Hochberg + Bonferroni corrections. You pick based on warehouse-SQL preference and whether "acquired by OpenAI" matters to your organization.
+> Traditional A/B testing was not built for non-deterministic LLMs. The critical distinction: evals answer "can the model do the job?" A/B tests answer "do users care?" Both are required; shipping on vibe checks is over. What to test in 2026: prompt engineering (wording), model selection (GPT-4 vs GPT-3.5 vs OSS; accuracy vs cost vs latency), generation parameters (temperature, top-p). Real cases: a chatbot reward-model variant delivered +70% conversation length and +30% retention; Nextdoor AI subject-line experiments delivered +1% CTR after reward-function refinement; Khan Academy Khanmigo iterated on a latency-vs-math-accuracy axis. Platform split: **Statsig** (acquired by OpenAI for $1.1B in September 2025) — sequential testing, CUPED, all-in-one. **GrowthBook** — open-source, warehouse-native, Bayesian + Frequentist + Sequential engines, CUPED, SRM checks, Benjamini-Hochberg + Holm-Bonferroni corrections. You pick based on warehouse-SQL preference and whether "acquired by OpenAI" matters to your organization.
 
 **Prerequisites:** [Observability and tracing for LLM apps](#/study/ai/ai-observability), [Shipping prompt changes safely](#/study/ai/ai-prompt-versioning)
 
@@ -51,7 +51,7 @@ Classical A/B assumes fixed sample size. Sequential tests ("peek-and-decide") co
 
 ### Multiple-comparison corrections
 
-Running 20 A/B tests at 95% confidence produces one false positive by chance. Bonferroni correction tightens α per-test; Benjamini-Hochberg controls false-discovery rate. GrowthBook implements both.
+Running 20 A/B tests at 95% confidence produces about one false positive by chance when no variant has a real effect. Bonferroni correction tightens α per-test; Benjamini-Hochberg controls false-discovery rate. GrowthBook implements Holm-Bonferroni (a step-down Bonferroni variant) and BH.
 
 ### SRM — sample ratio mismatch
 
@@ -60,15 +60,15 @@ Assignment hash randomizes users to variants. If 50/50 split delivers 47/53, som
 ### Statsig vs GrowthBook
 
 **Statsig**:
-- Acquired by OpenAI for $1.1B (September 2025). Hosted, SaaS.
+- Acquired by OpenAI for $1.1B (September 2025). Hosted SaaS, plus a Warehouse Native option.
 - Sequential testing, CUPED, held-out populations.
 - All-in-one: feature flags + experimentation + observability.
 - Best fit: team already wants a bundled product, doesn't care about OpenAI ownership.
 
 **GrowthBook**:
-- Open-source (MIT); warehouse-native (reads from Snowflake/BigQuery/Redshift directly).
+- Open-source (MIT core; enterprise directories under a separate license); warehouse-native (reads from Snowflake/BigQuery/Redshift directly).
 - Multiple engines: Bayesian, Frequentist, Sequential.
-- CUPED, SRM, Bonferroni, BH corrections.
+- CUPED, SRM, Holm-Bonferroni, BH corrections.
 - Self-host or managed cloud.
 - Best fit: warehouse-SQL shop, data team controls the metric layer, wants OSS.
 
@@ -111,7 +111,7 @@ A: Evals answer "can the model do the job?" on a labeled set; A/B tests answer "
 Q: What does CUPED do for an experiment?
 A: Regresses out pre-period variance before comparing post-period, typically reducing variance 30-70% and boosting effective sample size.
 Q: Why do you need multiple-comparison corrections (Bonferroni or Benjamini-Hochberg) when running many A/Bs?
-A: Running 20 tests at 95% confidence produces one false positive by chance; corrections control family-wise error or false discovery rate.
+A: Running 20 tests at 95% confidence produces about one false positive by chance; corrections control family-wise error or false discovery rate.
 Q: What does SRM (sample ratio mismatch) detect?
 A: An assignment-hash bug producing a delivered split that diverges from the intended (e.g. 47/53 when targeting 50/50).
 Q: Why does LLM non-determinism require buffering sample size?

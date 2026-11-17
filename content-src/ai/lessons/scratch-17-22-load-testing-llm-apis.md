@@ -6,7 +6,7 @@ minutes: 0
 ---
 > **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
 
-> Traditional load testers were not designed for streaming responses, variable output lengths, token-level metrics, or GPU saturation. Two traps bite most teams. The GIL trap: Locust's token-level measurement runs tokenization under the Python GIL, which competes with request generation under heavy concurrency; tokenization backlog then inflates reported inter-token latency — your client is the bottleneck, not the server. The prompt-uniformity trap: identical prompts in a loop test one point on the token distribution; real traffic has variable length and diverse prefix matches. LLMPerf fixes this with `--mean-input-tokens` + `--stddev-input-tokens`. Tool mapping in 2026: LLM-specialized (GenAI-Perf, LLMPerf, LLM-Locust, guidellm) for token-level accuracy; **k6 v2026.1.0** + **k6 Operator 1.0 GA (Sept 2025)** — streaming-aware, Kubernetes-native distributed via TestRun/PrivateLoadZone CRDs, best for CI/CD gates; Vegeta for Go constant-rate saturation; Locust 2.43.3 only with LLM-Locust extension for streaming. Load patterns: steady-state, ramp, spike (autoscaling test), soak (memory leaks).
+> Traditional load testers were not designed for streaming responses, variable output lengths, token-level metrics, or GPU saturation. Two traps bite most teams. The GIL trap: Locust's token-level measurement runs tokenization under the Python GIL, which competes with request generation under heavy concurrency; tokenization backlog then inflates reported inter-token latency — your client is the bottleneck, not the server. The prompt-uniformity trap: identical prompts in a loop test one point on the token distribution; real traffic has variable length and diverse prefix matches. LLMPerf fixes this with `--mean-input-tokens` + `--stddev-input-tokens`. Tool mapping in 2026: LLM-specialized (GenAI-Perf, LLMPerf, LLM-Locust, guidellm) for token-level accuracy; **k6 v1.x** (v1.5.0 shipped January 2026) + **k6 Operator 1.0 GA (Sept 2025)** — streaming-aware via the xk6-sse extension, Kubernetes-native distributed via TestRun/PrivateLoadZone CRDs, best for CI/CD gates; Vegeta for Go constant-rate saturation; Locust 2.43.3 only with LLM-Locust extension for streaming. Load patterns: steady-state, ramp, spike (autoscaling test), soak (memory leaks).
 
 **Prerequisites:** [Latency and streaming](#/study/ai/ai-latency), [GPU Autoscaling on Kubernetes: Karpenter, KAI Scheduler, Gang Scheduling](#/study/ai/scratch-17-03-gpu-autoscaling-kubernetes)
 
@@ -35,7 +35,7 @@ Fix: LLM-Locust extension moves tokenization to separate processes, or use a com
 
 ### The prompt-uniformity trap
 
-All known load testers let you configure one prompt. In a loop test of 10,000 iterations the exact same prompt sends each time. Server sees the same prefix every time — prefix cache hits approach 100%, throughput looks great.
+Many generic load-test scripts send one fixed prompt. In a loop test of 10,000 iterations the exact same prompt sends each time. Server sees the same prefix every time — prefix cache hits approach 100%, throughput looks great.
 
 Fix: sample from a prompt distribution. LLMPerf uses `--mean-input-tokens 500 --stddev-input-tokens 150` — diverse lengths, diverse content.
 
@@ -48,16 +48,16 @@ Fix: sample from a prompt distribution. LLMPerf uses `--mean-input-tokens 500 --
 
 ### 2026 tool mapping
 
-**LLMPerf** (Anyscale) — Python but Rust-backed tokenization. Mean/stddev prompts. Streaming-aware. Best default for performance runs.
+**LLMPerf** (Anyscale) — Python but Rust-backed tokenization. Mean/stddev prompts. Streaming-aware. Long the default for performance runs, though its GitHub repo is now archived (no longer maintained).
 
-**NVIDIA GenAI-Perf** — NVIDIA's reference. Uses Triton client; comprehensive metric coverage. Note its ITL excludes TTFT; LLMPerf's includes it. Two tools produce different TPOT for the same server.
+**NVIDIA GenAI-Perf** — NVIDIA's reference, now being phased out in favor of its successor AIPerf (same TTFT-excluding ITL definition). Built on Triton Perf Analyzer; comprehensive metric coverage. Note its ITL excludes TTFT; LLMPerf's includes it. Two tools produce different TPOT for the same server.
 
 **LLM-Locust** (TrueFoundry) — Locust extension that fixes the GIL trap. Familiar Locust DSL + streaming metrics.
 
 **guidellm** — large-scale synthetic benchmarking.
 
-**k6 v2026.1.0** + **k6 Operator 1.0 GA (Sept 2025)**:
-- k6 itself (Go, compiled, no GIL) added streaming-aware metrics.
+**k6 v1.x** + **k6 Operator 1.0 GA (Sept 2025)**:
+- k6 itself (Go, compiled, no GIL) reads full HTTP response bodies; streaming TTFT/ITL comes from the community xk6-sse extension plus custom metrics.
 - k6 Operator uses TestRun / PrivateLoadZone CRDs for Kubernetes-native distributed testing.
 - Best for CI/CD gates and SLA testing.
 
@@ -80,7 +80,7 @@ Build from real traffic samples (if you have them) or from published distributio
 ### Numbers you should remember
 
 - k6 Operator 1.0 GA: September 2025.
-- k6 v2026.1.0: streaming-aware metrics.
+- k6 v1.x: streaming metrics via the xk6-sse extension.
 - Typical LLMPerf run: 100-1000 requests at concurrency X.
 - Typical CI gate: 30-50 iterations per PR.
 - Four patterns: steady, ramp, spike, soak.
@@ -107,7 +107,7 @@ A: Steady-state, ramp, spike, soak.
 Q: How does the lesson recommend building a realistic prompt distribution?
 A: Sample from a real distribution using mean and stddev (for example LLMPerf's --mean-input-tokens / --stddev-input-tokens) or replay real traffic.
 Q: Which 2026 tool combination is positioned as best for CI/CD SLA gates and Kubernetes-native distributed runs?
-A: k6 v2026.1.0 with the k6 Operator 1.0 GA (TestRun / PrivateLoadZone CRDs).
+A: k6 v1.x (xk6-sse for streaming) with the k6 Operator 1.0 GA (TestRun / PrivateLoadZone CRDs).
 Q: Which failure mode does the soak load pattern catch?
 A: Memory leaks, connection-pool drift, and observability overflow over hours.
 ```
@@ -126,7 +126,7 @@ A: Memory leaks, connection-pool drift, and observability overflow over hours.
 | Term | What people say | What it actually means |
 |------|----------------|------------------------|
 | LLMPerf | "the LLM harness" | Anyscale benchmark tool, streaming-aware |
-| GenAI-Perf | "NVIDIA tool" | NVIDIA reference harness |
+| GenAI-Perf | "NVIDIA tool" | NVIDIA reference harness, succeeded by AIPerf |
 | LLM-Locust | "Locust for LLMs" | Locust extension fixing GIL trap |
 | guidellm | "synthetic benchmark" | Large-scale synthetic tool |
 | k6 Operator | "K8s k6" | CRD-based distributed k6 |

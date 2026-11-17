@@ -21,7 +21,7 @@ minutes: 0
 
 The frontier of inference economics in 2026 is "how many tokens per dollar". The answer depends on four stacked choices: hardware generation (Hopper H100/H200 vs Blackwell B200/GB200), precision (BF16 → FP8 → NVFP4), serving engine (vLLM vs SGLang vs TRT-LLM), and orchestration (plain vs disaggregated vs Dynamo).
 
-On Hopper with vLLM, a 120B MoE runs at ~$0.09 per million tokens. On Blackwell with TRT-LLM + Dynamo, the same model runs at ~$0.012 — 7x cheaper. Some of that gap is hardware (Blackwell is 11-15x per-GPU LLM throughput vs Hopper). Some is the stack: FP4 weights, MTP draft, disaggregated prefill/decode, and NVLink 5 all-to-all for MoE expert communication.
+On Hopper with vLLM, a 120B MoE runs at ~$0.09 per million tokens. On Blackwell with TRT-LLM + Dynamo, the same model runs at ~$0.012 — 7x cheaper. Some of that gap is hardware (NVIDIA reports up to 15x per-GPU throughput vs Hopper on DeepSeek-R1). Some is the stack: FP4 weights, MTP draft, disaggregated prefill/decode, and NVLink 5 all-to-all for MoE expert communication.
 
 You cannot replicate this outside NVIDIA's stack. That is the tradeoff — portability for economics. Understanding which stack choices give which share of the gap is the point of this lesson.
 
@@ -29,9 +29,9 @@ You cannot replicate this outside NVIDIA's stack. That is the tradeoff — porta
 
 ### Why FP8 is still the floor for KV cache
 
-A common mistake in 2026: assuming NVFP4 applies everywhere. It does not. KV cache needs FP8 (8-bit floating point) because it stores attention keys and values that span a wide dynamic range. Quantizing KV to FP4 causes catastrophic accuracy loss — the tail of the distribution drops off and attention scores collapse. FP8's exponent bits give KV cache the range it needs.
+A common mistake in 2026: assuming NVFP4 applies everywhere. It does not. FP8 (8-bit floating point) is the safe default for KV cache because it stores attention keys and values that span a wide dynamic range. Naive FP4 KV quantization clips the tail of the distribution and degrades attention scores. NVIDIA's NVFP4 KV cache (late 2025) reports under 1% accuracy loss, but it needs offline calibration, so treat it as an opt-in to validate rather than the default. FP8's exponent bits give KV cache the range it needs.
 
-NVFP4 (2025-2026) applies to weights and activations. Microscaling: each block of weights has its own scale factor so small blocks can span different dynamic ranges without per-tensor scale loss. For activations, FP4 holds up because activations are small-range within a layer.
+NVFP4 (2025-2026) applies to weights and activations. Microscaling: each block of 16 values has its own scale factor so small blocks can span different dynamic ranges without per-tensor scale loss. For activations, FP4 holds up because the per-block scale confines an outlier's damage to its own 16-value block.
 
 The typical Blackwell config:
 
@@ -54,8 +54,8 @@ The typical Blackwell config:
 - GB200 NVL72 at $0.012/M tokens via Dynamo (orchestrating TRT-LLM).
 - H100 + vLLM ≈ $0.09/M tokens on comparable workload.
 - 2.8x throughput gain in three months of TRT-LLM updates (2026).
-- 11-15x per-GPU LLM throughput, Blackwell vs Hopper.
-- MLPerf Inference v6.0 (April 2026): Blackwell dominates every submitted task.
+- Up to 15x per-GPU throughput, Blackwell vs Hopper (NVIDIA, DeepSeek-R1).
+- MLPerf Inference v6.0 (April 2026): Blackwell Ultra systems posted the highest throughput across the widest range of models and scenarios.
 
 ### What FP4 actually costs in quality
 
@@ -65,7 +65,7 @@ The rule: always validate task quality on your eval set before committing to NVF
 
 ### Why this is an NVIDIA-lock decision
 
-TRT-LLM is C++ + CUDA + closed-source kernels. Models need to be compiled for a specific GPU SKU. No AMD, no Intel, no ARM. If your infra strategy is multi-vendor, TRT-LLM is a non-starter for the TRT-LLM-served tier — you can still serve from vLLM on mixed hardware. If you are NVIDIA-only, the 7x gap pays for the lock.
+TRT-LLM is open source (Apache 2.0), with a PyTorch-based default backend over C++/CUDA kernels, but it runs only on NVIDIA GPUs. The legacy TensorRT engine path compiles models for a specific GPU SKU. No AMD GPUs, no Intel GPUs (Arm hosts are fine: GB200 pairs Blackwell with Arm-based Grace CPUs). If your infra strategy is multi-vendor, TRT-LLM is a non-starter for the TRT-LLM-served tier — you can still serve from vLLM on mixed hardware. If you are NVIDIA-only, the 7x gap pays for the lock.
 
 ### 2026 practical recipe
 
@@ -91,11 +91,11 @@ Source: [AI Engineering from Scratch, phase 17, 07-tensorrt-llm-blackwell](https
 Q: Roughly what is the per-million-tokens cost gap the lesson reports between Blackwell + TRT-LLM + Dynamo and H100 + vLLM on a comparable 120B-class workload?
 A: About 7x.
 Q: Why does the lesson recommend keeping KV cache in FP8 rather than NVFP4 on Blackwell?
-A: KV cache spans a wide dynamic range; FP4 quantization causes catastrophic accuracy loss in attention scores.
+A: KV cache spans a wide dynamic range; naive FP4 quantization degrades attention scores, and NVFP4 KV needs calibration and validation, so FP8 is the safe default.
 Q: Which Blackwell feature does TRT-LLM exploit so models can be loaded without a post-training conversion step?
 A: Day-0 FP4 weights shipped by model providers.
 Q: What is the dominant tradeoff of choosing the TRT-LLM stack per the lesson?
-A: It locks you into NVIDIA hardware — no AMD, no Intel, no ARM.
+A: It locks you into NVIDIA GPUs — no AMD or Intel GPUs.
 Q: Which precision combination does the lesson describe as the typical Blackwell config?
 A: Weights NVFP4, activations NVFP4, KV cache FP8, attention accumulator FP32.
 Q: For reasoning-heavy workloads where NVFP4 weight conversion drops MATH accuracy a few points, what does the lesson advise?
@@ -122,11 +122,11 @@ A: Validate task quality on your eval set per model; teams often use FP8 weights
 | MTP | "multi-token prediction" | TRT-LLM's integrated speculative-decoding draft ([Speculative Decoding: Draft, Verify, Repeat](#/study/ai/scratch-07-16-speculative-decoding)) |
 | Disaggregated serving | "split prefill/decode" | Prefill and decode on separate GPU pools; KV transferred over NVLink/IB |
 | All-to-all | "MoE expert comm" | Communication pattern routing tokens to expert GPUs; NVLink 5 cuts 3x |
-| InferenceX | "SemiAnalysis inference bench" | The 2026 industry-accepted cost-per-token benchmark |
+| InferenceX | "SemiAnalysis inference bench" | SemiAnalysis's open-source inference benchmark (formerly InferenceMAX); reports throughput and cost per million tokens |
 
 ## Further Reading
 
-- [NVIDIA — Blackwell Ultra MLPerf Inference v6.0](https://developer.nvidia.com/blog/nvidia-blackwell-ultra-sets-new-inference-records-in-mlperf-debut/) — April 2026 MLPerf results.
+- [NVIDIA — MLPerf Inference v6.0 records](https://developer.nvidia.com/blog/nvidia-extreme-co-design-delivers-new-mlperf-inference-records) — April 2026 MLPerf results.
 - [NVIDIA — MoE Inference on Blackwell](https://developer.nvidia.com/blog/delivering-massive-performance-leaps-for-mixture-of-experts-inference-on-nvidia-blackwell/) — NVLink 5 all-to-all and MoE kernels.
 - [TensorRT-LLM Overview](https://nvidia.github.io/TensorRT-LLM/overview.html) — official engine documentation.
 - [NVIDIA — Introducing Dynamo](https://developer.nvidia.com/blog/introducing-nvidia-dynamo-a-low-latency-distributed-inference-framework-for-scaling-reasoning-ai-models/) — disaggregated orchestration above TRT-LLM.

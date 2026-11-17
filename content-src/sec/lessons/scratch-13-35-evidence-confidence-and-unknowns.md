@@ -246,6 +246,15 @@ The range claim shows the partial case. Only two of its eleven inputs, 95 and 10
 
 `completion_ledger()` mirrors rea's `EvidenceCompletionLedger`. Its id is `ecl_` plus the hash of its records, and `complete` is true only when `pass` equals `total`. The demo prints `ecl_da64933ea13befed…` with `complete: false`, because of that one range claim.
 
+```check
+Q: An analyst examines a compiled function calculate_tax(amount). Ghidra pseudocode indicates that calculate_tax(100) returns 15, and the analyst derives a corresponding mathematical model from the disassembled instructions. However, no dynamic execution of calculate_tax has been run yet. According to the evidence ledger rules, what is the status of the claim calculate_tax(100) == 15?
+* The claim remains unsupported because only an observed run of the function can promote a claim about behaviour.
+- The claim is promoted to pass because Ghidra decompilation and the derived table model both confirm the output value.
+- The claim transitions to unknown because the decompiler output is treated as a partial observation of execution.
+- The claim becomes verified because the evidence ledger hash chain establishes global implementation equivalence.
+Why: Neither static decompiler pseudocode nor derived models can promote a behavioral claim to supported or pass; only an observed run of the function can do so. Treating decompiler output or assembly derivations as execution observations is a common mistake, but without an execution run the claim remains unsupported rather than pass or unknown.
+```
+
 ## Unknowns Are Records with a Hash Chain
 
 rea stores a residual unknown as a strict record. `code/main.py` keeps the same fields and the same invariants.

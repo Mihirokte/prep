@@ -29,6 +29,15 @@ traces -> where : slow or failing hop
 
 The distinction that matters: **monitoring** is watching known signals for known failure modes (dashboards, thresholds); **observability** is having enough rich, correlated data to debug problems you *didn't* anticipate. Metrics tell you the *what*; logs and traces let you find the *why*. A useful default is Google's "Four Golden Signals" to instrument first: **latency, traffic, errors, and saturation**.
 
+```check
+Q: Your dashboard shows a spike in 5xx errors, and a customer reports that one specific checkout failed. Which signal do you reach for to find out what happened to that customer's request?
+- Metrics, because they give exact per-request detail.
+- A longer retention window on the error-rate metric.
+* Structured logs, because they record discrete events with enough detail to filter down to one request or user.
+- None, because observability is only about dashboards and thresholds.
+Why: Metrics are aggregates that tell you something is wrong and how bad, but they lose per-request detail. Logs answer what exactly happened for a given request, and traces show where across services it went wrong.
+```
+
 ```recall
 Q: What distinguishes observability from monitoring?
 A: Monitoring watches known signals for known failure modes via dashboards and thresholds. Observability means having rich correlated data to ask new questions and debug problems you did not anticipate, without shipping new code.

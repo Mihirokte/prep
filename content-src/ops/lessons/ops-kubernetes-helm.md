@@ -32,6 +32,15 @@ Objects you'll name in an interview:
 
 **Helm** is the package manager on top. A **chart** is a templated, versioned bundle of these manifests with values you fill in per environment — so "deploy the payments service to staging with 3 replicas" is one command against one chart, not a folder of hand-edited YAML. It gives you versioned, repeatable, parameterized deploys and a clean rollback to a previous release.
 
+```check
+Q: A node dies and three of your five replicas were running on it. Why do you not have to restart them by hand in Kubernetes?
+- A Service notices the missing pods and starts new containers on the remaining nodes.
+- Helm re-renders the chart and applies it to a new node automatically.
+* You declared the desired state (five replicas), and a control loop keeps working to make reality match, rescheduling the lost pods elsewhere.
+- The pods are stored in a ConfigMap that is replayed when the node returns.
+Why: Kubernetes is declarative: you state the desired outcome and a control loop reconciles actual state toward it. A Service only gives callers a stable address, and Helm packages manifests rather than reconciling them.
+```
+
 ```recall
 Q: What does "declarative desired state" mean in Kubernetes?
 A: You declare the end state you want, such as 5 replicas of an image, and a control loop continuously works to make reality match, replacing crashed pods and rescheduling those on dead nodes.

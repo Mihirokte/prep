@@ -27,6 +27,15 @@ sequenceDiagram
 
 **Rollback** is the safety net under all of this. The rule: you should always be able to get back to the last known-good version *fast* and without thinking. This is far easier when releases are **immutable versioned artifacts** (roll back = redeploy the previous artifact) and when database changes are **backward compatible** — a schema the old code can't read makes rollback impossible.
 
+```check
+Q: A mission-critical financial application cannot tolerate prolonged rollback times during a release. If an issue is detected immediately after cutover, the team must return to the last known-good state within seconds. The team has sufficient budget for spare infrastructure. Which deployment strategy best satisfies this requirement?
+- Rolling deployment, because both versions run side-by-side with no duplicate infrastructure and rolling back to the previous version takes effect instantaneously.
+* Blue-green deployment, because running the full previous environment side-by-side allows an instantaneous traffic flip if the new release exhibits critical bugs.
+- Canary deployment without automated metric monitoring, because routing 100% of users directly to a single server validates the database schema immediately.
+- In-place mutating release, because modifying server code directly prevents needing backward-compatible database schemas during a rollback.
+Why: Blue-green deployment provisions a complete standby environment and switches all traffic at once, allowing a near-instant rollback simply by flipping traffic back to the blue environment. The most tempting wrong option is a rolling deployment because it requires no extra fleet, but it fails the scenario's primary requirement since rolling back requires gradually redeploying instances in reverse, making recovery slow.
+```
+
 ```recall
 Q: Why is blue-green rollback faster than rolling rollback?
 A: Blue-green keeps the previous full environment live, so rollback is a single traffic flip. Rolling must replace instances a few at a time in reverse, so going back is as slow as the original deploy.

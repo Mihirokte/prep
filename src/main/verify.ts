@@ -551,8 +551,24 @@ async function drillWorkspace(h: AppHandles, win: BrowserWindow) {
     pass,
   )
 
-  // A pack with no authored cases falls back to a syntax check and says so.
-  const plain = Object.values(packs).find((p) => !p.tests?.length)!
+  // The bundled Pyodide judge must handle every structured form, not only plain values:
+  // trees, linked lists, in-place edits, graphs, a custom checker, a round trip and a design class.
+  for (const id of ['dsa-056', 'dsa-041', 'dsa-043', 'dsa-092', 'dsa-064', 'dsa-047']) {
+    const pack = packs[id]
+    await visit(win, `#/drill/${id}`)
+    await waitFor(() => editorText(win), (t) => t.length > 0, 5000, 'the editor')
+    await typeCode(win, pack.reference_solution ?? '')
+    const verdict = await runValidator(win)
+    check(
+      `judge in the app: ${pack.title} reference passes every case`,
+      verdict === `Passed ${pack.tests!.length}/${pack.tests!.length} local tests.`,
+      verdict,
+    )
+  }
+
+  // A pack with no authored cases falls back to a syntax check and says so. Once
+  // every pack has cases there is none to find, and the workspace checks run on dsa-002.
+  const plain = Object.values(packs).find((p) => !p.tests?.length) ?? packs['dsa-002']
   const plainId = plain.id
   await visit(win, `#/drill/${plainId}`)
   await waitFor(() => editorText(win), (t) => t.length > 0, 5000, 'the editor')
@@ -565,7 +581,12 @@ async function drillWorkspace(h: AppHandles, win: BrowserWindow) {
     win,
     `({ verify: !!document.querySelector('button[aria-label="Verify with the tutor"]'), tests: !!document.querySelector('button[aria-label="Run local Python validation"]') })`,
   )
-  check('a pack without local tests offers Verify and no test runner', controls.verify && !controls.tests, JSON.stringify(controls))
+  const hasTests = !!plain.tests?.length
+  check(
+    hasTests ? 'a pack with local tests offers the test runner' : 'a pack without local tests offers Verify and no test runner',
+    hasTests ? controls.tests : controls.verify && !controls.tests,
+    JSON.stringify(controls),
+  )
 
   await js(win, `[...document.querySelectorAll('button')].find((b) => b.textContent === 'Reset')?.click()`)
   await sleep(700)

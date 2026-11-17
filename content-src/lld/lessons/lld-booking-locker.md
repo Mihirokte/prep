@@ -20,6 +20,15 @@ Rollback | On any failure reserve nothing, so the booking is all-or-nothing
 
 A useful contrast the Locker draws out: a **pickup code is not idempotent** — it must *invalidate after successful pickup*, so presenting it twice fails the second time. That's the opposite of a payment idempotency key, which *replays* the same result on retry. Same word ("has this been seen?"), opposite desired behavior — knowing which one a requirement wants is the signal.
 
+```check
+Q: Two users try to book overlapping sets of seats at the same moment: one asks for seats 3 and 7, the other for seats 7 and 3. How does the booking design avoid deadlock?
+- Lock seats in the order each user listed them, so each request is served in the order it arrived.
+- Use one lock per screen so seats never contend with each other.
+* Sort the requested seat ids by a global order and acquire the locks in that order, so a circular wait cannot form.
+- Reserve the first seat, then retry the second until it frees up.
+Why: A fixed global lock order means both requests take seat 3 before seat 7, so one waits instead of each holding a lock the other needs. Locking per screen would conflate different showtimes and serialize unrelated bookings.
+```
+
 ```recall
 Q: Why track movie seat availability per showtime rather than per screen?
 A: The same physical seat is a separate bookable unit for the 2pm and 6pm shows. Keying availability by showtime lets both be reserved independently; keying by screen conflates them and makes correct booking impossible.

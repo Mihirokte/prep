@@ -6,7 +6,7 @@ minutes: 0
 ---
 > **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
 
-> Prefill is compute-bound; decode is memory-bound. Running both on the same GPU wastes one resource. Disaggregation splits them onto separate pools and transfers KV cache between them over NIXL (RDMA/InfiniBand or TCP fallback). NVIDIA Dynamo (GTC 2025 announce, 1.0 GA) sits above vLLM/SGLang/TRT-LLM — its Planner Profiler + SLA Planner auto-rate-match prefill:decode ratios to meet SLOs. NVIDIA publishes throughput gains in this ballpark — developer.nvidia.com (2025-06) shows a ~6x improvement for DeepSeek-R1 MoE on GB200 NVL72 + Dynamo in the medium-latency regime, and the Dynamo product page (developer.nvidia.com, undated) advertises up to 50x MoE throughput on GB300 NVL72 + Dynamo vs Hopper. The "30x" figure is a community aggregate across full-stack Blackwell + Dynamo + DeepSeek-R1 reports; we have not found a single primary source stating exactly 30x, so treat it as a directional claim. llm-d (Red Hat + AWS) is Kubernetes-native: prefill / decode / router as independent Services with per-role HPA. llm-d 0.5 adds hierarchical KV offloading, cache-aware LoRA routing, UCCL networking, scale-to-zero. Economics: internal rollup of multiple customer disclosures suggests 30–40% savings on $2M-class inference spend (i.e., $600-800K/year) when switching from colocated serving to disaggregated with Dynamo at constant SLA; the specific $2M→$600-800K figure is an internal composite, not a single published case study — use it as an order-of-magnitude anchor, not a reference citation. Short prompts (<512 tokens, short output) don't justify the transfer cost.
+> Prefill is compute-bound; decode is memory-bound. Running both on the same GPU wastes one resource. Disaggregation splits them onto separate pools and transfers KV cache between them over NIXL (RDMA/InfiniBand or TCP fallback). NVIDIA Dynamo (GTC 2025 announce, 1.0 GA at GTC 2026) sits above vLLM/SGLang/TRT-LLM — its Dynamo Profiler + SLA Planner auto-rate-match prefill:decode ratios to meet SLOs. NVIDIA publishes throughput gains in this ballpark — developer.nvidia.com (2025-06) shows a simulated ~6x throughput improvement for DeepSeek-R1 MoE with disaggregated serving (GB200 NVL72 + Dynamo context) in the medium-latency regime, and the Dynamo product page (developer.nvidia.com, undated) advertises up to 50x MoE throughput on GB300 NVL72 + Dynamo vs Hopper. The "30x" figure is NVIDIA's own launch claim (developer.nvidia.com, 2025-03): up to 30x more requests served for DeepSeek-R1 on GB200 NVL72 with Dynamo disaggregated serving, a projected TensorRT-LLM FP4 result at 32K/8K input/output, so treat it as a vendor best case. llm-d (founded by Red Hat, Google Cloud, IBM Research, CoreWeave and NVIDIA; now a CNCF project) is Kubernetes-native: prefill / decode / router as independent Services with per-role HPA. llm-d 0.5 adds hierarchical KV offloading, cache-aware LoRA routing, UCCL networking, scale-to-zero. Economics: internal rollup of multiple customer disclosures suggests 30–40% savings on $2M-class inference spend (i.e., $600-800K/year) when switching from colocated serving to disaggregated with Dynamo at constant SLA; the specific $2M→$600-800K figure is an internal composite, not a single published case study — use it as an order-of-magnitude anchor, not a reference citation. Short prompts (<512 tokens, short output) don't justify the transfer cost.
 
 **Prerequisites:** [Serving models](#/study/ai/ai-inference-serving), [Latency and streaming](#/study/ai/ai-latency)
 
@@ -29,9 +29,9 @@ Disaggregation splits prefill and decode onto separate pools sized for each's bo
 
 ### Why the bottlenecks differ
 
-**Prefill** — run the transformer over the full input prompt in one forward. Matrix multiplications dominate; compute-bound. H100 FP8 gives ~2000 TFLOPS of useful throughput. Batch efficiency is good — one forward processes many tokens.
+**Prefill** — run the transformer over the full input prompt in one forward. Matrix multiplications dominate; compute-bound. H100 SXM FP8 peaks at ~2000 dense TFLOPS (3,958 with sparsity). Batch efficiency is good — one forward processes many tokens.
 
-**Decode** — generate one token at a time, reading the full weights each iteration. Memory-bandwidth-bound. HBM3 gives ~3 TB/s. Batch efficiency is good only at high concurrency — the weights read amortizes across the batch.
+**Decode** — generate one token at a time, reading the full weights each iteration. Memory-bandwidth-bound. H100 SXM HBM3 gives ~3.35 TB/s. Batch efficiency is good only at high concurrency — the weights read amortizes across the batch.
 
 Colocating them: you buy GPUs optimized for both. H100 is good at both but costs the same either way. At scale, you want prefill pool on H100 / compute-heavy; decode pool on H200 / memory-heavy, or with aggressive quantization.
 
@@ -54,17 +54,17 @@ NIXL is NVIDIA's inter-node transport. Uses RDMA/InfiniBand when available, TCP 
 
 ### Dynamo vs llm-d
 
-**NVIDIA Dynamo** (GTC 2025 announce, 1.0 GA):
+**NVIDIA Dynamo** (GTC 2025 announce, 1.0 GA at GTC 2026):
 - Sits above vLLM, SGLang, TRT-LLM as an orchestrator.
-- Planner Profiler measures workload, SLA Planner auto-configures prefill:decode ratios.
+- Dynamo Profiler measures workload, SLA Planner auto-configures prefill:decode ratios.
 - Rust core, Python extensibility.
-- Throughput gains: NVIDIA reports 6x for DeepSeek-R1 MoE on GB200 NVL72 + Dynamo in the medium-latency regime (developer.nvidia.com, 2025-06); community reports of "up to 30x" on full Blackwell + Dynamo + DeepSeek-R1 stacks lack a single primary source and should be treated as directional.
+- Throughput gains: NVIDIA reports a simulated 6x for DeepSeek-R1 MoE with disaggregation in the medium-latency regime (developer.nvidia.com, 2025-06); NVIDIA's launch post claims "up to 30x" more requests served for DeepSeek-R1 on GB200 NVL72 + Dynamo (developer.nvidia.com, 2025-03, projected), a vendor best case.
 - GB300 NVL72 + Dynamo: up to 50x MoE throughput vs Hopper per the Dynamo product page (developer.nvidia.com, undated).
+- On Kubernetes (via NVIDIA Grove), `topologyConstraint packDomain: rack` packs prefill+decode cliques on the same rack for high-bandwidth KV transfer.
 
-**llm-d** (Red Hat + AWS, Kubernetes-native):
+**llm-d** (founded by Red Hat, Google Cloud, IBM Research, CoreWeave and NVIDIA; Kubernetes-native, CNCF project):
 - Prefill / decode / router as independent Kubernetes Services.
 - Per-role HPA with queue depth (prefill) / KV utilization (decode) signals.
-- `topologyConstraint packDomain: rack` packs prefill+decode cliques on the same rack for high-bandwidth KV transfer.
 - llm-d 0.5 (2026): hierarchical KV offloading, cache-aware LoRA routing, UCCL networking, scale-to-zero.
 
 Use Dynamo if you want a managed stack-above orchestrator. Use llm-d if you want Kubernetes-native primitives and are committed to the CNCF ecosystem.
@@ -94,13 +94,13 @@ Disaggregated routers are KV-cache-aware ([Multi-Region LLM Serving and KV Cache
 
 ### MoE on Blackwell is where the real numbers are
 
-GB300 NVL72 + Dynamo shows 50x MoE throughput over Hopper baselines. MoE expert routing is compute-heavy on prefill but memory-heavy on decode (expert caches), so disaggregation is a double win. 2026 frontier model serving is MoE-dominant (DeepSeek-V3, future GPT-5 variants).
+NVIDIA claims up to 50x MoE throughput for GB300 NVL72 + Dynamo over Hopper baselines. MoE expert routing is compute-heavy on prefill but memory-heavy on decode (expert caches), so disaggregation is a double win. 2026 frontier model serving is MoE-dominant (DeepSeek-V3/R1, Qwen3 MoE, Llama 4).
 
 ### Numbers you should remember
 
 Benchmark numbers drift — NVIDIA and the inference stack post updated results every quarter. Re-check before quoting.
 
-- DeepSeek-R1 on GB200 NVL72 + Dynamo: ~6x throughput vs baseline in the medium-latency regime (developer.nvidia.com, 2025-06); community "up to 30x" claims on full Blackwell + Dynamo stacks are directional aggregates without a single primary source.
+- DeepSeek-R1 with disaggregation (GB200 NVL72 + Dynamo): ~6x simulated throughput vs colocated in the medium-latency regime (developer.nvidia.com, 2025-06); NVIDIA's "up to 30x" more requests served on GB200 NVL72 + Dynamo is a projected vendor best case (developer.nvidia.com, 2025-03).
 - GB300 NVL72 + Dynamo: up to 50x MoE throughput vs Hopper (developer.nvidia.com, undated).
 - Savings anchor (internal composite, not a single case study): $600-800K/year off a $2M annual spend at constant SLA.
 - Disaggregation threshold: prompts >512 tokens + outputs >200 tokens.
@@ -128,7 +128,7 @@ A: Prompts under 512 tokens and outputs under 200 tokens, where the KV transfer 
 Q: What is the core architectural difference between Dynamo and llm-d?
 A: Dynamo is a stack-above orchestrator over vLLM/SGLang/TRT-LLM; llm-d is Kubernetes-native with prefill/decode/router as independent Services.
 Q: Which Dynamo components automatically tune the prefill:decode ratio for an SLO?
-A: Planner Profiler and SLA Planner.
+A: Dynamo Profiler and SLA Planner.
 Q: How does disaggregation interact with cache-aware routing from Phase 17 · 11?
 A: The cache-aware router can land a request on the decode pool already holding its prefix; on miss it flows prefill -> decode, so the two compound.
 ```
@@ -149,11 +149,11 @@ A: The cache-aware router can land a request on the decode pool already holding 
 | Disaggregated serving | "split prefill/decode" | Separate GPU pools for each phase |
 | NIXL | "NVIDIA transport" | Dynamo's inter-node KV transfer (RDMA/TCP) |
 | NVIDIA Dynamo | "the orchestrator" | Stack-above coordinator for vLLM/SGLang/TRT-LLM |
-| llm-d | "Kubernetes native" | Red Hat + AWS K8s disaggregated stack |
-| Planner Profiler | "Dynamo auto-config" | Measures workload, configures pool ratios |
+| llm-d | "Kubernetes native" | Red Hat-founded K8s disaggregated stack (CNCF) |
+| Dynamo Profiler | "Dynamo auto-config" | Measures workload, configures pool ratios |
 | SLA Planner | "Dynamo policy" | Auto-rate-matches prefill:decode to meet SLOs |
-| `packDomain: rack` | "llm-d topology" | Pack prefill+decode on same rack for fast KV |
-| UCCL | "unified collective" | llm-d 0.5 networking layer for scale-to-zero |
+| `packDomain: rack` | "Dynamo/Grove topology" | Pack prefill+decode on same rack for fast KV |
+| UCCL | "unified collective" | Unified Collective Communication Library; NIXL transport backend added in llm-d 0.5 for congestion-resilient KV transfer |
 | MoE expert routing | "expert per token" | DeepSeek-V3 pattern; disaggregation helps |
 
 ## Further Reading

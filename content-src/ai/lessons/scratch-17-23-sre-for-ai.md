@@ -6,7 +6,7 @@ minutes: 0
 ---
 > **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
 
-> AI SRE uses LLMs grounded in infrastructure data (logs, runbooks, service topology) via RAG to automate investigation, documentation, and coordination phases. The 2026 architecture pattern is multi-agent orchestration — specialized agents (logs, metrics, runbooks) coordinated by a supervisor; AI proposes hypotheses and queries, humans approve judgment calls. Datadog Bits AI and Azure SRE Agent ship this as managed products. Runbooks are evolving: NeuBird Hawkeye uses adversarial evaluation (two models analyze the same incident; agreement = confidence, disagreement = uncertainty); operational memory persists across team changes. Auto-remediation stays cautious: AI suggests, humans approve. Fully autonomous action is narrow (restart pod, rollback specific deploy) with tight guardrails — anyone selling "set it and forget it" is overselling. Emerging frontier: pre-incident prediction. MIT research reports an LLM trained on historical logs + GPU temps + API error patterns predicted 89% of outages 10-15 min early. Projection: 95% of enterprise LLMs have automated failover by end-2026.
+> AI SRE uses LLMs grounded in infrastructure data (logs, runbooks, service topology) via RAG to automate investigation, documentation, and coordination phases. The 2026 architecture pattern is multi-agent orchestration — specialized agents (logs, metrics, runbooks) coordinated by a supervisor; AI proposes hypotheses and queries, humans approve judgment calls. Datadog Bits AI and Azure SRE Agent ship this as managed products. Runbooks are evolving: NeuBird Hawkeye uses adversarial evaluation (two models analyze the same incident; agreement = confidence, disagreement = uncertainty); operational memory persists across team changes. Auto-remediation stays cautious: AI suggests, humans approve. Fully autonomous action is narrow (restart pod, rollback specific deploy) with tight guardrails — anyone selling "set it and forget it" is overselling. Emerging frontier: pre-incident prediction. Models trained on historical logs, GPU temps and API error patterns can flag some outages early, but results vary by system.
 
 **Prerequisites:** [Observability and tracing for LLM apps](#/study/ai/ai-observability), [Chaos Engineering for LLM Production](#/study/ai/scratch-17-24-chaos-engineering-llm)
 
@@ -15,7 +15,7 @@ minutes: 0
 - Diagram the multi-agent AI SRE architecture: supervisor + specialized agents (logs, metrics, runbooks) + human approval gate.
 - Explain why auto-remediation is narrow (restart pod, revert deploy) rather than broad (re-architect service).
 - Name the adversarial evaluation pattern (NeuBird Hawkeye): two models agree = confidence; disagree = escalate.
-- Cite the MIT 89% early-detection result and the operational constraint: predictions without actuation are just dashboards.
+- State the operational constraint on pre-incident prediction: predictions without actuation are just dashboards.
 
 ## The Problem
 
@@ -68,7 +68,7 @@ Team turnover is the silent kill of traditional SRE — tribal knowledge leaves.
 
 ### Pre-incident prediction
 
-MIT 2025 research: LLM trained on historical logs, GPU temperatures, API error patterns predicted 89% of outages 10-15 minutes before they happened on the test set.
+Models trained on historical logs, GPU temperatures and API error patterns can flag some outages before they happen, but published lead times and hit rates vary widely by system.
 
 Reality check: predictions without actuation are dashboards. The operational question is "when we predict, what do we do?" Pre-emptive drain? Pager? Auto-scale? The answer is policy-specific.
 
@@ -78,7 +78,7 @@ Reality check: predictions without actuation are dashboards. The operational que
 - **Azure SRE Agent** — Azure-native.
 - **NeuBird Hawkeye** — adversarial eval + operational memory.
 - **PagerDuty AIOps** — triage + deduplication.
-- **Incident.io Autopilot** — incident commander + coordination.
+- **incident.io AI SRE (Investigations)** — investigation + incident coordination.
 
 ### Runbooks as code
 
@@ -86,7 +86,6 @@ Runbooks evolve from Confluence pages to versioned markdown with structured sect
 
 ### Numbers you should remember
 
-- MIT early-detection: 89% of outages, 10-15 min lead time.
 - Multi-agent triage: supervisor + (logs, metrics, runbooks) + human.
 - Safe auto-remediation set: restart pod, revert deploy, scale within bounds.
 - Adversarial eval: two models independent; agreement = confidence.
@@ -112,8 +111,8 @@ Q: How does NeuBird Hawkeye use adversarial evaluation to filter hallucinated ro
 A: Two models independently analyze the same incident; agreement = high confidence, disagreement = escalate to human with both hypotheses.
 Q: What does operational memory solve in AI SRE?
 A: Loss of tribal knowledge when teams turn over — runbooks and post-mortems live in a vector DB that agents retrieve on every incident.
-Q: What MIT 2025 result does the lesson cite for pre-incident prediction?
-A: 89% of outages predicted 10-15 minutes early using logs + GPU temps + API error patterns.
+Q: What makes pre-incident prediction operationally useful?
+A: A defined action when it fires (drain, page, auto-scale); predictions without actuation are just dashboards.
 Q: What operational constraint does the lesson stress about predictive detection?
 A: Predictions without actuation are just dashboards — the operational question is what action (pre-drain, page, auto-scale) the prediction triggers.
 ```

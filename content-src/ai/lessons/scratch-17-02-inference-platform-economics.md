@@ -29,7 +29,7 @@ This lesson models the six and tells you when each wins.
 
 ### The three segments
 
-**Custom silicon** — Groq (LPU), Cerebras (WSE), SambaNova (RDU). Typically 5-10x faster decode than a GPU-based cluster on the same model. Higher per-token price (Groq was ~$0.99/M on Llama-70B late 2025) but unbeatable for latency-sensitive use cases. Groq is the production pick for voice agents and real-time translation.
+**Custom silicon** — Groq (LPU), Cerebras (WSE), SambaNova (RDU). Typically 5-10x faster decode than a GPU-based cluster on the same model. Per-token prices are not necessarily higher (Groq listed Llama 3.3 70B at $0.59/M input and $0.79/M output in 2025), and the speed is hard to beat for latency-sensitive use cases. Groq is the production pick for voice agents and real-time translation.
 
 **GPU platforms** — Baseten, Together, Fireworks, Modal, Anyscale. Run on NVIDIA (H100, H200, B200 in 2026) or sometimes AMD. The economic layer between "raw GPU rental" (RunPod, Lambda) and "hyperscaler managed service" (Bedrock).
 
@@ -37,7 +37,7 @@ This lesson models the six and tells you when each wins.
 
 ### Fireworks — latency-optimized GPU platform
 
-- FireAttention engine (custom); marketed as 4x lower latency than vLLM on equivalent configs.
+- FireAttention engine (custom); marketed as up to 4x faster than vLLM, based on Fireworks' own FP8 benchmarks.
 - Batch tier at ~50% of serverless rate for non-interactive workloads.
 - Fine-tuned model served at the same rate as the base model — a real differentiator versus providers that charge a premium for your LoRA.
 - Mid-2026: raised on-demand GPU rental $1/hour effective May 1, 2026. Volume pricing negotiable at scale.
@@ -58,9 +58,9 @@ This lesson models the six and tells you when each wins.
 
 ### Modal — Python-native-optimized
 
-- Infrastructure-as-code in pure Python. Decorate a function with `@modal.function(gpu="A100")` and deploy with one command.
+- Infrastructure-as-code in pure Python. Decorate a function with `@app.function(gpu="A100")` (where `app = modal.App()`) and deploy with one command.
 - Per-second billing. Cold starts 2-4s with pre-warming; <1s for small models.
-- $87M Series B at $1.1B valuation (2025). Strongest developer experience score in independent surveys.
+- $87M Series B at $1.1B valuation (September 2025). Strongest developer experience score in independent surveys.
 
 ### Replicate — multimodal breadth
 
@@ -70,9 +70,9 @@ This lesson models the six and tells you when each wins.
 
 ### Anyscale — Ray-native
 
-- Built on Ray; RayTurbo is Anyscale's proprietary inference engine (competes with vLLM).
+- Built on Ray; RayTurbo is Anyscale's proprietary optimized Ray runtime (faster scaling and model loading than open-source Ray); LLM serving on Anyscale runs Ray Serve with vLLM.
 - Best for distributed Python workloads where the inference step is one node in a larger graph.
-- Managed Ray clusters; tight integration with Ray AIR and Ray Serve.
+- Managed Ray clusters; tight integration with Ray Data, Ray Train and Ray Serve.
 
 ### Per-token versus per-minute — when each wins
 
@@ -87,7 +87,7 @@ Every platform above vLLM and SGLang claims a custom engine. FireAttention, RayT
 ### Numbers you should remember
 
 - Fireworks GPU rental: $1/hr raise effective May 1, 2026.
-- Fireworks claim: 4x lower latency than vLLM on equivalent configs.
+- Fireworks claim: up to 4x faster than vLLM (vendor FP8 benchmark).
 - Together: 50-70% cheaper than Replicate on LLMs.
 - Baseten valuation: $5B (Series E, Jan 2026, $300M round).
 - Modal valuation: $1.1B (Series B, 2025).
@@ -134,12 +134,12 @@ A: vLLM and SGLang represent roughly 80% of production open-source inference, so
 | Term | What people say | What it actually means |
 |------|----------------|------------------------|
 | Custom silicon | "non-GPU chips" | Groq LPU, Cerebras WSE, SambaNova RDU — optimized for decode |
-| FireAttention | "Fireworks engine" | Custom attention kernel; marketed at 4x lower latency than vLLM |
+| FireAttention | "Fireworks engine" | Custom attention kernel; marketed as up to 4x faster than vLLM |
 | Truss | "Baseten's format" | Model packaging manifest; dependencies + secrets + serving config |
 | Per-token | "API pricing" | Charge by tokens consumed; pay for no idle |
 | Per-minute | "dedicated pricing" | Charge by wall-clock GPU time; wins at high utilization |
 | Per-prediction | "Replicate pricing" | Charge per model invocation; common for image/video |
-| RayTurbo | "Anyscale engine" | Proprietary inference on Ray; competes with vLLM on Ray clusters |
+| RayTurbo | "Anyscale engine" | Proprietary optimized Ray runtime; open-source Ray is the alternative |
 | Batch tier | "50% off" | Non-interactive queue at reduced rate; common on Fireworks, OpenAI |
 | Fine-tuned at base rate | "Fireworks LoRA" | Charge LoRA-served requests at base model's rate (differentiator) |
 

@@ -27,6 +27,15 @@ sequenceDiagram
 
 The classic mistake is using a liveness probe that checks a downstream dependency: when that dependency has a blip, *every* instance fails liveness, gets **restarted at once**, and you turn a small dependency hiccup into a full self-inflicted outage. Liveness = "am I healthy?"; readiness = "can I serve *right now*?"
 
+```check
+Q: A team is deploying a web service that queries a relational database. If the database experiences a brief network outage, the team wants to stop incoming user traffic without triggering orchestrator restarts across the entire fleet. How should they configure their health probes?
+- Configure both liveness and readiness probes to check downstream database connectivity so unhealthy instances get restarted immediately.
+- Point the readiness probe at a static in-memory flag and point the liveness probe at the downstream database so restarts clear deadlocks.
+* Configure the readiness probe to verify the database connection while keeping the liveness probe scoped strictly to internal process health.
+- Disable readiness checks and rely entirely on liveness probes to take the container out of rotation when the database is unavailable.
+Why: Readiness probes remove the instance from traffic routing without killing the container when a dependency is temporarily unavailable. If liveness checked the database, every instance would fail liveness during a blip and restart simultaneously, converting a dependency hiccup into a full outage. Static flags or disabling readiness checks would allow traffic to hit instances that cannot serve.
+```
+
 ```recall
 Q: Why should a liveness probe not check a downstream dependency?
 A: A blip in that dependency fails liveness on every instance at once, so the orchestrator restarts the whole fleet simultaneously and turns a small hiccup into a self-inflicted outage.

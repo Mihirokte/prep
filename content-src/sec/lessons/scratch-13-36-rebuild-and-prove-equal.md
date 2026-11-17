@@ -171,6 +171,15 @@ The count five comes from the listing: `CMP ECX, 0x4` with `JA` admits indexes 0
 
 This step exists because of a bug the TH08 project documented. Its older comparison "replayed the target address into the instruction's relocation field, then compared instruction bytes without checking the floating-literal data at that address. Source `0.0` could therefore appear exact against target `128.0`." The fix audited 1,548 floating-literal references and corrected twelve more. `grade_case10_wrong.c` is our version of that bug. Its 46 code bytes equal the original, its relocation record has the same shape, and its table is `1, 2, 3, 4, 3`. Only the constant check fails it.
 
+```check
+Q: An engineer recompiles candidate C code for the grade function using the original compiler flags and runs relocation-masked byte comparison. The code bytes match the original binary byte-for-byte and the relocation records share the same shape, yet the verification check fails. What scenario in the lesson accounts for this result?
+- The candidate function failed because its compiled machine code length differs from the 46 bytes of the original function.
+* The candidate function has identical code bytes and relocation record structure, but references a different constant table.
+- The candidate function failed because the relocation offset in its code was not zeroed out before byte comparison.
+- The candidate function failed behavioral tests on score boundary values like 110.
+Why: The candidate grade_case10_wrong.c compiles to identical instruction bytes and identical relocation structure as the original, but the constant table it references in .rodata holds 1, 2, 3, 4, 3 instead of 1, 2, 3, 4, 4. A pure masked byte comparison would pass, which is why checking the referenced constant targets is required. Thinking the size or code bytes differed is incorrect because both binaries match in size and masked instructions.
+```
+
 ### Results
 
 | Candidate | Size | Masked bytes | Relocation records | Table | Status |

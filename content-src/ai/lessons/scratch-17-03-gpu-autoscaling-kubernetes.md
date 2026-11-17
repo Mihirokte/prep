@@ -45,15 +45,15 @@ Lets Karpenter consolidate truly empty nodes after an hour but never evict a run
 
 ### Layer 2 — gang scheduling (KAI Scheduler)
 
-KAI Scheduler (project "Karp" then renamed) handles what default kube-scheduler does not:
+KAI Scheduler (NVIDIA's Run:ai scheduler, open-sourced under Apache 2.0 in 2025) handles what default kube-scheduler does not:
 
 **Gang scheduling** — schedule all-or-nothing. A distributed inference pod requiring 8 GPUs either all 8 start together or none do. Without this, you get the partial-allocation trap: 7 of 8 pods start, wait indefinitely, burn money.
 
-**Topology awareness** — know which GPUs share NVLink, which sit on the same rack, which have InfiniBand between them. Place pods accordingly. A DeepSeek-V3 67B tensor-parallel workload must stay on one NVLink domain; KAI Scheduler respects that.
+**Topology awareness** — know which GPUs share NVLink, which sit on the same rack, which have InfiniBand between them. Place pods accordingly. A 70B-class tensor-parallel workload must stay on one NVLink domain; KAI Scheduler respects that.
 
 **Hierarchical queues** — multiple teams compete for the same GPU pool with priority and quota. Team A's production pinch gets preempted by Team B's training job only if priority rules allow.
 
-KAI is deployed alongside kube-scheduler as a secondary scheduler; you annotate workloads to use it. Ray and vLLM production-stack both integrate.
+KAI is deployed alongside kube-scheduler as a secondary scheduler; workloads opt in by setting `schedulerName: kai-scheduler` and are assigned to a queue. Ray and vLLM production-stack both integrate.
 
 ### Layer 3 — application-level signals
 

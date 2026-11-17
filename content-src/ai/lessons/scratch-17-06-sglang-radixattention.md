@@ -6,7 +6,7 @@ minutes: 0
 ---
 > **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
 
-> Treat the KV cache as a first-class, reusable resource stored in a radix tree, and scheduling changes with it: instead of FCFS (first-come, first-served) as vLLM schedules, a cache-aware scheduler prioritizes requests with longer shared prefixes — effectively a depth-first radix traversal so hot branches stay resident in HBM. SGLang is the engine that built serving around this idea. On Llama 3.1 8B with ShareGPT-like 1K prompts, SGLang hits ~16,200 tok/s to vLLM's ~12,500, a ~29% edge. On prefix-heavy RAG workloads the advantage reaches 6.4x. On voice-cloning-shaped workloads cache hit rate cleared 86%. Deployed on 400,000+ GPUs in 2026 across xAI, LinkedIn, Cursor, Oracle, GCP, Azure, AWS. The gotcha is that the 6.4x number evaporates when prefix ordering is inconsistent — ordering is the engineer's lever.
+> Treat the KV cache as a first-class, reusable resource stored in a radix tree, and scheduling changes with it: instead of FCFS (first-come, first-served) as vLLM schedules, a cache-aware scheduler prioritizes requests with longer shared prefixes — effectively a depth-first radix traversal so hot branches stay resident in HBM. SGLang is the engine that built serving around this idea. On Llama 3.1 8B with ShareGPT-like 1K prompts, SGLang hits ~16,200 tok/s to vLLM's ~12,500, a ~29% edge. On prefix-heavy workloads (agents, few-shot, RAG pipelines, multi-turn chat) the SGLang paper reports up to 6.4x higher throughput. On voice-cloning-shaped workloads cache hit rate cleared 86%. Deployed on 400,000+ GPUs in 2026 across xAI, LinkedIn, Cursor, Oracle, GCP, Azure, AWS. The gotcha is that the 6.4x number evaporates when prefix ordering is inconsistent — ordering is the engineer's lever.
 
 **Prerequisites:** [Serving models](#/study/ai/ai-inference-serving), the Agent Engineering chapter (Agentic RAG)
 
@@ -47,14 +47,14 @@ A new request comes in with system prompt + "Context: <doc A>" + "Question: Caro
 Radix-tree-backed reuse is pointless if the cache churns. Two key policies:
 
 1. **Depth-first dispatch**. When picking the next request from the queue, prefer requests rooted at the same branch as the current running set. This keeps the hot branch pinned.
-2. **LRU at branch level, not block level**. Evict whole branches (starting from shortest-used leaves) rather than individual blocks, so cache shape matches radix shape.
+2. **LRU at branch level, not block level**. Evict tree nodes (recursively, starting from least-recently-used leaves) rather than individual blocks, so cache shape matches radix shape.
 
 FCFS violates both. A request sharing 2,000 tokens sits behind a request sharing 50, then the 2,000-token branch gets evicted to admit the 50-token one.
 
 ### Benchmark numbers you should memorize
 
 - Llama 3.1 8B, H100, ShareGPT 1K prompts: SGLang ~16,200 tok/s vs vLLM ~12,500 (~29% edge).
-- Prefix-heavy RAG (same system + same doc, varying question): up to 6.4x on SGLang.
+- Prefix-heavy workloads (agents, few-shot, RAG, multi-turn chat): up to 6.4x throughput in the SGLang paper.
 - Voice cloning workloads: 86.4% prefix-cache hit rate.
 - Production hit rates across SGLang customers: 50-99% depending on prompt discipline.
 - Deployed on 400,000+ GPUs in 2026.
@@ -85,7 +85,7 @@ You can implement KV reuse as a kernel trick. SGLang's insight is that reuse onl
 
 ### Interplay with vLLM
 
-The two systems are not strict competitors. In 2026 vLLM added prefix caching (`--enable-prefix-caching`) and a cache-aware router (vLLM Router in Rust). The gap closed but did not fully disappear — SGLang's whole stack is radix-first; vLLM grafted it on. For workloads dominated by prefix reuse, SGLang remains the default. For general-purpose serving without strong prefix patterns, vLLM remains equal or better.
+The two systems are not strict competitors. vLLM has had automatic prefix caching (`--enable-prefix-caching`) since 2024, on by default in the V1 engine (2025), and in December 2025 added a cache-affinity router (vLLM Router, written in Rust). The gap closed but did not fully disappear — SGLang's whole stack is radix-first; vLLM grafted it on. For workloads dominated by prefix reuse, SGLang remains the default. For general-purpose serving without strong prefix patterns, vLLM remains equal or better.
 
 ## Use It
 
@@ -107,7 +107,7 @@ A: A radix tree where each node owns a token range and its KV blocks.
 Q: Why is FCFS scheduling wrong for prefix-heavy traffic on SGLang?
 A: FCFS can evict a hot prefix branch before the next long-prefix request hits, breaking radix-tree reuse.
 Q: What eviction granularity does SGLang's cache-aware scheduler use to match radix shape?
-A: Whole branches, starting from shortest-used leaves.
+A: Tree nodes, evicted recursively from the least-recently-used leaves.
 Q: What is the most direct engineer's lever for keeping the radix-tree shared prefix discoverable?
 A: Fix prompt-template ordering so immutable content (system, tools, schemas) is always first.
 Q: Which workload pattern does the lesson NOT expect RadixAttention to win on?
@@ -142,6 +142,6 @@ A: Moving dynamic content out of the cacheable prefix.
 
 - [SGLang GitHub](https://github.com/sgl-project/sglang) — source and docs.
 - [SGLang documentation](https://sgl-project.github.io/) — RadixAttention and scheduling details.
-- [SGLang paper — Efficiently Programming Large Language Models (arXiv:2312.07104)](https://arxiv.org/abs/2312.07104) — the design reference.
+- [SGLang paper — Efficient Execution of Structured Language Model Programs (arXiv:2312.07104)](https://arxiv.org/abs/2312.07104) — the design reference.
 - [LMSYS blog — SGLang with RadixAttention](https://www.lmsys.org/blog/2024-01-17-sglang/) — benchmark numbers and scheduler rationale.
-- [vLLM — Prefix Caching](https://docs.vllm.ai/en/latest/features/automatic_prefix_caching/) — vLLM's own radix-like implementation, for comparison.
+- [vLLM — Prefix Caching](https://docs.vllm.ai/en/latest/features/automatic_prefix_caching/) — vLLM's own hash-based block implementation, for comparison.

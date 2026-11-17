@@ -90,8 +90,8 @@ trace_id: abc123
     tool_tokens: 600
     memory_tokens: 400
     response_tokens: 150
-  cost_usd: 0.0135
-  cached_input: true
+  cost_usd: 0.0036
+  cached_input: false
   batch: false
 ```
 Emit on every call. Store in data lake. Aggregate per dimension. [Observability and tracing for LLM apps](#/study/ai/ai-observability) observability stack is where this lives.

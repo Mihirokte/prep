@@ -27,6 +27,15 @@ Later the same agent reads `grade` in the `-O0` build and reports 3, 8, 8, and 9
 
 This lesson is the map you need before you trust any of those numbers. Lessons 32 to 36 built one decoder, one lifter, one evidence record, and one rebuild. The second half of the track puts them next to the tools people use. To do that you need the history of the field, the families the tools fall into, the pipeline every decompiler runs, and a harness that compares what the tools say on objects you compiled yourself.
 
+```check
+Q: An automated reverse engineering tool reports that grade is located at 0x08000050 in radare2, 0x400010 in angr, and 0x100010 in Ghidra. What explains these differing addresses?
+- The tools disagree because the object file was corrupted during linear sweep disassembly.
+- The compiler emitted conflicting debug information causing symbol relocation confusion.
+* Each tool chose a different base address to load the relocatable object file, but all agree on the relative offset within .text.
+- angr and Ghidra detected extra padding functions that shifted the start address of grade.
+Why: Relocatable ELF object files have no predefined load address, so each analysis tool assigns its own default base when mapping .text (such as 0x08000040 for radare2, 0x400000 for angr, and 0x100000 for Ghidra). Subtracting the respective section base reveals that all tools place grade at the identical offset 0x10 within .text. Thinking the binary is corrupt or that padding shifted the symbol overlooks how relocatable objects are mapped.
+```
+
 ## Fifty-Three Years in Dated Steps
 
 The field is older than most of its tools. Each date below has a primary source in Further Reading.

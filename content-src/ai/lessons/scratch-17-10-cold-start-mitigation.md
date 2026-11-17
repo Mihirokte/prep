@@ -34,17 +34,17 @@ Cold-start mitigation is how to keep the serverless economics while approximatin
 
 ### Layer 1 — pre-seeded node images (Bottlerocket)
 
-On AWS, Bottlerocket's dual-volume architecture separates OS from data. Snapshot the data volume with your container image pre-pulled; reference the snapshot ID in your `EC2NodeClass`. New nodes boot with weights already on local NVMe — steps 2 and part of 3 vanish. Works with Karpenter natively. Typical savings: 2-4 minutes per cold start for large models.
+On AWS, Bottlerocket's dual-volume architecture separates OS from data. Snapshot the data volume with your container image pre-pulled; reference the snapshot ID in your `EC2NodeClass`. New nodes boot with the image (and any weights baked into it) already on the EBS data volume — steps 2 and part of 3 vanish. Works with Karpenter natively. Typical savings: 2-4 minutes per cold start for large models.
 
 Equivalent on GCP: custom VM images with pre-baked container layers. On Azure: managed disk snapshots with the same pattern.
 
 ### Layer 2 — model streaming (Run:ai Model Streamer)
 
-Instead of loading the full file before answering the first request, stream weights into GPU memory layer-by-layer and start processing as soon as the first transformer block is resident. The NVIDIA Run:ai Model Streamer ships native in vLLM 2026. Works with S3, GCS, and local NVMe. Cuts weight-load time roughly in half for large models by overlapping I/O with compute setup.
+Instead of downloading the full checkpoint to disk and then loading it, read tensors from storage with many concurrent threads into CPU buffers and copy each tensor to GPU memory as it arrives. The NVIDIA Run:ai Model Streamer is built into vLLM (`--load-format runai_streamer`). Works with S3, GCS, Azure Blob Storage, and local or network file systems. Cuts weight-load time roughly in half for large models by overlapping storage reads with host-to-GPU copies.
 
 ### Layer 3 — GPU memory snapshots (Modal)
 
-Modal takes a checkpoint of the GPU state (weights, CUDA graphs, KV cache region) after first load. Subsequent restarts deserialize directly into HBM — 10x faster than re-initializing. This is the closest thing to "boot a warm GPU in 2 seconds." Trade-off: snapshots are per-GPU-topology, so if Karpenter migrates you to a different SKU, you re-checkpoint.
+Modal takes a checkpoint of the GPU state (weights, CUDA graphs, KV cache region) after first load. Subsequent restarts deserialize directly into HBM — up to ~10x faster than re-initializing (Modal's Ministral 3 example cut median cold start from almost two minutes to about ten seconds). This is the closest thing to "boot a warm GPU in 2 seconds." Trade-off: snapshots are per-GPU-topology, so if Karpenter migrates you to a different SKU, you re-checkpoint.
 
 ### Layer 4 — warm pools (min_workers=1)
 
@@ -132,7 +132,7 @@ A: No single layer eliminates every step (node provision, image pull, weights lo
 | Warm pool | "always-on minimum" | `min_workers >= 1` to keep at least one replica ready |
 | Pre-seeded image | "baked AMI" | Node image with container weights pre-resident |
 | Bottlerocket | "AWS node OS" | AWS container-optimized OS with dual-volume snapshot support |
-| Model streamer | "streaming load" | Overlap weights I/O with compute setup |
+| Model streamer | "streaming load" | Concurrent storage reads overlapped with CPU-to-GPU tensor copies |
 | GPU snapshot | "checkpoint to HBM" | Serialize post-load GPU state; deserialize on restart |
 | Tiered loading | "NVMe + DRAM + HBM" | Hierarchy of storage tiers; load on demand |
 | Live migration | "move tokens" | Transfer input (KB), recompute KV on destination |
@@ -143,7 +143,7 @@ A: No single layer eliminates every step (node provision, image pull, weights lo
 
 - [Modal — Cold start performance](https://modal.com/docs/guide/cold-start) — Modal's published benchmarks and checkpoint architecture.
 - [AWS Bottlerocket](https://github.com/bottlerocket-os/bottlerocket) — pre-seeded data volume snapshot pattern.
-- [NVIDIA Run:ai Model Streamer](https://github.com/run-ai/runai-model-streamer) — overlap weights load with compute setup.
+- [NVIDIA Run:ai Model Streamer](https://github.com/run-ai/runai-model-streamer) — concurrent tensor reads streamed into GPU memory.
 - [Baseten — Cold starts](https://docs.baseten.co/deployment/autoscaling/cold-starts) — pre-warming playbook.
 - [ServerlessLLM paper (USENIX OSDI'24)](https://www.usenix.org/conference/osdi24/presentation/fu) — tiered loading design.
 - [NVIDIA — Disaggregated LLM Inference on Kubernetes](https://developer.nvidia.com/blog/deploying-disaggregated-llm-inference-workloads-on-kubernetes/) — live migration for disaggregated deployments.

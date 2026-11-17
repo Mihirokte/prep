@@ -9,8 +9,9 @@ Each topic has three tabs: Read, Resources (the links it cites, the course
 reading list, practice drills) and Questions (its own questions, or a set
 generated on demand). The 148 DSA problems are grouped by pattern; you write
 pseudocode or Python in the editor and press Verify for a review. 254 drills in
-total, local tests on 109 of the 148 problems
-(`scripts/author-tests.ts` authors them against the reference solutions); 29 pattern cards, each with a step-through
+total, local tests on all 148 problems
+(`scripts/author-tests.ts` and `scripts/author-structured.py` author them against the reference solutions; the
+judge handles linked lists, trees, graphs, in-place edits, design classes and answers with several valid forms); 29 pattern cards, each with a step-through
 walk-through of the real algorithm, mapped to every problem; a spaced-review
 deck built from the lessons' self-check cards; and company research with
 questions, answer sketches and variants. Progress is kept on disk. An
@@ -235,6 +236,7 @@ npm run verify:app     # builds, then drives the real app in a throwaway data di
                        # ⌘K palette, assistant panel; screenshots → verify-report/
 npm run verify:tutor   # tutor rules and both graphs with a scripted model;
                        # PREP_VERIFY_AGENT=1 adds real agy runs
+npm run verify:judge    # every pack's reference solution passes its tests and its starter code does not
 npm run verify:progress # progress import and seed migration from older revisions
 ```
 

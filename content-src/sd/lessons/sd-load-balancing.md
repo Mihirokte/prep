@@ -29,6 +29,15 @@ lb --> s3 : ejected on fail
 lb -> s3 : healthz probe
 ```
 
+```check
+Q: You operate an image processing web service where some requests take milliseconds while others take several seconds of heavy CPU work. Which load-balancing configuration best prevents slow requests from overloading individual servers?
+- Deploy an L4 load balancer with round-robin routing to evenly distribute incoming connections across all servers.
+* Use an L7 load balancer configured with least-connections routing so requests route away from heavily loaded servers.
+- Use consistent hashing on the client IP address to ensure each client consistently hits the exact same server.
+- Configure an L4 load balancer with sticky sessions so that long requests remain pinned to the initial node.
+Why: Least-connections sends new traffic to the server with the fewest active requests, making it ideal when request processing times vary significantly. Round-robin is tempting for its simplicity, but it blindly distributes traffic and causes slow jobs to pile up on already busy servers.
+```
+
 ```recall
 Q: Why does a load balancer give you availability, not just load distribution?
 A: It health-checks backends and stops routing to one that fails, so a dead server is drained in seconds instead of users hitting it. Distribution alone would keep sending traffic to a broken node.

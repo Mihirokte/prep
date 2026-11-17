@@ -25,6 +25,15 @@ The same afternoon you asked which score makes `grade` return 4. The agent read 
 
 Both failures come from the same gap. A match and a solved input are each a claim with a method behind it. This lesson builds the two methods in standard-library Python and runs the production tools next to them. Where the tools and the code agree you have two derivations. Where they disagree you have an address, a byte, or a bound to look at.
 
+```check
+Q: In two builds of an executable (-O1 and -O2), the function grade has identical 46 bytes in its object files. However, when imported into Ghidra, Ghidra's Exact Function Bytes Match fails on grade while Exact Function Instructions Match succeeds. What caused this difference?
+- The compiler inlined a new function into grade at -O2, altering its basic block structure.
+* The growth of an earlier section shifted .rodata, altering the RIP-relative displacement in the instruction.
+- Exact Function Bytes Match fails because the instruction mnemonics were reordered during optimization.
+- Relocation records were omitted from the -O2 binary, preventing Ghidra from resolving the target address.
+Why: Ghidra's Exact Function Bytes Match operates on loaded, relocated images where an upstream section growth shifted .rodata by 0x70, altering the PC-relative displacement operand. Exact Function Instructions Match succeeds because it masks relocatable operands. A tempting mistake is to assume the code or block structure changed between -O1 and -O2, or that relocations were completely missing.
+```
+
 ## A Function Signature Is a Claim With a Quality
 
 Flake framed binary diffing in 2004 as the construction of an isomorphism between the function sets of two similar executables. Dullien and Rolles extended it in 2005 to basic blocks and instructions. The BinDiff concepts page describes the strategy that came out of that work. Compute one attribute for every function on both sides. A value that appears exactly once on each side is a match. A value that appears more than once is ambiguous and is drilled down with the next attribute inside that equivalence class. A value with no counterpart stays unmatched. After each pass, the callers and callees of new matches form small sets where the next attribute is likely to be unique, and the process repeats with the next attribute.

@@ -33,9 +33,9 @@ Multi-region LLM serving is a cache problem, a routing problem, and a DR-hygiene
 
 Request arrives with a prompt. Router hashes the prefix (say, first 512 tokens); it asks each replica "do you have this prefix cached?". Replicas publish KV-cache events on a pub/sub channel as they allocate and evict blocks. Router picks the replica with the match, falls through to GPU-util-based tie-breaker if no one does.
 
-**vLLM Router** (Rust, 2026 production-stack): subscribes to `kv.cache.block_added` events, maintains a prefix-hash → replica index, routes with $O(1)$ lookup. Falls through to least-queue-depth when no match.
+**vLLM Router** (Rust, `vllm-project/router`, released December 2025): its `kv_aware` policy subscribes to vLLM's KV-cache events (`BlockStored` / `BlockRemoved`, published over ZMQ), indexes block hashes per replica, and falls back to load-based routing when no usable KV match exists. Its simpler `cache_aware` policy keeps an approximate prefix tree of the requests it has routed.
 
-**llm-d router**: same pattern, Kubernetes-native. Publishes events via the ControlPlane API.
+**llm-d router**: same pattern, Kubernetes-native. Its Endpoint Picker (EPP) runs a KV-cache indexer that subscribes to the same vLLM KV events over ZMQ.
 
 **SGLang RadixAttention** ([Prefix-Cache Serving: RadixAttention and KV Reuse](#/study/ai/scratch-17-06-sglang-radixattention)) is the intra-replica equivalent. Cross-replica routing is strictly upstream.
 
@@ -81,7 +81,7 @@ Plus: run a DR drill quarterly. The JPMorgan us-east-1 drill hit 22 minutes reco
 
 ### Data residency is orthogonal
 
-EU customer PHI cannot leave EU. If your cache-aware router sends a Paris-originated request to us-east-1 for a prefix match, you have violated GDPR regardless of TTFT gain. Partition routers by residency boundary before optimizing for cache.
+If your residency commitment says EU customer data stays in the EU, sending a Paris-originated request to us-east-1 for a prefix match breaks that commitment regardless of TTFT gain (GDPR itself allows transfers only under safeguards such as adequacy decisions or standard contractual clauses). Partition routers by residency boundary before optimizing for cache.
 
 ### Numbers you should remember
 
@@ -146,4 +146,4 @@ A: They optimize availability, not TTFT, and treat inference as opaque — you s
 - [arXiv — GORGO (2602.11688)](https://arxiv.org/html/2602.11688v1) — cross-region KV-cache reuse with network latency term.
 - [TianPan — Multi-Region LLM Serving Cache Locality](https://tianpan.co/blog/2026-04-17-multi-region-llm-serving-data-residency-routing)
 - [AWS Bedrock Cross-Region Inference](https://docs.aws.amazon.com/bedrock/latest/userguide/cross-region-inference.html) — availability failover documentation.
-- [vLLM Production Stack Router](https://github.com/vllm-project/production-stack) — cache-aware router source.
+- [vLLM Router](https://github.com/vllm-project/router) — cache-aware and KV-event-aware router source.

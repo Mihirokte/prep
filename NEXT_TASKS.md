@@ -22,7 +22,7 @@ Updated: 2026-11-06
 - Updated README counts and behaviour descriptions.
 - Fixed the verifier to find the dynamic local-validation button by accessible label. The previous timeout was caused by verification waiting for the old literal `Check syntax` text after the button became `Run 6 tests`, not by evidence of a Pyodide boot failure.
 
-Current seed totals (revision 9): 6 courses, 46 chapters, 562 lessons, 254 drills, and 29 DSA patterns. 109 of 148 DSA packs have local correctness cases; 99 lessons have a mid-lesson `check`.
+Current seed totals (revision 10): 6 courses, 46 chapters, 562 lessons, 254 drills, and 29 DSA patterns. All 148 DSA packs have local correctness cases; 117 lessons have a mid-lesson `check`.
 
 ## Verification already completed
 
@@ -39,13 +39,19 @@ Current seed totals (revision 9): 6 courses, 46 chapters, 562 lessons, 254 drill
 - Task 6: `src/renderer/progressFile.ts` validates imports (Export files, the app's `progress.json`, old files without recall), skips and reports invalid records, and merges instead of replacing. Home shows the result or the error. `npm run verify:progress` (38 checks) covers parsing, merging, and seed migration from every committed seed revision with learner edits, deletions and created records.
 - Note: from the agent shell, run the suite with `npx electron --no-sandbox dist/verify/index.cjs` after `npm run build`; the Chromium sandbox cannot start there.
 
+## Done on 2026-11-17
+
+- Task 3 closed: all 148 DSA packs have local tests. The Pyodide judge (`src/renderer/public/validate-worker.mjs`) now converts linked lists, trees (level-order arrays), random-pointer lists and graphs; supports in-place edits on any of them, round-trip codecs, `class Solution` methods, and `compare: custom` with a pack-level `checker_code`. `scripts/author-structured.py` holds the hand-written cases; a pack is changed only if its reference reproduces every statement example. `npm run verify:judge` runs the shipped judge over all 148 packs (reference passes, starter fails). `verify:app` runs six structured packs through the real Pyodide worker.
+- Bugs found on the way: `class Solution` packs with tests could not resolve their symbol (41 packs), and Rotate Image's tests expected `null`, so any solution passed (now an in-place test). Wrong `merge` resolution came from star imports, which were dropped.
+- Task 4 closed: every sd/lld/arch/ops/sec lesson has a `check` (117 lessons in total). About 40 of those checks have a correct option that is noticeably longer than the others (the build warns); rewrite them when convenient.
+- Task 5 (fact check): Infrastructure & Production chapter checked against sources by four parallel reviewers; about 40 corrections made (Bedrock/Azure pricing, k6 version, llm-d founders, CNCF levels for Litmus/Chaos Mesh, vLLM dates, Jetson/Apple TOPS figures and more). Unsourceable figures (Artificial Analysis 405B TTFT, MIT 89% outage prediction) were removed. Seed revision 10.
+
 ## Next tasks, in order
 
-3. Done (revision 9): `scripts/author-tests.ts` gave 104 more packs local cases (109 of 148). agy proposes inputs only; python3 runs the reference solution, a pack is kept only if the reference reproduces every statement example, and edge expectations are the reference's output. Remaining 39: linked-list, tree, in-place and class packs (the worker passes plain values only), problems with several valid answers (Course Schedule II), and packs whose statement has no example. They need a custom checker in the worker.
-4. Done (revision 9): `scripts/author-checks.ts` added a `check` to 93 sd/lld/arch/ops/sec lessons, each grounded on a verbatim quote from the lesson. Skipped: 8 core lessons and 10 reverse-engineering lessons where no grounded question passed.
-5. Done (seed revision 7): the AI from Scratch course is gone. 407 of its lessons are chapters of AI Engineering, 14 reverse-engineering lessons are a Security chapter, and 121 lessons that repeated a topic were removed, as were 6 duplicates between the original courses. Source "Phase X · YY" and "Lesson NN" references are now Prep links (seed revision 8). Infrastructure & Production lessons now open with a note that their prices and latencies are 2025-26 snapshots. Remaining: a line-by-line fact check of the imported lessons; 123 lessons have no questions until Generate is pressed.
-6. Add validation and actionable error reporting around progress import/export, then test migration from older seed revisions without overwriting learner-authored state.
-7. Continue expanding operations and security only where the SDE-2 curriculum audit shows a concrete gap; keep lessons concise and scenario-driven.
+1. Fact-check the other imported AI chapters, same method: Tools & Protocols, Agent Engineering, Multi-Agent, Ethics & Safety, Capstone Projects are the most likely to contain stale product names and versions. Math, ML and Deep Learning Core are low risk.
+2. Fill the 123 imported lessons that have no questions (they generate on demand today).
+3. Rebalance option lengths in the ~40 checks the build warns about.
+4. Continue expanding operations and security only where the SDE-2 curriculum audit shows a concrete gap; keep lessons concise and scenario-driven.
 
 ## Guardrails for the next agent
 

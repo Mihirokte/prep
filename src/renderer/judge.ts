@@ -96,6 +96,11 @@ export class Validator {
         compare: problem?.compare ?? 'exact',
         mode: problem?.mode ?? '',
         inplaceArg: problem?.inplace_arg ?? 0,
+        kinds: {
+          params: (problem?.signature?.params ?? []).map((x) => x.kind ?? 'value'),
+          returns: problem?.signature?.returns?.kind ?? 'value',
+        },
+        checker: problem?.checker_code ?? '',
       })
     })
   }

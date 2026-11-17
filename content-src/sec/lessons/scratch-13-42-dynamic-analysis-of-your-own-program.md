@@ -224,6 +224,15 @@ Each breakpoint resolved. The address exists, the symbol exists, and lldb wrote 
 
 Be exact about what the refutation says. The claim was that `main` calls the three functions in this program. For this build and this run it does not, and the harness checked that the run completed, because a hit count of zero before exit would mean only that the run had not reached the call yet. The claim did not say the functions are dead code, and the run does not say that either: they are exported and another object could call them. The other four claims are neither confirmed nor refuted. The struct still has `balance` at offset 4 in this build, and the `-O2` DWARF says so, but no stop in this run read memory to show it. `not-observed` keeps that distinction, and lesson 35 keeps the unknown open until a run does observe it.
 
+```check
+Q: An analyst checks a static claim that 'main calls process_transaction' in a release build. A breakpoint set on process_transaction resolves to an address, but running the program to exit status 0 reports 'hit count = 0'. How should the harness grade this static claim according to the lesson's rules?
+- The static claim is refuted because the address was reached without triggering a breakpoint event.
+* The static claim remains not-observed because the breakpoint never resolved and was never hit.
+- The static claim is refuted because the run finished to completion with exit status 0 and hit count 0.
+- The static claim is confirmed because the binary exited cleanly with status 0.
+Why: A hit count of 0 after a full execution completing with exit status 0 refutes the claim that the call occurred during that run. A tempting mistake is to consider it not-observed or assume it did not resolve, but the breakpoint did resolve and completed execution without being hit, refuting the call edge for this run. Another mistake is claiming the function is dead code or that unresolved breakpoints refute claims.
+```
+
 ## Core Dumps
 
 A core file is the process's memory and registers written to disk, so the debugger can read a stopped program after the program is gone. Apple's `core(5)` says "A small number of signals which cause abnormal termination of a process also cause a record of the process's in-core state to be written to disk", into `/cores/core.pid`, "provided the terminated process had write permission in the directory, and the directory existed". On this machine `sysctl` reports `kern.coredump: 1` and `kern.corefile: /cores/core.%P`, `/cores` exists with mode `drwxrwxr-t root admin`, and the shell's `ulimit -c` is 0. No kernel core is written until you raise the limit with `ulimit -c unlimited`, or system-wide with `launchctl limit core unlimited`.

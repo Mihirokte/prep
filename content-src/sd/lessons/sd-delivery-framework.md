@@ -31,6 +31,15 @@ sequenceDiagram
 
 A compressed mental checklist: **scope → ground in data/APIs → commit to a structure → go deep without breaking down.**
 
+```check
+Q: Ten minutes into a 45-minute design round you are drawing boxes for a feed service, but you have not yet written down what the system's endpoints are. What does the framework say to do?
+- Keep drawing and let the API fall out of the architecture at the end.
+* Stop and define the API contract first, then build the high-level design to satisfy it one endpoint at a time.
+- Skip the API and move straight to deep dives, since the interviewer cares most about scale.
+- Define the database columns for every entity before touching the API.
+Why: The framework defines the contract before the architecture, so the high-level design has a concrete target. Core entities stay as just the nouns until later; filling in columns early spends time the deep dives need.
+```
+
 ```recall
 Q: Why does this framework exist, and what failure does it prevent?
 A: To fit a design into 45 to 60 minutes and stop you running out of time. It prevents the common failure of going too deep too early and leaving the design incomplete.

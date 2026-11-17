@@ -77,6 +77,15 @@ Read it as `t = (n * 0x24924925) >> 32`, then `q = (((n - t) >> 1) + t) >> 2`. T
 
 The multiplier alone names no divisor. `0x66666667` with shift 34 is 10. The same multiplier with shift 33 is 5, as lesson 34 showed. The recognizer therefore always pairs the multiplier with the total shift, and the `clangMatchesAlgorithm` field records that the pair is the one the search produces. Powers of two never use the multiply. `magic_numbers()` refuses them, because the compiler emits a shift with a sign bias instead, and `mod8s` in the next section shows that shape.
 
+```check
+Q: During binary analysis of an optimized x86-64 binary, you encounter a signed division idiom using the magic multiplier 0x66666667 followed by a total right shift of 33 bits. What operation does this code compute?
+- The function divides by 10, because 0x66666667 is the standard magic multiplier for division by 10.
+* The function divides by 5, because the multiplier 0x66666667 paired with total shift 33 corresponds to divisor 5.
+- The function divides by 3, because a 33-bit shift always subtracts 2 from the candidate divisor.
+- The function multiplies by 0x66666667 without division, because signed division by invariant integers requires a hardware idivl instruction.
+Why: A magic multiplier cannot be mapped to a divisor without its shift; 0x66666667 with a total shift of 33 evaluates to division by 5, whereas paired with shift 34 it evaluates to division by 10. The most tempting mistake is assuming 0x66666667 always computes division by 10, overlooking how the total shift dictates the candidate divisor.
+```
+
 ### The idiom belongs to the instruction selector
 
 At `-O0`, `div10u` is `movl $0xa, %ecx; xorl %edx, %edx; divl %ecx`. `div10s` is `cltd; idivl %ecx`. In the same object, `digest` divides its loop sum by 10 with `imulq $0x66666667`. One flag explains the difference. The fixture `idioms-x86_64-nofastisel-O0.o` was built with `-O0 -mllvm -fast-isel=false`, and in it every division is the multiply, including `div10u` with `movl $0xcccccccd, %ecx; imulq %rcx, %rax; shrq $0x23`. The hardware divide is the fast instruction selector's choice at `-O0`. The multiply is SelectionDAG's lowering, which is what LLVM's `UnsignedDivisionByConstantInfo` and `SignedDivisionByConstantInfo` produce. The `digest` block that holds the division also holds a `switch`, and that block went to SelectionDAG. The recognizer reports both forms, `hardware idivl` and `magic multiply`, and the figure shows the mixed `-O0` function.

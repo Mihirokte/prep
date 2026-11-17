@@ -19,6 +19,7 @@
     "package": "npm run build && node scripts/package.mjs",
     "install-app": "node scripts/install-app.mjs",
     "verify:seed": "node scripts/run-ts.mjs scripts/verify-seed.ts",
+    "verify:judge": "python3 scripts/verify-judge.py",
     "verify:tutor": "node scripts/run-ts.mjs scripts/verify-tutor.ts",
     "verify:progress": "node scripts/run-ts.mjs scripts/verify-progress.ts",
     "verify:app": "npm run build && electron dist/verify/index.cjs",

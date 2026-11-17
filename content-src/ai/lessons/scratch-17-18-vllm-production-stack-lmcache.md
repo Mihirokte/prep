@@ -6,14 +6,14 @@ minutes: 0
 ---
 > **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
 
-> A production serving stack wires router, engines, and observability into one Kubernetes deployment — and treats KV cache as a resource that can leave the GPU. KV offloading extracts KV cache out of GPU memory and reuses it across queries and engines (CPU DRAM, then disk/Ceph). vLLM's production-stack is the reference deployment; LMCache is the offloading layer. The vLLM 0.11.0 KV Offloading Connector (January 2026) makes this asynchronous and pluggable via the Connector API (v0.9.0+). The offload path is usually hidden from the request path, though cache misses and promotions can add end-to-end latency. LMCache is valuable even without shared prefixes — when a GPU runs out of KV slots, preempted requests can be restored from CPU instead of recomputing prefill. Published benchmarks on 16x H100 (80GB HBM) across 4 a3-highgpu-4g: when KV cache exceeds HBM, both native CPU offload and LMCache substantially improve throughput; at low KV footprint, all configs match baseline with small overhead.
+> A production serving stack wires router, engines, and observability into one Kubernetes deployment — and treats KV cache as a resource that can leave the GPU. KV offloading extracts KV cache out of GPU memory and reuses it across queries and engines (CPU DRAM, then disk/Ceph). vLLM's production-stack is the reference deployment; LMCache is the offloading layer. The KV Offloading Connector, introduced in vLLM 0.11.0 (October 2025; detailed in a January 2026 vLLM blog post), makes this asynchronous and pluggable on top of the Connector API, which vLLM 0.9.0 extended with asynchronous load/store. The offload path is usually hidden from the request path, though cache misses and promotions can add end-to-end latency. LMCache is valuable even without shared prefixes — when a GPU runs out of KV slots, preempted requests can be restored from CPU instead of recomputing prefill. Published benchmarks on 16x H100 (80GB HBM) across 4 a3-highgpu-4g (llm-d tiered-prefix-cache guide): when KV cache exceeds HBM, both native CPU offload and LMCache improve throughput by about 21%; at low KV footprint, all configs match baseline with small overhead.
 
 **Prerequisites:** [Serving models](#/study/ai/ai-inference-serving), [Prefix-Cache Serving: RadixAttention and KV Reuse](#/study/ai/scratch-17-06-sglang-radixattention)
 
 ## Learning Objectives
 
 - Diagram the vLLM production-stack layers: router, engines, KV offload, observability.
-- Explain the KV Offloading Connector API (v0.9.0+) and how the 0.11.0 asynchronous path hides offload latency.
+- Explain the Connector API (asynchronous since v0.9.0) and how the 0.11.0 Offloading Connector hides offload latency.
 - Quantify when LMCache CPU-DRAM helps (KV > HBM) vs adds overhead (KV small enough to fit HBM).
 - Pick between native vLLM CPU offload and LMCache connector given deployment constraints.
 
@@ -41,25 +41,25 @@ Shipped as Helm chart + operator.
 
 ### The KV Offloading Connector API (v0.9.0+)
 
-vLLM 0.9.0 introduced a Connector API for pluggable KV cache backends. Your engine offloads blocks to the connector; connector stores them (RAM, disk, object storage, LMCache). Request needs a block, connector loads it back.
+vLLM's Connector API (originally synchronous) plugs in KV cache backends; vLLM 0.9.0 extended it to asynchronous loading and storing. Your engine offloads blocks to the connector; connector stores them (RAM, disk, object storage, LMCache). Request needs a block, connector loads it back.
 
-vLLM 0.11.0 (January 2026) adds an asynchronous offload path — offload can happen in the background so the engine does not block on it in the common case. End-to-end latency and throughput still depend on workload shape, KV cache hit rate, and system pressure; vLLM's own notes call out that custom-kernel offload can degrade throughput at low hit rates and that async scheduling has known interaction issues with speculative decoding.
+vLLM 0.11.0 (October 2025) adds the Offloading Connector, an asynchronous offload path with a native CPU backend — offload can happen in the background so the engine does not block on it in the common case. End-to-end latency and throughput still depend on workload shape, KV cache hit rate, and system pressure; vLLM's own notes call out that custom-kernel offload can degrade throughput at low hit rates and that async scheduling has known interaction issues with speculative decoding.
 
 ### Native CPU offload vs LMCache
 
 **Native vLLM CPU offload**: engine-local. Stores KV blocks in host RAM. Fast to implement, zero network hop. Does not cross engines.
 
-**LMCache connector**: cluster-scale. Stores blocks in a shared LMCache server (CPU DRAM + Ceph/S3 tier). Blocks are accessible to any engine. 16x H100 benchmarks published.
+**LMCache connector**: cluster-scale. Stores blocks in a shared LMCache server (CPU DRAM + Ceph/S3 tier). Blocks are accessible to any engine. 16x H100 benchmarks published in the llm-d tiered-prefix-cache guide.
 
 Pick native when a single engine has HBM pressure. Pick LMCache when multiple engines share prefixes (RAG with common system prompts, multi-tenant with shared templates).
 
 ### Benchmark behavior
 
-The 16x H100 (80 GB HBM) spread across 4 a3-highgpu-4g test:
+The 16x H100 (80 GB HBM) spread across 4 a3-highgpu-4g test (llm-d guide, Qwen3-32B, 8 engines):
 
-- Low KV footprint (short prompts, low concurrency): all configs match baseline, LMCache adds ~3-5% overhead.
-- Moderate footprint: LMCache starts to help on prefix reuse across engines.
-- KV exceeds HBM: native CPU offload and LMCache both improve throughput substantially; LMCache larger gain because cross-engine sharing.
+- Low KV footprint (KV fits in HBM): all configs match baseline; throughput drops ~1.5% (native) to ~2.6% (LMCache).
+- Moderate footprint: not measured in this test; cross-engine prefix reuse is where LMCache's shared tier should help.
+- KV exceeds HBM: native CPU offload and LMCache both raise throughput ~21% (+21.3% vs +21.7%) and cut mean TTFT ~26-28%; the test used per-engine CPU caches, so it does not measure cross-engine sharing.
 
 ### When LMCache is decisive
 
@@ -80,10 +80,10 @@ The 16x H100 (80 GB HBM) spread across 4 a3-highgpu-4g test:
 
 ### Numbers you should remember
 
-- vLLM 0.9.0: Connector API shipped.
-- vLLM 0.11.0 (Jan 2026): asynchronous offload path; end-to-end latency impact depends on workload, KV hit rate, and system pressure (not an absolute guarantee).
+- vLLM 0.9.0: Connector API gained asynchronous load/store.
+- vLLM 0.11.0 (Oct 2025): Offloading Connector, asynchronous offload path; end-to-end latency impact depends on workload, KV hit rate, and system pressure (not an absolute guarantee).
 - 16x H100 benchmark: LMCache helps when KV footprint exceeds HBM.
-- Small HBM pressure: 3-5% overhead without benefit.
+- Small HBM pressure: ~1.5-2.6% throughput overhead without benefit.
 
 ## Use It
 
@@ -101,13 +101,13 @@ Source: [AI Engineering from Scratch, phase 17, 18-vllm-production-stack-lmcache
 Q: What problem does LMCache primarily address in a vLLM deployment?
 A: KV cache pressure in HBM causing preemption and re-prefill of the same prefixes.
 Q: What vLLM API introduced pluggable KV cache backends?
-A: Connector API in vLLM v0.9.0.
-Q: What does the vLLM 0.11.0 (January 2026) release add to the KV offload path?
-A: An asynchronous offload path so the engine does not block on offload in the common case.
+A: The Connector API; vLLM v0.9.0 extended it with asynchronous load/store.
+Q: What does the vLLM 0.11.0 (October 2025) release add to the KV offload path?
+A: The Offloading Connector, an asynchronous offload path so the engine does not block on offload in the common case.
 Q: When should you pick LMCache over native CPU offload?
 A: When multiple engines share prefixes across tenants, LoRA variants, or repeated RAG context, so cross-engine reuse pays.
 Q: What happens to LMCache benefit when KV footprint stays well below HBM?
-A: Configs match baseline with roughly 3-5% overhead and no real benefit.
+A: Configs match baseline with roughly 1.5-2.6% throughput overhead and no real benefit.
 Q: Why does LMCache compose with disaggregated serving (Phase 17 · 17)?
 A: KV transferred from prefill to decode lands in LMCache; later queries can pull from LMCache and skip prefill, so the cache-aware router can pick an engine whose local or LMCache-shared cache matches.
 ```
@@ -126,7 +126,7 @@ A: KV transferred from prefill to decode lands in LMCache; later queries can pul
 | Term | What people say | What it actually means |
 |------|----------------|------------------------|
 | Production-stack | "the reference deployment" | vLLM's Kubernetes Helm chart + operator |
-| Connector API | "KV backend interface" | vLLM 0.9.0+ pluggable KV store interface |
+| Connector API | "KV backend interface" | vLLM pluggable KV store interface (async since 0.9.0) |
 | Native CPU offload | "engine-local spill" | Store KV in host RAM of same engine |
 | LMCache | "cluster KV cache" | Cross-engine KV cache server on CPU DRAM + disk |
 | 0.11.0 async | "non-blocking offload" | Offload hidden behind engine stream |

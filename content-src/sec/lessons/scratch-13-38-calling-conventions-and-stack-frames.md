@@ -92,6 +92,15 @@ There is no red zone. "All memory beyond the current address of RSP is considere
 
 Variadic callees home their registers. "For vararg or unprototyped functions, any floating point values must be duplicated in the corresponding general-purpose register." `sum_varargs` at `-O2` stores `%rdx`, `%r8`, `%r9` to `0x18(%rsp)`, `0x20(%rsp)`, `0x28(%rsp)` after one `pushq %rax`, which is entry offsets 16, 24, 32: the homes of the second, third, and fourth register parameters. Its `va_list` is `leaq 0x18(%rsp), %rax`, the home of `%rdx`, the first unnamed argument.
 
+```check
+Q: In a program compiled for Microsoft x64, an optimized leaf function takes eight 64-bit integer arguments and executes without modifying the stack pointer. On entry to the function, where does the caller place the fifth argument?
+- At 8(%rsp), directly above the return address pushed onto the stack.
+* At 40(%rsp), immediately above the return address and the 32-byte shadow store allocated by the caller.
+- In register R10, because Microsoft x64 uses up to eight general-purpose registers before spilling to stack.
+- At 16(%rsp), because the shadow store only covers non-integer parameter registers.
+Why: Under the Microsoft x64 calling convention, the first four arguments go into RCX, RDX, R8, and R9, and the caller always reserves a 32-byte shadow store (home addresses) on the stack for them above the 8-byte return address. Therefore, the fifth argument (the first stack argument) is located at offset 40 (0x28) relative to RSP. Believing it is at offset 8 confuses Microsoft x64 with System V AMD64, which does not reserve shadow space.
+```
+
 ## AAPCS64, and What Apple Changes
 
 AAPCS64 6.8.2 walks a list of rules with two counters. C.9: an integral argument "is copied to the least significant bits in x[NGRN]" and NGRN increments. C.1 does the same for floating-point arguments with NSRN. C.12: a composite of at most `8 - NGRN` double-words is "copied into consecutive general-purpose registers". C.13 sets "The NGRN is set to 8" once an argument goes to the stack, so nothing returns to registers afterwards. `eight_args` uses `x0` to `x7` and never touches the stack. `mixed` is `w0`, `d0`, `x1`, `s1`. `by_value` is `x0` and `x1` in and out.

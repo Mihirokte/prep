@@ -29,6 +29,15 @@ This lesson builds five readers in standard-library Python. A COFF reader for ou
 
 Only Mach-O links on this machine. The arm64 executables and the dylib were linked, stripped, and run. The ELF and COFF objects compiled here with `clang -target`, and no ELF or PE link editor is installed, so the two linked images in those formats were written byte by byte from the specifications by two Python scripts in the fixtures folder. `llvm-objdump` reads them, and so does the library probe. They were not run, and the text says so where it matters.
 
+```check
+Q: While inspecting a Mach-O arm64 binary targeting macOS 12 on disk, you observe that a pointer slot in __got at address 0x100004038 contains 0x8010000000000007 before execution. How should an analyst interpret this value?
+- It indicates an invalid corrupted memory pointer caused by stripped relocation tables.
+* It represents a chained fixup entry where bit 63 denotes a bind and the remaining bits encode the next offset and import ordinal to be resolved by the loader.
+- It represents a relative rebase offset pointing to the start of the __cstring segment in memory.
+- It contains a direct pointer to the dynamic linker stub resolver function dyld_stub_binder.
+Why: In modern Mach-O binaries using chained fixups, pointers in writable data sections store fixup chain records before dynamic binding occurs. Bit 63 being 1 marks it as a bind record carrying the target import ordinal and the offset to the next fixup in the chain, rather than a raw pointer or corrupt kernel address. Treating it as a corrupted memory address or an invalid pointer is a common mistake when analyzing static disk bytes as though they were a running memory image.
+```
+
 ## What the Link Editor Does With a Relocation
 
 [Program Anatomy: An ELF Reader From Scratch](#/study/sec/scratch-13-32-program-anatomy-elf-from-scratch) read relocation records and lesson 33 applied `S + A - P` to a `lea`. A record names a place `P`, a type, a symbol `S`, and an addend `A`. The x86-64 psABI Table 4.9 gives one formula per type, with `L` for the place of the symbol's PLT entry, `G` for its GOT offset, `GOT` for the GOT address, and `B` for the load base of the image. Three outcomes cover our objects.

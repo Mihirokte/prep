@@ -6,7 +6,7 @@ minutes: 0
 ---
 > **Numbers in this lesson are snapshots.** Prices, latencies and vendor details come from 2025-26 sources and change often. Learn the reasoning and the trade-offs; check the vendor page before you quote a figure.
 
-> The core edge constraint is memory bandwidth, not compute. Mobile DRAM sits at 50-90 GB/s; datacenter HBM3 clears 2-3 TB/s — a 30-50x gap. Decode is memory-bound so the gap is decisive. In 2026 the landscape splits four ways. Apple M4/A18 Neural Engine peaks at 38 TOPS with unified memory (no CPU↔NPU copy). Qualcomm Snapdragon X Elite / 8 Gen 4 Hexagon hits 45 TOPS. WebGPU + WebLLM runs Llama 3.1 8B (Q4) at ~41 tok/s on M3 Max (roughly 70-80% of native); 17.6k GitHub stars, OpenAI-compatible API, ~70-75% mobile coverage. NVIDIA Jetson Orin Nano Super (8GB) fits Llama 3.2 3B / Phi-3; AGX Orin runs gpt-oss-20b via vLLM at ~40 tok/s; Jetson T4000 (JetPack 7.1) is 2x AGX Orin. TensorRT Edge-LLM supports EAGLE-3, NVFP4, chunked prefill — shown at CES 2026 by Bosch, ThunderSoft, MediaTek.
+> The core edge constraint is memory bandwidth, not compute. Mobile DRAM sits at 50-90 GB/s; datacenter HBM3 clears 2-3 TB/s — a 30-50x gap. Decode is memory-bound so the gap is decisive. In 2026 the landscape splits four ways. Apple's Neural Engine peaks at 38 TOPS on M4 (35 TOPS on A18) with unified memory (no CPU↔NPU copy). Qualcomm's Snapdragon X Elite Hexagon NPU hits 45 TOPS. WebGPU + WebLLM runs Llama 3.1 8B (Q4) at ~41 tok/s on M3 Max (roughly 70-80% of native); ~19k GitHub stars, OpenAI-compatible API, ~70-75% mobile coverage. NVIDIA Jetson Orin Nano Super (8GB) fits Llama 3.2 3B / Phi-3; AGX Orin runs gpt-oss-20b via vLLM at ~40 tok/s; Jetson T4000 (JetPack 7.1) is 2x AGX Orin. TensorRT Edge-LLM supports EAGLE-3, NVFP4, chunked prefill — shown at CES 2026 by Bosch, ThunderSoft, MediaTek.
 
 **Prerequisites:** [Serving models](#/study/ai/ai-inference-serving), [Quantization: Making Models Fit](#/study/ai/scratch-10-11-quantization)
 
@@ -33,34 +33,34 @@ Datacenter HBM3 at 3 TB/s clears the same 3.5 GB in 1.2 ms — ceiling is 830 to
 
 ### Apple Neural Engine (M4 / A18)
 
-- Up to 38 TOPS. Unified memory (CPU and ANE share the same pool) — no copy overhead.
-- Access via Core ML + `.mlmodel` compiled models, or via Metal Performance Shaders (MPS) through PyTorch.
-- Llama.cpp Metal backend uses MPS, not ANE directly; native ANE requires Core ML conversion.
+- Up to 38 TOPS on M4; Apple quotes 35 TOPS for A18. Unified memory (CPU and ANE share the same pool) — no copy overhead.
+- Access via Core ML models (`.mlpackage`, compiled to `.mlmodelc`), or via Metal Performance Shaders (MPS) through PyTorch.
+- llama.cpp's Metal backend runs its own Metal GPU kernels (not MPS, not the ANE); native ANE requires Core ML conversion.
 - Best practical path for iOS apps in 2026: Core ML with INT4 weights + FP16 activations.
 
 ### Qualcomm Hexagon (Snapdragon X Elite / 8 Gen 4)
 
-- Up to 45 TOPS. Integrated with CPU and GPU in the SoC but separate memory domain.
+- Up to 45 TOPS on Snapdragon X Elite (the phone part shipped as Snapdragon 8 Elite, not "8 Gen 4"). Integrated with CPU and GPU in the SoC but separate memory domain.
 - QNN (Qualcomm Neural Network) SDK and AI Hub provide conversion from PyTorch/ONNX.
 - Chat templates, Llama 3.2, Phi-3 all ship as first-class artifacts on AI Hub.
 
 ### Intel / AMD NPUs (Lunar Lake, Ryzen AI 300)
 
 - 40-50 TOPS. Software lags behind Apple/Qualcomm; OpenVINO is improving but niche.
-- Best for Windows ARM copilot apps; native on AMD/Intel desktops for local-first.
+- Best for Copilot+ apps on x86 Windows laptops; native on AMD/Intel desktops for local-first.
 
 ### WebGPU + WebLLM
 
 - Run models in the browser via WebGPU compute shaders; no install.
 - Llama 3.1 8B Q4 at ~41 tok/s on M3 Max — roughly 70-80% of native via same backend.
-- 17.6k GitHub stars on WebLLM; OpenAI-compatible JS API; Apache 2.0.
+- ~19k GitHub stars on WebLLM; OpenAI-compatible JS API; Apache 2.0.
 - 2026 coverage: Chrome Android v121+, Safari iOS 26 GA, Firefox Android still catching up. Overall ~70-75% mobile coverage.
 
 ### NVIDIA Jetson family
 
 - Orin Nano Super (8GB): fits Llama 3.2 3B, Phi-3 at good tok/s.
 - AGX Orin: runs gpt-oss-20b via vLLM at ~40 tok/s.
-- Thor / T4000 (JetPack 7.1): 2x AGX Orin performance, EAGLE-3 and NVFP4 supported.
+- T4000 (JetPack 7.1): up to 2x AGX Orin performance; AGX Thor (T5000): up to 7.5x AGX Orin AI compute. EAGLE-3 and NVFP4 supported.
 - TensorRT Edge-LLM (2026) supports EAGLE-3 speculative decoding, NVFP4 weights, chunked prefill — the datacenter optimizations ported to edge.
 
 ### Quantization choice per target
@@ -75,7 +75,7 @@ Datacenter HBM3 at 3 TB/s clears the same 3.5 GB in 1.2 ms — ceiling is 830 to
 
 ### The long-context trap on edge
 
-Llama 3.1's 128K context is a datacenter feature. On a phone with 8 GB RAM, 4 GB model + 2 GB KV cache for 32K tokens + OS overhead = OOM. Edge deployments keep context at 4K-8K unless aggressive KV quantization (Q4 KV) is accepted.
+Llama 3.1's 128K context is a datacenter feature. On a phone with 8 GB RAM, 4 GB model + ~4 GB FP16 KV cache for 32K tokens (Llama 3.1 8B) + OS overhead = OOM. Edge deployments keep context at 4K-8K unless aggressive KV quantization (Q4 KV) is accepted.
 
 ### Voice is the killer app
 
@@ -83,7 +83,7 @@ Voice agents are latency-sensitive (first token < 500 ms). Local inference elimi
 
 ### Numbers you should remember
 
-- Apple M4 / A18 ANE: 38 TOPS.
+- Apple ANE: 38 TOPS (M4), 35 TOPS (A18).
 - Qualcomm Hexagon SD X Elite: 45 TOPS.
 - WebLLM M3 Max: ~41 tok/s on Llama 3.1 8B Q4.
 - AGX Orin: ~40 tok/s on gpt-oss-20b via vLLM.
@@ -135,7 +135,7 @@ A: Voice agents are latency-sensitive (first token < 500 ms) and local inference
 | WebGPU | "browser GPU" | W3C-standardized browser GPU API; Chrome/Safari 2026 |
 | WebLLM | "browser LLM runtime" | MLC-LLM project; Apache 2.0; OpenAI-compatible JS |
 | Jetson | "NVIDIA edge" | Orin Nano / AGX / Thor / T4000 family |
-| TRT Edge-LLM | "edge TensorRT" | 2026 edge port of TensorRT-LLM; EAGLE-3 + NVFP4 |
+| TRT Edge-LLM | "edge TensorRT" | NVIDIA's open-source C++ LLM/VLM runtime for Jetson/DRIVE Thor (JetPack 7.1, 2026), separate from TRT-LLM; EAGLE-3 + NVFP4 |
 | Unified memory | "shared pool" | CPU and NPU see same RAM; no copy overhead |
 | Bandwidth-bound | "memory limited" | Decode gated by bytes/sec reading weights |
 | Core ML | "Apple conversion" | Apple framework for ANE-native models |
