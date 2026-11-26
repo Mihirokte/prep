@@ -21,6 +21,20 @@ natural-language commands, with a diff to approve and one-click undo.
 Everything the app needs ships in this repository. It runs offline; only the
 assistant talks to anything else (a local CLI, see below).
 
+## Reading on your phone
+
+The Mac app also serves itself to your phone over Tailscale, so you can read, review and track progress from a browser.
+
+- The app listens on `127.0.0.1:5390` (loopback only) while it is running. Nothing else is opened.
+- `npm run web:serve` publishes it on your tailnet as `https://<this-mac>.<tailnet>.ts.net:8390` through Tailscale Serve (tailnet only, not Funnel). `npm run web:unserve` withdraws it. It never touches other Serve ports.
+- Only requests that Tailscale stamps with the login that owns this Mac are answered; the Host and Origin are checked too.
+- On the phone: lessons, review cards, DSA problems (read only), patterns, companies, search, progress, and a to-do list in place of the assistant. There is no assistant, no code editor, no test runner and no tutor on the phone, and the server does not expose them. The 13 MB Python runtime is never sent.
+- Progress and the to-do list sync both ways. The server merges by record (newer wins), so a phone that was offline cannot erase newer progress. A change on one device shows on the other without a reload.
+- Idle cost is a listening socket. Files are compressed once and cached; there are no timers while nobody is connected.
+- Add the page to the iPhone Home Screen for a full-screen app. The Mac must be awake with Prep open.
+- Switch it off with `{"web": {"enabled": false}}` in `settings.json` in the data folder; `{"web": {"port": N}}` changes the port.
+- `PREP_VERIFY_PHONE=1 npx electron dist/verify/index.cjs` runs only the phone checks.
+
 ## Prerequisites
 
 | Requirement | Why | Installed by `setup.sh`? |

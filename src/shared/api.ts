@@ -59,6 +59,8 @@ export interface PrepApi {
     get(key: string): Promise<string | null>
     set(key: string, value: string): Promise<void>
     remove(key: string): Promise<void>
+    /** Fires with the key after any device wrote it (and with '*' after a phone reconnects). */
+    onChanged(cb: (key: string) => void): () => void
   }
   agent: {
     run(request: { message: string; transcript: TranscriptEntry[]; context?: AskContext }): Promise<AgentResult>

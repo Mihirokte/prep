@@ -4,6 +4,7 @@ import type { Lesson } from '../../shared/types'
 import { Button } from '../ui/button'
 import { cn } from '../lib/utils'
 import { useTutorLine } from './Feedback'
+import { isWebClient } from '../platform'
 
 // The Questions tab: the lesson's own questions until you generate a set, then
 // the generated set. Generation runs through the tutor graph in the main
@@ -116,19 +117,21 @@ export function LessonQuestions({ lesson }: { lesson: Lesson }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="label" data-question-source={generated ? 'generated' : 'lesson'}>
           {items.length === 0
-            ? 'This topic has no questions yet.'
+            ? isWebClient
+              ? 'This topic has no questions yet. Generate them on the Mac.'
+              : 'This topic has no questions yet.'
             : generated
               ? `${items.length} generated questions, ${new Date(generated.at ?? '').toLocaleDateString()}`
               : `${items.length} questions from this lesson`}
           {mcqs > 0 && score.answered > 0 && `. ${score.right} of ${score.answered} right`}
         </p>
         <div className="flex items-center gap-2">
-          {generated && own.length > 0 && !busy && (
+          {generated && own.length > 0 && !busy && !isWebClient && (
             <Button variant="ghost" size="sm" onClick={() => void restoreOwn()}>
               Use the lesson's questions
             </Button>
           )}
-          {busy ? (
+          {isWebClient ? null : busy ? (
             <Button variant="outline" size="sm" onClick={() => void window.prep.tutor.cancel()}>
               Cancel
             </Button>

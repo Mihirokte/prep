@@ -46,6 +46,14 @@ Current seed totals (revision 10): 6 courses, 46 chapters, 562 lessons, 254 dril
 - Task 4 closed: every sd/lld/arch/ops/sec lesson has a `check` (117 lessons in total). About 40 of those checks have a correct option that is noticeably longer than the others (the build warns); rewrite them when convenient.
 - Task 5 (fact check): Infrastructure & Production chapter checked against sources by four parallel reviewers; about 40 corrections made (Bedrock/Azure pricing, k6 version, llm-d founders, CNCF levels for Litmus/Chaos Mesh, vLLM dates, Jetson/Apple TOPS figures and more). Unsourceable figures (Artificial Analysis 405B TTFT, MIT 89% outage prediction) were removed. Seed revision 10.
 
+## Phone access (done 2026-11-26)
+
+- `src/main/webserver.ts` serves the built pages and a JSON/SSE API on loopback; `src/main/handlers.ts` is the one call table shared with Electron IPC (`WEB_CHANNELS` is the phone's allowlist; agent and tutor generate/verify are excluded). Auth is the Tailscale login header plus Host/Origin checks.
+- Progress merges on the server for web writes (`src/shared/progressMerge.ts`); the Mac window overwrites so Reset still works and merges pushes from the phone (`useProgressSync`). The to-do list (`src/shared/todos.ts`) is stored under its own progress key with tombstones.
+- The renderer picks `window.prep` (preload) or an HTTP client (`webApi.ts`, installed by `installWeb.ts`); `isWebClient` gates the assistant, editor, timer, tutor tabs.
+- `verify:app` includes 25 phone checks; screenshots are `verify-report/phone-*.png`.
+- Not yet covered: a real iPhone pass over Tailscale (touch targets are checked from the stylesheet only; the verifier cannot emulate a coarse pointer); text selection and long-press behaviour on iOS.
+
 ## Next tasks, in order
 
 1. Fact-check the other imported AI chapters, same method: Tools & Protocols, Agent Engineering, Multi-Agent, Ethics & Safety, Capstone Projects are the most likely to contain stale product names and versions. Math, ML and Deep Learning Core are low risk.

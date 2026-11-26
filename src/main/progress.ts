@@ -1,4 +1,7 @@
 import { readFile, rename } from 'node:fs/promises'
+import { PROGRESS_KEY, mergePersisted } from '../shared/progressMerge'
+import { TODOS_KEY, mergeTodosRaw } from '../shared/todos'
+import { bus } from './events'
 import { isMissing, writeAtomic } from './fsutil'
 
 /** Key/value file behind redux-persist: the same serialized progress the web
@@ -32,8 +35,21 @@ export class ProgressStore {
     return Object.prototype.hasOwnProperty.call(this.data, key) ? this.data[key] : null
   }
 
+  /** Replace the value. The Mac window uses this, so Reset still empties progress;
+   *  the to-do list always merges because deleted items are tombstones. */
   set(key: string, value: string): Promise<void> {
-    this.data[key] = value
+    this.data[key] = key === TODOS_KEY ? mergeTodosRaw(this.get(key), value) : value
+    bus.emit('progress', key)
+    return this.flush()
+  }
+
+  /** Merge the value into what is stored, so a phone that was offline or stale
+   *  can never erase newer progress made elsewhere. */
+  setMerged(key: string, value: string): Promise<void> {
+    if (key === PROGRESS_KEY) this.data[key] = mergePersisted(this.get(key), value)
+    else if (key === TODOS_KEY) this.data[key] = mergeTodosRaw(this.get(key), value)
+    else throw new Error(`key ${key} cannot be written from here`)
+    bus.emit('progress', key)
     return this.flush()
   }
 

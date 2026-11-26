@@ -14,6 +14,10 @@ import { PatternIndex, PatternPage } from './routes/Patterns'
 import { useTheme } from './useTheme'
 import { ReviewPage } from './routes/Review'
 import { cn } from './lib/utils'
+import Todos from './components/Todos'
+import { isWebClient } from './platform'
+import { NARROW, useMedia } from './useMedia'
+import { useProgressSync } from './useSync'
 
 const ROUTES: { re: RegExp; render: (m: RegExpExecArray) => React.ReactNode; wide?: boolean }[] = [
   { re: /^#\/study\/([^/]+)\/([^/]+)$/, render: (m) => <LessonPage courseKey={m[1]} lessonId={m[2]} /> },
@@ -38,7 +42,11 @@ export default function App() {
   const hash = useHashRoute()
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [todosOpen, setTodosOpen] = useState(false)
+  const narrow = useMedia(NARROW)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(() => localStorage.getItem(SIDEBAR_KEY) !== 'closed')
+  useProgressSync()
   const contentRef = useRef<HTMLDivElement>(null)
   const [theme, toggleTheme] = useTheme()
 
@@ -59,6 +67,7 @@ export default function App() {
   // A new page starts at the top; the content pane is the scroller, not the window.
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0 })
+    setDrawerOpen(false)
   }, [hash])
 
   useEffect(() => {
@@ -110,14 +119,28 @@ export default function App() {
 
   return (
     <div className="flex h-full min-h-0">
-      <Sidebar hash={hash} open={sidebarOpen} />
+      {narrow ? (
+        <>
+          {drawerOpen && <div className="fixed inset-0 z-30 bg-[var(--scrim)]" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
+          <div
+            className={cn('fixed inset-y-0 left-0 z-40 transition-transform duration-200 ease-[var(--ease)]', drawerOpen ? 'translate-x-0' : '-translate-x-full')}
+            {...(drawerOpen ? {} : { inert: true })}
+          >
+            <Sidebar hash={hash} open />
+          </div>
+        </>
+      ) : (
+        <Sidebar hash={hash} open={sidebarOpen} />
+      )}
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Toolbar
-          sidebarOpen={sidebarOpen}
-          onToggleSidebar={() => setSidebarOpen((v) => !v)}
+          sidebarOpen={narrow ? drawerOpen : sidebarOpen}
+          narrow={narrow}
+          onToggleSidebar={() => (narrow ? setDrawerOpen((v) => !v) : setSidebarOpen((v) => !v))}
           onSearch={() => setPaletteOpen(true)}
           onAssistant={() => setAssistantOpen((v) => !v)}
+          onTodos={() => setTodosOpen(true)}
           assistantOpen={assistantOpen}
           theme={theme}
           onToggleTheme={toggleTheme}
@@ -128,13 +151,13 @@ export default function App() {
         <div ref={contentRef} data-scroll className={cn('relative min-h-0 flex-1', wide ? 'overflow-hidden' : 'overflow-y-auto')}>
           {/* Balance: the column is centered in the pane, so the weight sits on
               the pane's axis rather than piling up against the sidebar. */}
-          {wide ? <div className="h-full">{view}</div> : <div className="@container mx-auto w-full max-w-[1024px] px-8 pb-24 pt-2 sm:px-12">{view}</div>}
+          {wide ? <div className="h-full">{view}</div> : <div className="@container mx-auto w-full max-w-[1024px] px-4 pb-24 pt-2 sm:px-8 md:px-12">{view}</div>}
         </div>
       </div>
 
-      <Assistant open={assistantOpen} onClose={() => setAssistantOpen(false)} />
+      {isWebClient ? <Todos open={todosOpen} onClose={() => setTodosOpen(false)} /> : <Assistant open={assistantOpen} onClose={() => setAssistantOpen(false)} />}
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
-      <SelectionAsk root={contentRef} hash={hash} />
+      {!isWebClient && <SelectionAsk root={contentRef} hash={hash} />}
     </div>
   )
 }

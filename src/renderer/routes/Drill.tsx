@@ -20,6 +20,7 @@ import type { Drill, Problem } from '../types'
 import type { Pattern } from '../../shared/types'
 import type { TutorVerifyResult } from '../../shared/api'
 import { Feedback, useTutorLine } from '../components/Feedback'
+import { isWebClient } from '../platform'
 
 const fmt = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
@@ -34,7 +35,8 @@ function ExternalLink({ href, children }: { href: string; children: React.ReactN
 function useStopwatch(id: string) {
   const dispatch = useAppDispatch()
   const [sec, setSec] = useState(0)
-  const [running, setRunning] = useState(true)
+  // On the phone you are reading, not working the problem, so the clock stays off.
+  const [running, setRunning] = useState(!isWebClient)
   const secRef = useRef(0)
   secRef.current = sec
   useEffect(() => {
@@ -231,9 +233,9 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
   const similar = m.relatedProblems(drill.id, 8)
 
   const hasTests = Boolean(problem.tests?.length)
-  // Pyodide only matters for packs with authored local tests.
+  // Pyodide only matters for packs with authored local tests, and never loads on the phone.
   useEffect(() => {
-    if (!hasTests) return
+    if (!hasTests || isWebClient) return
     validator.onState = setState
     validator.start()
     setState(validator.state)
@@ -269,7 +271,7 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !reviewing) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !reviewing && !isWebClient) {
         e.preventDefault()
         void verify()
       }
@@ -321,7 +323,7 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* navigation bar: moving between problems, and the clock for this one */}
-      <div className="flex h-12 shrink-0 items-center gap-6 border-b border-hair px-3">
+      <div className="flex h-12 shrink-0 items-center gap-2 border-b border-hair px-3 sm:gap-6">
         <button type="button" className="tool" onClick={() => setPicker(true)}>
           Problems
         </button>
@@ -330,20 +332,25 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
           {nav(next, 'Next')}
         </span>
         <span className="flex-1" />
-        <button
-          type="button"
-          onClick={timer.toggle}
-          className={cn('tool num gap-2', timer.running && '!text-ink')}
-          aria-label={timer.running ? 'Pause timer' : 'Resume timer'}
-        >
-          {fmt(timer.sec)}
-          <span className="text-ink-2">{timer.running ? 'pause' : 'resume'}</span>
-        </button>
+        {!isWebClient && (
+          <button
+            type="button"
+            onClick={timer.toggle}
+            className={cn('tool num gap-2', timer.running && '!text-ink')}
+            aria-label={timer.running ? 'Pause timer' : 'Resume timer'}
+          >
+            {fmt(timer.sec)}
+            <span className="text-ink-2">{timer.running ? 'pause' : 'resume'}</span>
+          </button>
+        )}
       </div>
 
       {/* panes */}
-      <div ref={host} className="flex min-h-0 flex-1 max-lg:flex-col">
-        <div className="relative min-h-0 overflow-y-auto px-6 pb-16 pt-6 max-lg:max-h-[55%]" style={{ width: `${split}%` }}>
+      <div ref={host} className={cn('flex min-h-0 flex-1', isWebClient ? 'flex-col overflow-y-auto' : 'max-lg:flex-col')}>
+        <div
+          className={cn('relative px-4 pb-16 pt-6 sm:px-6', isWebClient ? 'w-full shrink-0' : 'min-h-0 overflow-y-auto max-lg:max-h-[55%]')}
+          style={isWebClient ? undefined : { width: `${split}%` }}
+        >
           <header className="border-b border-hair pb-6">
             <h1 className="!text-[20px] !leading-snug">{pixelText(drill.title)}</h1>
             <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -359,7 +366,7 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
             <TabsList className="flex-nowrap [&>[role=tab]]:px-2">
               <TabsTrigger value="description">Description</TabsTrigger>
               <TabsTrigger value="approach">Approach</TabsTrigger>
-              <TabsTrigger value="feedback">Feedback</TabsTrigger>
+              {!isWebClient && <TabsTrigger value="feedback">Feedback</TabsTrigger>}
               <TabsTrigger value="similar">Similar</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
             </TabsList>
@@ -416,6 +423,13 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
           <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-hair-strong group-hover:w-[3px] group-hover:bg-[var(--fill-hover)]" />
         </div>
 
+        {isWebClient ? (
+          <section aria-label="Your code" className="shrink-0 border-t border-hair-strong px-4 pb-10 pt-4 sm:px-6">
+            <p className="label text-ink">Your code (read only)</p>
+            <pre className="mt-3 max-h-[60vh] overflow-auto rounded-md border border-hair bg-surface p-3 text-[13px] leading-5">{savedCode ?? problem.starter_code}</pre>
+            <p className="mt-3 text-ink-2">Writing, running tests and tutor review happen on the Mac. Your status and notes sync both ways.</p>
+          </section>
+        ) : (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-hair pt-0 lg:border-l-0">
           <div className="flex h-11 shrink-0 items-center gap-3 border-b border-hair px-4">
             <span className="label text-ink">Pseudocode or Python</span>
@@ -461,6 +475,7 @@ function ProblemView({ drill, problem }: { drill: Drill; problem: Problem }) {
             )}
           </div>
         </div>
+        )}
       </div>
       <ProblemsPicker open={picker} onOpenChange={setPicker} currentId={drill.id} />
     </div>
@@ -543,7 +558,7 @@ export function DrillPage({ id }: { id: string }) {
         : { href: '#/', label: 'Overview' }
   const similar = m.relatedProblems(id, 6)
   return (
-    <div className="relative h-full overflow-y-auto px-8 pb-24 pt-2 sm:px-12">
+    <div className="relative h-full overflow-y-auto px-4 pb-24 pt-2 sm:px-8 md:px-12">
       <div className="mx-auto max-w-[640px]">
         <BackLink href={back.href}>{back.label}</BackLink>
         <div className="mb-6 flex flex-wrap items-baseline gap-x-6 gap-y-2">

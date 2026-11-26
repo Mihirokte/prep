@@ -12,13 +12,17 @@ import {
 } from 'electron'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import type { AskContext, MenuEvent, TranscriptEntry } from '../shared/api'
+import type { MenuEvent } from '../shared/api'
 import type { Content } from '../shared/types'
 import { Agent, type AgentSettings } from './agent'
+import { bus } from './events'
+import { createHandlers, type Handler } from './handlers'
 import { isMissing, writeAtomic } from './fsutil'
 import { ProgressStore } from './progress'
 import { ContentStore } from './store'
+import { tailnetIdentity } from './tailscale'
 import { Tutor } from './tutor'
+import { startWebServer, type WebServer } from './webserver'
 
 // Main process. Owns the data on disk and the assistant; the renderer is a
 // sandboxed page that reaches them only through the preload bridge.
@@ -67,6 +71,9 @@ export interface StartOptions {
   devUrl?: string
   /** Keep the window hidden (verification runs). */
   hidden?: boolean
+  /** Phone web server. By default it starts on loopback for the tailnet login
+   *  that owns this Mac; verification runs pass their own settings or false. */
+  web?: false | { port: number; logins: string[]; hosts: string[] }
 }
 
 export interface AppHandles {
@@ -75,6 +82,7 @@ export interface AppHandles {
   progress: ProgressStore
   agent: Agent
   dataDir: string
+  web: WebServer | null
 }
 
 const isHttp = (url: string) => /^https?:\/\//i.test(url)
@@ -119,7 +127,11 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
 
     const settings = await readSettings(path.join(userData, 'settings.json'))
     let win: BrowserWindow | null = null
-    const broadcast = (content: Content) => win?.webContents.send('content:changed', content)
+    const broadcast = (content: Content) => {
+      win?.webContents.send('content:changed', content)
+      bus.emit('content')
+    }
+    bus.on('progress', (key) => win?.webContents.send('progress:changed', key))
     const progressLine = (text: string) => win?.webContents.send('agent:progress', text)
     const agent = new Agent(store, path.join(userData, 'agent'), settings.agent ?? {}, broadcast, progressLine)
     await agent.init()
@@ -154,7 +166,27 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
       item.setSaveDialogOptions({ defaultPath: path.join(app.getPath('downloads'), item.getFilename()) })
     })
 
-    registerIpc({ store, progress, agent, tutor, isAppUrl })
+    const handlers = createHandlers({ store, progress, agent, tutor })
+    registerIpc(handlers, isAppUrl)
+
+    let web: WebServer | null = null
+    const webSettings = settings.web ?? {}
+    const webConfig = opts.web ?? (opts.userData || webSettings.enabled === false ? false : await defaultWebConfig(webSettings.port))
+    if (webConfig) {
+      try {
+        web = await startWebServer({
+          handlers,
+          rendererDir: RENDERER_DIR,
+          csp: CSP,
+          mime: MIME,
+          allowedLogins: webConfig.logins,
+          allowedHosts: webConfig.hosts,
+          port: webConfig.port,
+        })
+      } catch (e) {
+        console.error(`phone web server could not start on port ${webConfig.port}:`, e)
+      }
+    }
 
     const send = (ev: MenuEvent) => (BrowserWindow.getFocusedWindow() ?? win)?.webContents.send('menu', ev)
     const history = () => (BrowserWindow.getFocusedWindow() ?? win)?.webContents.navigationHistory
@@ -216,7 +248,7 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
       if (opts.userData) app.quit() // verification runs exit; the real app stays in the Dock like any Mac app
     })
 
-    return { window: () => win, store, progress, agent, dataDir }
+    return { window: () => win, store, progress, agent, dataDir, web }
   })
 }
 
@@ -224,6 +256,19 @@ export function startApp(opts: StartOptions = {}): Promise<AppHandles> {
 
 interface Settings {
   agent?: AgentSettings
+  /** Phone web server: on by default; set enabled false to switch it off. */
+  web?: { enabled?: boolean; port?: number }
+}
+
+export const DEFAULT_WEB_PORT = 5390
+
+async function defaultWebConfig(port?: number) {
+  const me = await tailnetIdentity()
+  if (!me) {
+    console.error('phone web server not started: Tailscale is not running or not signed in')
+    return false
+  }
+  return { port: port ?? DEFAULT_WEB_PORT, logins: [me.login], hosts: [me.dnsName, 'localhost', '127.0.0.1'] }
 }
 
 async function readSettings(file: string): Promise<Settings> {
@@ -302,105 +347,12 @@ function menuTemplate(ctx: {
 
 // ---- IPC: every handler checks its sender and its arguments ----
 
-function registerIpc(ctx: { store: ContentStore; progress: ProgressStore; agent: Agent; tutor: Tutor; isAppUrl: (url: string) => boolean }) {
-  const { store, progress, agent, tutor, isAppUrl } = ctx
-  const guard = (e: IpcMainInvokeEvent) => {
-    const url = e.senderFrame?.url ?? ''
-    if (!isAppUrl(url)) throw new Error(`blocked IPC from ${url || 'unknown frame'}`)
+function registerIpc(handlers: Record<string, Handler>, isAppUrl: (url: string) => boolean) {
+  for (const [channel, handler] of Object.entries(handlers)) {
+    ipcMain.handle(channel, (e: IpcMainInvokeEvent, ...args: unknown[]) => {
+      const url = e.senderFrame?.url ?? ''
+      if (!isAppUrl(url)) throw new Error(`blocked IPC from ${url || 'unknown frame'}`)
+      return handler(args, 'ipc')
+    })
   }
-  const str = (v: unknown, max: number, what: string): string => {
-    if (typeof v !== 'string' || v.length > max) throw new Error(`invalid ${what}`)
-    return v
-  }
-
-  ipcMain.handle('content:get', (e) => {
-    guard(e)
-    return store.get()
-  })
-  ipcMain.handle('progress:get', (e, key: unknown) => {
-    guard(e)
-    return progress.get(str(key, 200, 'key'))
-  })
-  ipcMain.handle('progress:set', (e, key: unknown, value: unknown) => {
-    guard(e)
-    return progress.set(str(key, 200, 'key'), str(value, 50_000_000, 'value'))
-  })
-  ipcMain.handle('progress:remove', (e, key: unknown) => {
-    guard(e)
-    return progress.remove(str(key, 200, 'key'))
-  })
-  ipcMain.handle('agent:run', (e, req: unknown) => {
-    guard(e)
-    const r = (req ?? {}) as { message?: unknown; transcript?: unknown; context?: unknown }
-    const message = str(r.message, 20_000, 'message').trim()
-    if (!message) throw new Error('empty command')
-    const transcript: TranscriptEntry[] = (Array.isArray(r.transcript) ? r.transcript : [])
-      .filter((t): t is TranscriptEntry => {
-        const x = t as TranscriptEntry
-        return Boolean(x) && ['user', 'assistant', 'applied'].includes(x.role) && typeof x.text === 'string'
-      })
-      .slice(-20)
-      .map((t) => ({ role: t.role, text: t.text.slice(0, 4000) }))
-    const c = (r.context ?? null) as Record<string, unknown> | null
-    const context: AskContext | undefined =
-      c?.kind === 'lesson'
-        ? {
-            kind: 'lesson',
-            courseKey: str(c.courseKey, 200, 'course key'),
-            lessonId: str(c.lessonId, 300, 'lesson id'),
-            quote: str(c.quote, 20_000, 'quote').trim(),
-          }
-        : c?.kind === 'page'
-          ? { kind: 'page', route: str(c.route, 500, 'route'), quote: str(c.quote, 20_000, 'quote').trim() }
-          : undefined
-    return agent.run(message, transcript, context)
-  })
-  ipcMain.handle('agent:memory', (e) => {
-    guard(e)
-    return agent.memory.list()
-  })
-  ipcMain.handle('agent:forget', async (e, id: unknown) => {
-    guard(e)
-    await agent.memory.forget([str(id, 40, 'memory id')])
-  })
-  ipcMain.handle('agent:cancel', (e) => {
-    guard(e)
-    agent.cancel()
-  })
-  ipcMain.handle('agent:apply', (e, id: unknown) => {
-    guard(e)
-    return agent.apply(str(id, 100, 'plan id'))
-  })
-  ipcMain.handle('agent:discard', (e, id: unknown) => {
-    guard(e)
-    agent.discard(str(id, 100, 'plan id'))
-  })
-  ipcMain.handle('agent:undo', (e) => {
-    guard(e)
-    return agent.undo()
-  })
-  ipcMain.handle('agent:status', (e) => {
-    guard(e)
-    return agent.status()
-  })
-  ipcMain.handle('tutor:questions', (e, id: unknown) => {
-    guard(e)
-    return tutor.questions(str(id, 300, 'lesson id'))
-  })
-  ipcMain.handle('tutor:generate', (e, id: unknown) => {
-    guard(e)
-    return tutor.generateQuestions(str(id, 300, 'lesson id'))
-  })
-  ipcMain.handle('tutor:clear', (e, id: unknown) => {
-    guard(e)
-    return tutor.clearQuestions(str(id, 300, 'lesson id'))
-  })
-  ipcMain.handle('tutor:verify', (e, id: unknown, code: unknown) => {
-    guard(e)
-    return tutor.verify(str(id, 300, 'problem id'), str(code, 100_000, 'code'))
-  })
-  ipcMain.handle('tutor:cancel', (e) => {
-    guard(e)
-    tutor.cancel()
-  })
 }

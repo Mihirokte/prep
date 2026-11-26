@@ -100,25 +100,7 @@ export function parseProgress(text: string): ParseResult {
   }
 }
 
-const newer = (a: string, b: string) => (Date.parse(a) || 0) > (Date.parse(b) || 0)
-
-/** Merge an imported file into current progress. Nothing the learner has is
- *  dropped: a record is replaced only by a newer one (by updatedAt), and a card
- *  only by one reviewed more often. Records only in the file are added. */
-export function mergeProgress(current: ProgressState, incoming: ProgressState): ProgressState {
-  const lessons = { ...current.lessons }
-  for (const [id, l] of Object.entries(incoming.lessons)) if (!lessons[id] || newer(l.updatedAt, lessons[id].updatedAt)) lessons[id] = l
-  const problems = { ...current.problems }
-  for (const [id, p] of Object.entries(incoming.problems)) {
-    const cur = problems[id]
-    if (!cur) problems[id] = p
-    else if (newer(p.updatedAt, cur.updatedAt))
-      problems[id] = { ...p, seconds: Math.max(p.seconds ?? 0, cur.seconds ?? 0) || undefined, solvedAt: cur.solvedAt ?? p.solvedAt }
-  }
-  const recall = { ...(current.recall ?? {}) }
-  for (const [id, c] of Object.entries(incoming.recall)) if (!recall[id] || c.seen > recall[id].seen) recall[id] = c
-  return { lessons, problems, recall }
-}
+export { mergeProgress } from '../shared/progressMerge'
 
 export function describeImport(r: ImportReport): string {
   const parts = [`${r.lessons} lessons`, `${r.problems} problems`, `${r.cards} review cards`]

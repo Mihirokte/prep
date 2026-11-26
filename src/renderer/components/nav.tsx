@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useModel } from '../model/context'
 import { cn } from '../lib/utils'
 import type { Theme } from '../useTheme'
+import { isWebClient } from '../platform'
 
 const SITE = 'https://mihirokte.info'
 
@@ -50,8 +51,8 @@ export function Sidebar({ hash, open }: { hash: string; open: boolean }) {
       )}
     >
       <div className="flex h-full w-64 flex-col">
-        {/* Title-bar strip: drags the window and hosts the traffic lights. */}
-        <div className="app-drag h-[52px] shrink-0" />
+        {/* Title-bar strip: drags the window and hosts the traffic lights (the Mac app only). */}
+        <div className={cn('app-drag shrink-0', isWebClient ? 'h-4' : 'h-[52px]')} />
 
         <div className="px-5 pb-4">
           <a href="#/" className="no-ring font-semibold text-[20px] leading-none text-ink no-underline hover:text-brand" aria-label="Prep home">
@@ -83,17 +84,21 @@ export function Sidebar({ hash, open }: { hash: string; open: boolean }) {
 
 export function Toolbar({
   sidebarOpen,
+  narrow,
   onToggleSidebar,
   onSearch,
   onAssistant,
+  onTodos,
   assistantOpen,
   theme,
   onToggleTheme,
 }: {
   sidebarOpen: boolean
+  narrow: boolean
   onToggleSidebar: () => void
   onSearch: () => void
   onAssistant: () => void
+  onTodos: () => void
   assistantOpen: boolean
   theme: Theme
   onToggleTheme: () => void
@@ -104,39 +109,49 @@ export function Toolbar({
     <header
       data-chrome
       className={cn(
-        'app-drag flex h-[52px] shrink-0 items-center gap-6 pr-4 transition-[padding] duration-[320ms] ease-[var(--ease)]',
-        sidebarOpen ? 'pl-3' : 'pl-[88px]',
+        'app-drag flex h-[52px] shrink-0 items-center transition-[padding] duration-[320ms] ease-[var(--ease)]',
+        narrow ? 'gap-1 px-2' : 'gap-6 pr-4',
+        // The Mac app leaves room for the window buttons when the sidebar is closed.
+        !narrow && (sidebarOpen || isWebClient ? 'pl-3' : 'pl-[88px]'),
       )}
     >
       <div className="no-drag flex items-center">
         <button type="button" className="tool" onClick={onToggleSidebar} aria-label="Toggle sidebar" aria-pressed={sidebarOpen} title="Toggle sidebar (Cmd Option S)">
-          Sidebar
+          {narrow ? 'Menu' : 'Sidebar'}
         </button>
       </div>
       <div className="no-drag flex items-center">
         <button type="button" className="tool" onClick={() => history.back()} aria-label="Back" title="Back (Cmd [)">
           Back
         </button>
-        <button type="button" className="tool" onClick={() => history.forward()} aria-label="Forward" title="Forward (Cmd ])">
-          Forward
-        </button>
+        {!narrow && (
+          <button type="button" className="tool" onClick={() => history.forward()} aria-label="Forward" title="Forward (Cmd ])">
+            Forward
+          </button>
+        )}
       </div>
       <span className="flex-1" />
       <div className="no-drag flex items-center">
         <button type="button" className="tool" onClick={onSearch} aria-label="Search" title="Search (Cmd K)">
           Search
         </button>
-        <button
-          type="button"
-          className={cn('tool', assistantOpen && 'bg-wash')}
-          onClick={onAssistant}
-          aria-label="Assistant"
-          aria-expanded={assistantOpen}
-          aria-controls="assistant"
-          title="Assistant (Cmd J)"
-        >
-          Assistant
-        </button>
+        {isWebClient ? (
+          <button type="button" className="tool" onClick={onTodos} aria-label="To-do list" aria-controls="todos">
+            To-do
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={cn('tool', assistantOpen && 'bg-wash')}
+            onClick={onAssistant}
+            aria-label="Assistant"
+            aria-expanded={assistantOpen}
+            aria-controls="assistant"
+            title="Assistant (Cmd J)"
+          >
+            Assistant
+          </button>
+        )}
       </div>
       <div className="no-drag flex items-center">
         <button

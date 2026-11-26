@@ -700,6 +700,25 @@
   line-height: 22px;
 }
 
+/* Touch screens: 44px targets, and 16px fields so iOS does not zoom on focus. */
+@media (pointer: coarse) {
+  .tool {
+    height: 44px;
+    min-width: 44px;
+  }
+  .side-item {
+    height: 44px;
+  }
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+}
+
 /* macOS: the hidden-inset title bar strip drags the window, like any Mac app. */
 .app-drag {
   app-region: drag;

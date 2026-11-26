@@ -1,4 +1,5 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, session } from 'electron'
+import http from 'node:http'
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -8,6 +9,9 @@ import { lintBlocks, parseCheck } from '../shared/blocks'
 import type { Content } from '../shared/types'
 import { buildHomeAreas } from '../renderer/areas'
 import { type AppHandles, startApp } from './app'
+import { bus } from './events'
+import { PROGRESS_KEY } from '../shared/progressMerge'
+import { TODOS_KEY } from '../shared/todos'
 
 // End-to-end verification of the real app, run with `npm run verify:app`.
 // Uses a throwaway data directory, so the user's own store is never touched.
@@ -31,6 +35,8 @@ import { type AppHandles, startApp } from './app'
 const OUT = path.resolve(process.env.PREP_VERIFY_OUT ?? 'verify-report')
 const WEBSITE = process.env.PREP_VERIFY_WEBSITE || null
 const AGENT = process.env.PREP_VERIFY_AGENT === '1'
+/** PREP_VERIFY_PHONE=1: run only the phone web checks (fast; the full run repeats them). */
+const PHONE_ONLY = process.env.PREP_VERIFY_PHONE === '1'
 /** PREP_VERIFY_SCENARIOS=<regex>: run only the matching assistant scenarios, and skip the page checks. */
 const ONLY = process.env.PREP_VERIFY_SCENARIOS ? new RegExp(process.env.PREP_VERIFY_SCENARIOS, 'i') : null
 const userData = mkdtempSync(path.join(os.tmpdir(), 'prep-verify-'))
@@ -1004,13 +1010,255 @@ async function assistantApi(h: AppHandles, seed: Content) {
 
 // ---------------------------------------------------------------------------
 
+// ---- the phone: web server, merge rules, and the page at phone size ----
+
+const PHONE_LOGIN = 'verify@example.com'
+
+interface Reply {
+  status: number
+  headers: http.IncomingHttpHeaders
+  body: Buffer
+}
+
+function request(port: number, method: string, pathname: string, opts: { login?: string | null; headers?: Record<string, string>; body?: unknown } = {}): Promise<Reply> {
+  const headers: Record<string, string> = { ...opts.headers }
+  if (opts.login !== null) headers['tailscale-user-login'] = opts.login ?? PHONE_LOGIN
+  const payload = opts.body === undefined ? undefined : typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body)
+  if (payload !== undefined) headers['content-type'] ??= 'application/json'
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: '127.0.0.1', port, method, path: pathname, headers }, (res) => {
+      const chunks: Buffer[] = []
+      res.on('data', (c: Buffer) => chunks.push(c))
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks) }))
+    })
+    req.on('error', reject)
+    req.end(payload)
+  })
+}
+
+async function phoneWeb(h: AppHandles, macWin: BrowserWindow, routes: string[]) {
+  const web = h.web
+  if (!check('the phone web server is listening', !!web, web ? `port ${web.port}` : 'it did not start')) return
+  const port = web!.port
+  const call = async (channel: string, ...args: unknown[]) => {
+    const r = await request(port, 'POST', `/api/call/${channel}`, { body: { args } })
+    return { status: r.status, json: JSON.parse(r.body.toString() || 'null') as { ok: boolean; result?: unknown; error?: string } }
+  }
+
+  // -- who may call, and what they may call --
+  const noLogin = await request(port, 'GET', '/', { login: null })
+  const otherLogin = await request(port, 'GET', '/', { login: 'someone@else.com' })
+  const badHost = await request(port, 'GET', '/', { headers: { host: 'evil.example' } })
+  const crossOrigin = await request(port, 'POST', '/api/call/progress:get', { headers: { origin: 'https://evil.example' }, body: { args: [PROGRESS_KEY] } })
+  check(
+    'web server refuses a caller without the owner login, another login, a foreign Host and a cross-origin request',
+    [noLogin, otherLogin, badHost, crossOrigin].every((r) => r.status === 403),
+    [noLogin, otherLogin, badHost, crossOrigin].map((r) => r.status).join(','),
+  )
+  const index = await request(port, 'GET', '/')
+  const pyodide = await request(port, 'GET', '/pyodide/pyodide.mjs')
+  check('web server serves the page and keeps the 13 MB Python runtime off the phone', index.status === 200 && /text\/html/.test(String(index.headers['content-type'])) && pyodide.status === 404, `${index.status}/${pyodide.status}`)
+  const blocked = await Promise.all(
+    ['agent:run', 'agent:apply', 'agent:undo', 'agent:memory', 'tutor:generate', 'tutor:verify', 'tutor:clear', 'progress:remove'].map((c) => call(c, 'x')),
+  )
+  check('the assistant, tutor generation and review, and progress removal are not reachable from the web', blocked.every((r) => r.status === 404), blocked.map((r) => r.status).join(','))
+  const badKey = await call('progress:get', 'persist:other')
+  const readKey = await call('tutor:questions', 'no-such-lesson')
+  check('the web can touch only the two progress keys, and can read existing questions', badKey.status === 400 && readKey.status === 200, `${badKey.status}/${readKey.status}`)
+
+  // -- compression and caching of the 8 MB library --
+  const plain = await request(port, 'GET', '/api/content', { headers: { 'accept-encoding': 'identity' } })
+  const br = await request(port, 'GET', '/api/content', { headers: { 'accept-encoding': 'br, gzip' } })
+  const again = await request(port, 'GET', '/api/content', { headers: { 'accept-encoding': 'br', 'if-none-match': String(br.headers.etag) } })
+  check(
+    'the library is sent compressed once built, and revalidates with a 304',
+    br.headers['content-encoding'] === 'br' && br.body.length < plain.body.length / 3 && again.status === 304,
+    `${(plain.body.length / 1e6).toFixed(1)} MB raw, ${(br.body.length / 1e6).toFixed(2)} MB br, revalidate ${again.status}`,
+  )
+
+  // -- merge rules: a stale or broken write never erases newer progress --
+  const content = h.store.get()
+  const lessonIds = content.courses.flatMap((c) => c.chapters.flatMap((ch) => ch.lessons.map((l) => ({ course: c.key, id: l.id }))))
+  const [L1, L2, L3] = lessonIds
+  const blob = (lessons: Record<string, unknown>) =>
+    JSON.stringify({ lessons: JSON.stringify(lessons), problems: '{}', recall: '{}', _persist: '{"version":1,"rehydrated":true}' })
+  const T1 = new Date(Date.now() - 120_000).toISOString()
+  const T2 = new Date(Date.now() - 60_000).toISOString()
+  await call('progress:set', PROGRESS_KEY, blob({ [L1.id]: { status: 'read', updatedAt: T2 } }))
+  await call('progress:set', PROGRESS_KEY, blob({ [L1.id]: { status: 'unread', updatedAt: T1 }, [L2.id]: { status: 'read', updatedAt: T1 } }))
+  await call('progress:set', PROGRESS_KEY, 'not json at all')
+  const merged = JSON.parse(JSON.parse(String((await call('progress:get', PROGRESS_KEY)).json.result)).lessons) as Record<string, { status: string }>
+  check(
+    'a stale phone write does not undo newer progress, adds what is new, and a corrupt write changes nothing',
+    merged[L1.id]?.status === 'read' && merged[L2.id]?.status === 'read',
+    JSON.stringify({ l1: merged[L1.id]?.status, l2: merged[L2.id]?.status }),
+  )
+  const t = (id: string, text: string, at: string, extra: object = {}) => ({ id, text, done: false, updatedAt: at, ...extra })
+  await call('progress:set', TODOS_KEY, JSON.stringify([t('a1', 'one', T1), t('b1', 'two', T1)]))
+  await call('progress:set', TODOS_KEY, JSON.stringify([t('b1', 'two', T2, { deleted: true }), t('c1', 'three', T1)]))
+  const todos = JSON.parse(String((await call('progress:get', TODOS_KEY)).json.result)) as { id: string; deleted?: boolean }[]
+  check('to-do items merge by item, and a delete on one device is not undone by a stale copy', todos.map((x) => `${x.id}${x.deleted ? '-' : ''}`).join() === 'a1,b1-,c1', JSON.stringify(todos.map((x) => x.id + (x.deleted ? '-' : ''))))
+
+  // -- the Mac window hears about phone writes --
+  await visit(macWin, `#/study/${L2.course}/${L2.id}`)
+  const macHears = await waitFor(() => pageText(macWin), (tx) => tx.includes('Marked read'), 6000, 'the Mac window to show the lesson the phone read').catch(() => '')
+  check('a lesson marked read from the phone shows as read in the Mac window without a reload', macHears.includes('Marked read'), L2.id)
+
+  // -- events reach connected pages --
+  const heard: string[] = []
+  const sse = http.request({ host: '127.0.0.1', port, path: '/api/events', headers: { 'tailscale-user-login': PHONE_LOGIN } }, (res) => {
+    res.on('data', (c: Buffer) => heard.push(c.toString()))
+  })
+  sse.end()
+  await waitFor(async () => heard.join(''), (v) => v.includes('event: hello'), 4000, 'the event stream')
+  await call('progress:set', TODOS_KEY, JSON.stringify([t('d1', 'four', T2)]))
+  bus.emit('content')
+  const got = await waitFor(async () => heard.join(''), (v) => v.includes('event: progress') && v.includes('event: content'), 4000, 'change events').catch(() => heard.join(''))
+  sse.destroy()
+  check('connected pages are told about progress and library changes', got.includes('event: progress') && got.includes('event: content'), got.replace(/\s+/g, ' ').slice(0, 120))
+
+  // -- the page at phone size --
+  const requested: string[] = []
+  const phoneErrors: string[] = []
+  const ses = session.fromPartition('verify-phone')
+  ses.webRequest.onBeforeSendHeaders((d, cb) => cb({ requestHeaders: { ...d.requestHeaders, 'Tailscale-User-Login': PHONE_LOGIN } }))
+  ses.webRequest.onBeforeRequest((d, cb) => {
+    requested.push(d.url)
+    cb({})
+  })
+  const phone = new BrowserWindow({ show: false, width: 390, height: 844, webPreferences: { partition: 'verify-phone', sandbox: true, contextIsolation: true, backgroundThrottling: false } })
+  phone.webContents.on('console-message', (...args: unknown[]) => {
+    const e = args[0] as { level?: unknown; message?: unknown }
+    const level = e?.level ?? args[1]
+    const message = String(e?.message ?? args[2] ?? '')
+    if (level === 'error' || level === 3 || /Content Security Policy/i.test(message)) phoneErrors.push(message)
+  })
+  phone.showInactive()
+  await phone.loadURL(`http://127.0.0.1:${port}/`)
+  await waitFor(() => js<boolean>(phone, `!!document.querySelector('header')`), Boolean, 20000, 'the phone page to render').catch(async (e: Error) => {
+    throw new Error(`${e.message}; page says "${(await js<string>(phone, `document.body.innerText.slice(0, 200)`)).replace(/\s+/g, ' ')}"; console: ${phoneErrors.slice(0, 3).join(' | ')}; fetch: ${await js<string>(phone, `fetch('./api/content').then((r) => r.status + ' ' + r.headers.get('content-encoding') + ' ' + r.headers.get('content-length')).then((s) => s, (e) => String(e))`).catch((x) => String(x))}`)
+  })
+  await phone.webContents.insertCSS('*,*::before,*::after{animation-duration:0.01ms!important;transition-duration:0.01ms!important}')
+
+  const chrome = await js<{ todo: boolean; assistant: boolean; panel: boolean; coarse: boolean; tools: number }>(
+    phone,
+    `({ todo: !!document.querySelector('button[aria-label="To-do list"]'), assistant: !!document.querySelector('button[aria-label="Assistant"]'), panel: !!document.getElementById('assistant'), coarse: matchMedia('(pointer: coarse)').matches, tools: Math.min(...[...document.querySelectorAll('header button')].map((b) => b.getBoundingClientRect().height)) })`,
+  )
+  check('on the phone the toolbar offers a to-do list and no assistant', chrome.todo && !chrome.assistant && !chrome.panel, JSON.stringify(chrome))
+  // The window cannot emulate a coarse pointer, so read the rule from the stylesheet instead.
+  const touchRule = await js<boolean>(
+    phone,
+    `[...document.styleSheets].some((sh) => [...sh.cssRules].some((r) => r instanceof CSSMediaRule && /pointer:\\s*coarse/.test(r.conditionText) && [...r.cssRules].some((x) => x.selectorText === '.tool' && x.style.height === '44px')))`,
+  )
+  check('on a touch screen toolbar buttons are 44px tall (stylesheet rule present)', touchRule, `desktop height ${chrome.tools}px`)
+  const drawer = await js<{ before: number; after: number }>(
+    phone,
+    `new Promise((resolve) => { const nav = document.querySelector('nav[aria-label="Sidebar"]'); const x = () => Math.round(nav.getBoundingClientRect().right); const before = x(); document.querySelector('button[aria-label="Toggle sidebar"]').click(); setTimeout(() => resolve({ before, after: x() }), 400) })`,
+  )
+  check('the sidebar is a drawer that is closed on load and opens from Menu', drawer.before <= 0 && drawer.after > 200, `right edge ${drawer.before}px then ${drawer.after}px`)
+  await shot(phone, 'phone-menu')
+  await js(phone, `document.querySelector('nav[aria-label="Sidebar"] a[href="#/review"]')?.click()`)
+  await sleep(300)
+  const closed = await js<number>(phone, `Math.round(document.querySelector('nav[aria-label="Sidebar"]').getBoundingClientRect().right)`)
+  check('choosing a page closes the drawer', closed <= 0, `${closed}px`)
+
+  if (process.env.PREP_VERIFY_PROBE) {
+    await visit(phone, process.env.PREP_VERIFY_PROBE)
+    console.log(
+      'PROBE',
+      await js<string>(
+        phone,
+        `(() => { const W = innerWidth; return [...document.querySelectorAll('#root *')].map((e) => ({ e, r: e.getBoundingClientRect().right })).filter((x) => x.r > W + 1).sort((a, b) => b.r - a.r).slice(0, 8).map((x) => { const chain = []; for (let n = x.e; n && n.id !== 'root'; n = n.parentElement) chain.push(n.tagName.toLowerCase() + '[' + getComputedStyle(n).overflowX + ']'); return Math.round(x.r) + ' ' + x.e.tagName + '.' + String(x.e.className).slice(0, 50) + ' <- ' + chain.slice(1, 6).join(' < ') }).join('\\n') })()`,
+      ),
+    )
+  }
+  // every route: no sideways scroll at phone width, nothing missing, no Python runtime fetched
+  const wide: string[] = []
+  const missing: string[] = []
+  for (const r of routes) {
+    const st = await visit(phone, r)
+    if (st.notFound) missing.push(r)
+    const o = await js<{ doc: number; pane: number }>(
+      phone,
+      `(() => { const de = document.documentElement, sc = document.querySelector('[data-scroll]'); return { doc: de.scrollWidth - de.clientWidth, pane: sc ? sc.scrollWidth - sc.clientWidth : 0 } })()`,
+    )
+    if (o.doc > 1 || o.pane > 1) {
+      // Name the first element that pokes out of the screen and is not inside its own scroller.
+      const who = await js<string>(
+        phone,
+        `(() => { const W = innerWidth; const scrolls = (el) => { for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) { if (!n.hasAttribute('data-scroll') && n.id !== 'root' && /auto|scroll|hidden|clip/.test(getComputedStyle(n).overflowX)) return true } return false }; const bad = [...document.querySelectorAll('#root *')].filter((e) => e.getBoundingClientRect().right > W + 1 && e.getBoundingClientRect().width > 0 && !scrolls(e)); const e = bad[0]; return e ? e.tagName.toLowerCase() + '.' + String(e.className).slice(0, 60) + ' ' + Math.round(e.getBoundingClientRect().right) : '' })()`,
+      )
+      wide.push(`${r} (+${Math.max(o.doc, o.pane)}px) ${who}`)
+    }
+  }
+  check(`every route renders at 390px (${routes.length} routes)`, missing.length === 0, missing.slice(0, 5).join(', '))
+  extra.phoneWide = wide
+  check('no route scrolls sideways at 390px', wide.length === 0, `${wide.length} routes; ${wide.slice(0, 6).join(' | ')}`)
+  check('the phone never asks for the Python runtime', !requested.some((u) => /pyodide|validate-worker/.test(u)), requested.filter((u) => /pyodide|validate-worker/.test(u)).slice(0, 2).join(','))
+
+  // reading and progress from the phone
+  const first = lessonIds[2]
+  await visit(phone, `#/study/${first.course}/${first.id}`)
+  await shot(phone, 'phone-lesson')
+  await click(phone, 'button', 'Mark as read')
+  const stored = await waitFor(
+    async () => JSON.parse(JSON.parse(String((await call('progress:get', PROGRESS_KEY)).json.result)).lessons) as Record<string, { status: string }>,
+    (v) => v[L3.id]?.status === 'read',
+    5000,
+    'the phone read mark to reach the Mac',
+  ).catch(() => ({}) as Record<string, { status: string }>)
+  check('marking a lesson read on the phone is stored on the Mac', stored[L3.id]?.status === 'read', L3.id)
+
+  const problem = routes.find((r) => r.startsWith('#/drill/dsa-'))!
+  await visit(phone, problem)
+  const drill = await js<{ editor: boolean; run: boolean; verify: boolean; readonly: boolean; feedback: boolean }>(
+    phone,
+    `({ editor: !!document.querySelector('.cm-editor'), run: [...document.querySelectorAll('button')].some((b) => /Run \\d+ tests|Verify/.test(b.textContent || '')), verify: !!document.querySelector('button[aria-label="Verify with the tutor"]'), readonly: document.body.textContent.includes('Your code (read only)'), feedback: [...document.querySelectorAll('[role=tab]')].some((t) => t.textContent === 'Feedback') })`,
+  )
+  check('a problem on the phone is read-only: no editor, no test runner, no tutor review', !drill.editor && !drill.run && !drill.verify && !drill.feedback && drill.readonly, JSON.stringify(drill))
+  await shot(phone, 'phone-problem')
+
+  // the to-do list
+  await visit(phone, '#/')
+  await shot(phone, 'phone-home')
+  await js(phone, `document.querySelector('button[aria-label="To-do list"]').click()`)
+  await waitFor(() => js<boolean>(phone, `!!document.getElementById('todo-input')`), Boolean, 3000, 'the to-do sheet')
+  await js(
+    phone,
+    `(() => { const el = document.getElementById('todo-input'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'Re-read the caching lesson'); el.dispatchEvent(new Event('input', { bubbles: true })); })()`,
+  )
+  await sleep(100)
+  await js(phone, `document.getElementById('todo-input').form.requestSubmit()`)
+  const hasTodo = async () => {
+    const list = JSON.parse(String((await call('progress:get', TODOS_KEY)).json.result)) as { text: string; done: boolean; deleted?: boolean }[]
+    return list.find((x) => x.text === 'Re-read the caching lesson') ?? null
+  }
+  const added = await waitFor(hasTodo, (v) => v !== null, 4000, 'the to-do to reach the Mac').catch(() => null)
+  check('a to-do added on the phone is stored on the Mac', added !== null)
+  await shot(phone, 'phone-todo')
+  await phone.webContents.reload()
+  await waitFor(() => js<boolean>(phone, `!!document.querySelector('header')`), Boolean, 20000, 'the phone page after reload')
+  await js(phone, `document.querySelector('button[aria-label="To-do list"]').click()`)
+  const back = await waitFor(() => js<string>(phone, `document.getElementById('todos')?.textContent ?? ''`), (v) => v.includes('Re-read the caching lesson'), 4000, 'the to-do after reload').catch(() => '')
+  check('the to-do list survives a reload', back.includes('Re-read the caching lesson'))
+  await js(phone, `[...document.querySelectorAll('#todos label')].find((l) => l.textContent.includes('Re-read the caching lesson')).querySelector('input').click()`)
+  const ticked = await waitFor(hasTodo, (v) => v?.done === true, 4000, 'the tick to reach the Mac').catch(() => null)
+  check('ticking a to-do on the phone is stored on the Mac', ticked?.done === true)
+  const clickedDelete = await js<boolean>(phone, `(() => { const b = document.querySelector('#todos button[aria-label="Delete: Re-read the caching lesson"]'); b?.click(); return !!b })()`)
+  const gone = await waitFor(hasTodo, (v) => v?.deleted === true, 4000, 'the delete to reach the Mac').catch(() => null)
+  check('deleting a to-do on the phone is stored on the Mac', gone?.deleted === true, `clicked ${clickedDelete}; ${JSON.stringify(await hasTodo())}`)
+
+  check('no renderer errors or CSP violations on the phone page', phoneErrors.length === 0, phoneErrors.slice(0, 3).join(' | '))
+  phone.destroy()
+}
+
 async function main() {
   mkdirSync(OUT, { recursive: true })
   // macOS cannot nest sandboxes: when this harness itself runs inside a
   // sandboxed parent (an agent shell, CI), Chromium's helper processes fail to
   // start theirs. Opt out for the test run only; the shipped app keeps it.
   if (process.env.PREP_VERIFY_NO_SANDBOX === '1') app.commandLine.appendSwitch('no-sandbox')
-  const h = await startApp({ userData, hidden: true })
+  const h = await startApp({ userData, hidden: true, web: { port: 0, logins: [PHONE_LOGIN], hosts: ['127.0.0.1', 'localhost'] } })
   const win = h.window()!
   const errors: string[] = []
   win.webContents.on('console-message', (...args: unknown[]) => {
@@ -1032,13 +1280,15 @@ async function main() {
   const seed = JSON.parse(readFileSync(path.join(__dirname, '..', '..', 'seed', 'content.json'), 'utf8')) as Content
   const routes = routesOf(h.store.get())
   try {
-    if (ONLY) await assistantApi(h, seed)
+    if (PHONE_ONLY) await phoneWeb(h, win, routes)
+    else if (ONLY) await assistantApi(h, seed)
     else {
       await auditSelfTest(win)
       await sweep(win, routes)
       await screens(win, h.store.get())
       await extraShots(win)
       await features(h, win)
+      await phoneWeb(h, win, routes)
       if (AGENT) {
         await assistantUi(h, win)
         await assistantApi(h, seed)

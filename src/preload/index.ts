@@ -20,6 +20,13 @@ const api: PrepApi = {
     get: (key) => ipcRenderer.invoke('progress:get', key),
     set: (key, value) => ipcRenderer.invoke('progress:set', key, value),
     remove: (key) => ipcRenderer.invoke('progress:remove', key),
+    onChanged: (cb) => {
+      const handler = (_e: IpcRendererEvent, key: string) => cb(key)
+      ipcRenderer.on('progress:changed', handler)
+      return () => {
+        ipcRenderer.removeListener('progress:changed', handler)
+      }
+    },
   },
   agent: {
     run: (request) => ipcRenderer.invoke('agent:run', request),

@@ -62,7 +62,7 @@ function ProblemEntry({ id, exclude }: { id: string; exclude: string }) {
         <Difficulty value={drill.difficulty} />
       </AccordionTrigger>
 
-      <AccordionContent className="pl-[124px]">
+      <AccordionContent className="sm:pl-[124px]">
         <div className="prose-col">
           {pack ? <Markdown body={pack.description_md} scope={`pp-${id}`} /> : <p>{pixelText(drill.prompt)}</p>}
 
